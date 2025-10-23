@@ -94,11 +94,34 @@ https://makersuite.google.com/app/apikey
 
 ---
 
-## 🎯 Current Status
+## ⌨️ Keyboard Shortcuts
 
-✅ Milestone 1 Complete (Backend Foundation)  
-⬜ Milestone 2 Next (Frontend Foundation)  
-📊 Overall Progress: 10%
+| Shortcut | Action |
+|----------|--------|
+| `Ctrl + Enter` | Send message |
+| `Ctrl + K` | Search chats |
+| `Ctrl + Shift + O` | New chat |
+| `Ctrl + S` | Toggle sidebar |
+| `Ctrl + /` | Show shortcuts |
+| `Ctrl + U` | Upload file |
+| `Escape` | Close modal/clear |
+
+## � Voice Input
+
+Click the microphone button or hold **Spacebar** to speak your message.
+
+## 🎯 Quick Actions
+
+Hover over bot messages to:
+- 📋 **Copy** - Copy message to clipboard
+- 👍 **Thumbs up** - Rate response positively
+- 👎 **Thumbs down** - Rate response negatively
+
+## �🎯 Current Status
+
+✅ Milestone 1-7 Complete (Backend, Frontend, Sessions, Features, Tools, Stats, UX)  
+⬜ Milestone 8 Next (Code Rendering & Markdown)  
+📊 Overall Progress: 70%
 
 ---
 
@@ -108,7 +131,10 @@ https://makersuite.google.com/app/apikey
 - **backend/README.md** - Backend setup guide
 - **PRD.md** - Product requirements
 - **todo.md** - Development roadmap
-- **MILESTONE_1_SUMMARY.md** - Completion details
+- **MILESTONE_1_SUMMARY.md** - Milestone 1 details
+- **MILESTONE_2_SUMMARY.md** - Milestone 2 details
+- **MILESTONE3_SUMMARY.md** - Milestone 3-6 details
+- **MILESTONE_7_SUMMARY.md** - Milestone 7 details (NEW!)
 
 ---
 

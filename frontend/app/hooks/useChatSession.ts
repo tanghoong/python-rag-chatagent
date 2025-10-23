@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { useLocalStorage } from "./useLocalStorage";
+import { fetchWithRetry } from "../utils/fetchWithRetry";
 
 interface ThoughtStep {
   step: string;
@@ -52,7 +53,12 @@ export function useChatSession() {
   const loadChatSession = async (chatId: string) => {
     try {
       setLoading(true);
-      const response = await fetch(`http://localhost:8000/api/chats/${chatId}`);
+      const response = await fetchWithRetry(`http://localhost:8000/api/chats/${chatId}`, {
+        method: "GET",
+      }, {
+        maxRetries: 2,
+        onRetry: (attempt) => console.log(`Retrying load chat session (attempt ${attempt})`)
+      });
 
       if (response.ok) {
         const data: ChatDetail = await response.json();
@@ -72,7 +78,7 @@ export function useChatSession() {
   // Create a new chat session
   const createNewChat = useCallback(async () => {
     try {
-      const response = await fetch("http://localhost:8000/api/chats", {
+      const response = await fetchWithRetry("http://localhost:8000/api/chats", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -80,6 +86,9 @@ export function useChatSession() {
         body: JSON.stringify({
           title: "New Chat",
         }),
+      }, {
+        maxRetries: 2,
+        onRetry: (attempt) => console.log(`Retrying create chat (attempt ${attempt})`)
       });
 
       if (response.ok) {
@@ -111,7 +120,7 @@ export function useChatSession() {
     }
   }, [abortController]);
 
-  // Send a message to the current chat
+  // Send a message to the current chat with streaming
   const sendMessage = async (message: string) => {
     if (!message.trim()) return null;
 
@@ -127,7 +136,8 @@ export function useChatSession() {
       };
       setMessages((prev) => [...prev, userMessage]);
 
-      const response = await fetch("http://localhost:8000/api/chat", {
+      // Use streaming endpoint
+      const response = await fetch("http://localhost:8000/api/chat/stream", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -139,28 +149,109 @@ export function useChatSession() {
         }),
       });
 
-      if (response.ok) {
-        const data = await response.json();
-
-        // Update active chat ID if it's a new chat
-        if (!activeChatId && data.chat_id) {
-          setActiveChatId(data.chat_id);
-        }
-
-        // Add assistant message with thought process
-        const assistantMessage: Message = {
-          role: "assistant",
-          content: data.response,
-          thought_process: data.thought_process || [],
-        };
-        setMessages((prev) => [...prev, assistantMessage]);
-
-        return data;
-      } else {
-        // Remove optimistic user message on error
-        setMessages((prev) => prev.slice(0, -1));
-        throw new Error("Failed to send message");
+      if (!response.ok) {
+        throw new Error("Streaming failed");
       }
+
+      const reader = response.body?.getReader();
+      const decoder = new TextDecoder();
+      let buffer = "";
+      let currentChatId = activeChatId;
+      let accumulatedContent = "";
+      let currentThoughtProcess: ThoughtStep[] = [];
+      let streamingMessageIndex = -1;
+
+      if (reader) {
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+
+          buffer += decoder.decode(value, { stream: true });
+          const lines = buffer.split("\n");
+          buffer = lines.pop() || "";
+
+          for (const line of lines) {
+            if (line.startsWith("data: ")) {
+              const data = line.slice(6);
+              if (data.trim()) {
+                try {
+                  const event = JSON.parse(data);
+
+                  switch (event.type) {
+                    case "chat_id":
+                      if (event.chat_id) {
+                        currentChatId = event.chat_id;
+                        setActiveChatId(event.chat_id);
+                      }
+                      break;
+
+                    case "title":
+                      // Title updated
+                      break;
+
+                    case "thought_process":
+                      if (event.steps) {
+                        currentThoughtProcess = event.steps;
+                      }
+                      break;
+
+                    case "token":
+                      if (event.content) {
+                        accumulatedContent += event.content;
+                        
+                        // Add or update streaming message
+                        if (streamingMessageIndex === -1) {
+                          const tempMessage: Message = {
+                            role: "assistant",
+                            content: accumulatedContent,
+                            thought_process: currentThoughtProcess,
+                          };
+                          setMessages((prev) => [...prev, tempMessage]);
+                          streamingMessageIndex = messages.length + 1;
+                        } else {
+                          setMessages((prev) => {
+                            const updated = [...prev];
+                            updated[updated.length - 1] = {
+                              role: "assistant",
+                              content: accumulatedContent,
+                              thought_process: currentThoughtProcess,
+                            };
+                            return updated;
+                          });
+                        }
+                      }
+                      break;
+
+                    case "done":
+                      // Final update with complete message
+                      if (streamingMessageIndex !== -1) {
+                        setMessages((prev) => {
+                          const updated = [...prev];
+                          updated[updated.length - 1] = {
+                            role: "assistant",
+                            content: accumulatedContent,
+                            thought_process: currentThoughtProcess,
+                          };
+                          return updated;
+                        });
+                      }
+                      break;
+
+                    case "error":
+                      console.error("Streaming error:", event.error);
+                      setMessages((prev) => prev.slice(0, -1)); // Remove user message
+                      break;
+                  }
+                } catch (e) {
+                  console.error("Error parsing SSE data:", e);
+                }
+              }
+            }
+          }
+        }
+      }
+
+      return { chat_id: currentChatId };
     } catch (error: any) {
       if (error.name === 'AbortError') {
         console.log("Message cancelled by user");
@@ -188,7 +279,7 @@ export function useChatSession() {
 
     try {
       setLoading(true);
-      const response = await fetch(
+      const response = await fetchWithRetry(
         `http://localhost:8000/api/chats/${activeChatId}/messages/${messageId}`,
         {
           method: "PUT",
@@ -196,6 +287,10 @@ export function useChatSession() {
             "Content-Type": "application/json",
           },
           body: JSON.stringify({ content: newContent }),
+        },
+        {
+          maxRetries: 2,
+          onRetry: (attempt) => console.log(`Retrying edit message (attempt ${attempt})`)
         }
       );
 
@@ -224,10 +319,14 @@ export function useChatSession() {
 
     try {
       setLoading(true);
-      const response = await fetch(
+      const response = await fetchWithRetry(
         `http://localhost:8000/api/chats/${activeChatId}/regenerate/${messageId}`,
         {
           method: "POST",
+        },
+        {
+          maxRetries: 2,
+          onRetry: (attempt) => console.log(`Retrying regenerate message (attempt ${attempt})`)
         }
       );
 
@@ -250,10 +349,14 @@ export function useChatSession() {
     if (!activeChatId) return;
 
     try {
-      const response = await fetch(
+      const response = await fetchWithRetry(
         `http://localhost:8000/api/chats/${activeChatId}/messages/${messageId}`,
         {
           method: "DELETE",
+        },
+        {
+          maxRetries: 2,
+          onRetry: (attempt) => console.log(`Retrying delete message (attempt ${attempt})`)
         }
       );
 
