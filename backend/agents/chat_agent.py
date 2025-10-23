@@ -4,7 +4,7 @@ LangChain ReAct Agent Module
 Implements a poetic AI assistant that responds in rhymes and intelligently uses tools.
 """
 
-from typing import List, Dict
+from typing import List, Dict, Tuple
 from langchain.agents import AgentExecutor, create_react_agent
 from langchain_core.prompts import PromptTemplate
 from utils.llm import get_llm
@@ -88,13 +88,16 @@ def create_chat_agent() -> AgentExecutor:
         verbose=True,  # Enable verbose logging for debugging
         max_iterations=8,
         handle_parsing_errors=True,
-        return_intermediate_steps=False
+        return_intermediate_steps=True  # CHANGED: Return intermediate steps for thought process
     )
     
     return agent_executor
 
 
-def get_agent_response(user_message: str, chat_history: List[Dict[str, str]] | None = None) -> str:
+def get_agent_response(
+    user_message: str, 
+    chat_history: List[Dict[str, str]] | None = None
+) -> Tuple[str, List[Dict[str, str]]]:
     """
     Get response from the agent for a user message with conversation history.
     
@@ -103,7 +106,9 @@ def get_agent_response(user_message: str, chat_history: List[Dict[str, str]] | N
         chat_history: List of previous messages [{"role": "user"|"assistant", "content": "..."}]
     
     Returns:
-        str: The agent's response (in rhyme)
+        Tuple[str, List[Dict[str, str]]]: (response, thought_process)
+            - response: The agent's final answer
+            - thought_process: List of reasoning steps [{"step": "Thought|Action|Observation", "content": "..."}]
     """
     try:
         agent = create_chat_agent()
@@ -125,19 +130,42 @@ def get_agent_response(user_message: str, chat_history: List[Dict[str, str]] | N
         # Extract the output
         response = result.get("output", "I apologize, but I encountered an error processing your request.")
         
-        return response
+        # Extract thought process from intermediate steps
+        thought_process = []
+        intermediate_steps = result.get("intermediate_steps", [])
+        
+        for step_tuple in intermediate_steps:
+            # Each step is a tuple: (AgentAction, observation)
+            if len(step_tuple) >= 2:
+                action, observation = step_tuple[0], step_tuple[1]
+                
+                # Add the thought/action
+                thought_process.append({
+                    "step": "Action",
+                    "content": f"Tool: {action.tool}, Input: {action.tool_input}"
+                })
+                
+                # Add the observation
+                thought_process.append({
+                    "step": "Observation",
+                    "content": str(observation)[:500]  # Limit observation length
+                })
+        
+        return response, thought_process
         
     except Exception as e:
         error_msg = f"An error occurred while processing your request: {str(e)}"
         print(f"❌ Agent Error: {error_msg}")
         
-        # Return a poetic error message
-        return (
+        # Return a poetic error message with empty thought process
+        error_response = (
             "I'm sorry, dear friend, but something went wrong,\n"
             "An error occurred as I tried to respond along.\n"
             "Please try again with a different phrase,\n"
             "And I'll assist you in much better ways!"
         )
+        
+        return error_response, [{"step": "Error", "content": error_msg}]
 
 
 # For testing
@@ -146,10 +174,12 @@ if __name__ == "__main__":
     
     # Test 1: General question (no tool usage)
     print("\n--- Test 1: General Question ---")
-    response1 = get_agent_response("What is Python?")
-    print(f"Response: {response1}\n")
+    response1, steps1 = get_agent_response("What is Python?")
+    print(f"Response: {response1}")
+    print(f"Thought Process: {steps1}\n")
     
     # Test 2: Database query (tool usage)
     print("\n--- Test 2: Database Query ---")
-    response2 = get_agent_response("Show me my posts about programming")
-    print(f"Response: {response2}\n")
+    response2, steps2 = get_agent_response("Show me my posts about programming")
+    print(f"Response: {response2}")
+    print(f"Thought Process: {steps2}\n")

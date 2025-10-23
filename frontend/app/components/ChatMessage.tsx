@@ -1,11 +1,18 @@
 import { User, Bot } from "lucide-react";
 import { ChatControls } from "./ChatControls";
+import ThoughtProcess from "./ThoughtProcess";
+
+interface ThoughtStep {
+  step: string;
+  content: string;
+}
 
 interface ChatMessageProps {
   role: "user" | "bot";
   content: string;
   messageId?: string;
   chatId?: string;
+  thoughtProcess?: ThoughtStep[];
   onEdit?: (messageId: string, newContent: string) => Promise<void>;
   onRegenerate?: (messageId: string) => Promise<void>;
   onDelete?: (messageId: string) => Promise<void>;
@@ -16,6 +23,7 @@ export function ChatMessage({
   content, 
   messageId, 
   chatId,
+  thoughtProcess,
   onEdit,
   onRegenerate,
   onDelete 
@@ -45,6 +53,11 @@ export function ChatMessage({
         <div className="whitespace-pre-wrap text-gray-100 leading-relaxed text-sm">
           {content}
         </div>
+        
+        {/* Thought Process - Only for bot messages */}
+        {!isUser && thoughtProcess && thoughtProcess.length > 0 && (
+          <ThoughtProcess steps={thoughtProcess} />
+        )}
         
         {/* Chat Controls */}
         {messageId && chatId && onEdit && onRegenerate && onDelete && (

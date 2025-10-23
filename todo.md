@@ -256,39 +256,44 @@
 ---
 
 ## 🎯 Milestone 6: Usage Statistics & Analytics
-**Goal**: Track tokens, costs, and tool usage
+**Goal**: Track tokens, costs, and tool usage and show the thought process behind each action
 
 ### Phase 6.1: Usage Tracking Models
-- [ ] Add `UsageStats` model
-- [ ] Add token tracking to messages
-- [ ] Add tool usage tracking
-- [ ] Add timestamp and duration fields
+- [x] Add `UsageStats` model
+- [x] Add token tracking to messages
+- [x] Add tool usage tracking
+- [x] Add timestamp and duration fields
 
-**Commit**: "Add usage statistics data models"
+**Commit**: "Add usage statistics data models" ✅
 
 ### Phase 6.2: Backend Tracking Implementation
-- [ ] Install `tiktoken` for token counting
-- [ ] Implement `update_usage_stats()` in repository
-- [ ] Add middleware to track request duration
-- [ ] Calculate estimated costs
+- [x] Install `tiktoken` for token counting
+- [x] Implement `update_usage_stats()` in repository
+- [x] Add middleware to track request duration
+- [x] Calculate estimated costs
 
-**Commit**: "Implement usage tracking backend"
+**Commit**: "Implement usage tracking backend" ✅
 
 ### Phase 6.3: Statistics Endpoint
-- [ ] Add `GET /api/chats/{chat_id}/stats` endpoint
-- [ ] Aggregate statistics per chat
-- [ ] Return token counts, costs, tool usage
-- [ ] Add average response time
+- [x] Add `GET /api/chats/{chat_id}/stats` endpoint
+- [x] Aggregate statistics per chat
+- [x] Return token counts, costs, tool usage
+- [x] Add average response time
 
-**Commit**: "Add statistics API endpoint"
+**Commit**: "Add statistics API endpoint" ✅
 
 ### Phase 6.4: Frontend Statistics Panel
-- [ ] Create statistics display component
-- [ ] Show token usage and costs
-- [ ] Display tool usage breakdown
-- [ ] Add toggle for stats panel
+- [x] Create statistics display component
+- [x] Show token usage and costs
+- [x] Display tool usage breakdown
+- [x] Add toggle for stats panel
 
-**Commit**: "Add usage statistics panel to chat UI"
+### Phase 6.5: Thought Process Display
+- [x] Modify backend to return agent reasoning steps
+- [x] Update frontend to display thought process per message
+
+
+**Commit**: "Add usage statistics panel and thought process to chat UI" ✅
 
 ---
 

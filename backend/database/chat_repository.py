@@ -8,6 +8,7 @@ from bson import ObjectId
 from motor.motor_asyncio import AsyncIOMotorCollection
 
 from models.chat_models import ChatSession, Message, ChatSessionResponse, ChatDetailResponse
+from models.usage_models import MessageStats, ChatSessionStats, TokenUsage, ToolUsage
 from database.connection import get_async_chats_collection
 
 
@@ -308,3 +309,106 @@ async def regenerate_from_message(chat_id: str, message_id: str) -> bool:
     except Exception as e:
         print(f"Error regenerating from message: {e}")
         return False
+
+
+async def save_message_stats(chat_id: str, message_stats: MessageStats) -> bool:
+    """
+    Save usage statistics for a specific message.
+    
+    Args:
+        chat_id: Chat session ID
+        message_stats: MessageStats object containing usage data
+    
+    Returns:
+        bool: True if successful, False otherwise
+    """
+    try:
+        collection: AsyncIOMotorCollection = get_async_chats_collection()
+        
+        # Store stats in a separate stats subcollection or embedded in metadata
+        # For simplicity, we'll embed it in the chat document's metadata
+        result = await collection.update_one(
+            {"_id": ObjectId(chat_id)},
+            {
+                "$push": {
+                    "message_stats": message_stats.model_dump(by_alias=True)
+                }
+            }
+        )
+        
+        return result.modified_count > 0
+    except Exception as e:
+        print(f"Error saving message stats: {e}")
+        return False
+
+
+async def get_chat_stats(chat_id: str) -> Optional[ChatSessionStats]:
+    """
+    Get aggregated statistics for a chat session.
+    
+    Args:
+        chat_id: Chat session ID
+    
+    Returns:
+        ChatSessionStats or None if not found
+    """
+    try:
+        collection: AsyncIOMotorCollection = get_async_chats_collection()
+        
+        chat_data = await collection.find_one({"_id": ObjectId(chat_id)})
+        
+        if not chat_data:
+            return None
+        
+        # Initialize session stats
+        session_stats = ChatSessionStats(
+            chat_id=chat_id,
+            total_messages=len(chat_data.get("messages", []))
+        )
+        
+        # Aggregate message stats if available
+        message_stats_list = chat_data.get("message_stats", [])
+        
+        for msg_stats_dict in message_stats_list:
+            try:
+                msg_stats = MessageStats(**msg_stats_dict)
+                session_stats.add_message_stats(msg_stats)
+            except Exception as e:
+                print(f"Error processing message stats: {e}")
+                continue
+        
+        return session_stats
+        
+    except Exception as e:
+        print(f"Error getting chat stats: {e}")
+        return None
+
+
+async def get_recent_message_stats(chat_id: str, limit: int = 10) -> List[MessageStats]:
+    """
+    Get recent message statistics for a chat.
+    
+    Args:
+        chat_id: Chat session ID
+        limit: Number of recent stats to retrieve
+    
+    Returns:
+        List of MessageStats objects
+    """
+    try:
+        collection: AsyncIOMotorCollection = get_async_chats_collection()
+        
+        chat_data = await collection.find_one({"_id": ObjectId(chat_id)})
+        
+        if not chat_data:
+            return []
+        
+        message_stats_list = chat_data.get("message_stats", [])
+        recent_stats = message_stats_list[-limit:] if len(message_stats_list) > limit else message_stats_list
+        
+        return [MessageStats(**stats) for stats in recent_stats]
+        
+    except Exception as e:
+        print(f"Error getting recent message stats: {e}")
+        return []
+

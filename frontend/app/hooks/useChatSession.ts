@@ -1,10 +1,16 @@
 import { useState, useEffect, useCallback } from "react";
 import { useLocalStorage } from "./useLocalStorage";
 
+interface ThoughtStep {
+  step: string;
+  content: string;
+}
+
 interface Message {
   id?: string;
   role: "user" | "assistant";
   content: string;
+  thought_process?: ThoughtStep[];
 }
 
 interface ChatSession {
@@ -128,10 +134,11 @@ export function useChatSession() {
           setActiveChatId(data.chat_id);
         }
 
-        // Add assistant message
+        // Add assistant message with thought process
         const assistantMessage: Message = {
           role: "assistant",
           content: data.response,
+          thought_process: data.thought_process || [],
         };
         setMessages((prev) => [...prev, assistantMessage]);
 

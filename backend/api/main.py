@@ -22,7 +22,9 @@ from database.chat_repository import (
     get_chat_messages,
     update_message,
     delete_message,
-    regenerate_from_message
+    regenerate_from_message,
+    get_chat_stats,
+    get_recent_message_stats
 )
 from models.chat_models import (
     Message,
@@ -30,6 +32,7 @@ from models.chat_models import (
     ChatSessionResponse,
     ChatDetailResponse
 )
+from models.usage_models import UsageStatsResponse
 from utils.title_generator import generate_chat_title
 
 # Load environment variables
@@ -74,6 +77,10 @@ class ChatResponse(BaseModel):
     response: str = Field(..., description="Bot's response in rhyme")
     chat_id: str = Field(..., description="Chat session ID")
     error: Optional[str] = Field(None, description="Error message if any")
+    thought_process: List[dict[str, str]] = Field(
+        default_factory=list,
+        description="Agent's reasoning steps (Thought/Action/Observation)"
+    )
 
 
 class UpdateTitleRequest(BaseModel):
@@ -176,8 +183,8 @@ async def chat(chat_message: ChatMessage):
             for msg in chat_history_messages[:-1]  # Exclude the message we just added
         ]
         
-        # Get response from agent with conversation history
-        response = get_agent_response(chat_message.message, chat_history=chat_history)
+        # Get response from agent with conversation history and thought process
+        response, thought_process = get_agent_response(chat_message.message, chat_history=chat_history)
         
         # Save assistant message
         assistant_message = Message(
@@ -189,7 +196,8 @@ async def chat(chat_message: ChatMessage):
         return ChatResponse(
             response=response,
             chat_id=chat_id,
-            error=None
+            error=None,
+            thought_process=thought_process
         )
         
     except HTTPException:
@@ -477,8 +485,8 @@ async def regenerate_message(chat_id: str, message_id: str):
             for msg in chat_history_messages[:-1]  # Exclude the last message (user message to regenerate)
         ]
         
-        # Generate new response with conversation history
-        response = get_agent_response(last_message.content, chat_history=chat_history)
+        # Generate new response with conversation history and thought process
+        response, thought_process = get_agent_response(last_message.content, chat_history=chat_history)
         
         # Save assistant message
         assistant_message = Message(
@@ -490,7 +498,8 @@ async def regenerate_message(chat_id: str, message_id: str):
         return {
             "message": "Response regenerated successfully",
             "chat_id": chat_id,
-            "response": response
+            "response": response,
+            "thought_process": thought_process
         }
     except HTTPException:
         raise
@@ -499,6 +508,53 @@ async def regenerate_message(chat_id: str, message_id: str):
             status_code=500,
             detail=f"Failed to regenerate message: {str(e)}"
         )
+
+
+@app.get("/api/chats/{chat_id}/stats", response_model=UsageStatsResponse)
+async def get_statistics(chat_id: str):
+    """
+    Get usage statistics for a specific chat session.
+    
+    Returns aggregated token usage, costs, tool usage, and performance metrics.
+    """
+    # Get session stats
+    session_stats = await get_chat_stats(chat_id)
+    
+    if not session_stats:
+        raise HTTPException(
+            status_code=404,
+            detail="Chat session not found or no statistics available"
+        )
+    
+    # Get recent message stats
+    recent_messages = await get_recent_message_stats(chat_id, limit=10)
+    
+    # Create breakdown data
+    breakdown = {
+        "tokens_per_message_avg": (
+            session_stats.total_tokens.total_tokens / session_stats.total_messages
+            if session_stats.total_messages > 0
+            else 0
+        ),
+        "cost_per_message_avg": (
+            session_stats.total_cost / session_stats.total_messages
+            if session_stats.total_messages > 0
+            else 0
+        ),
+        "tool_usage_count": len(session_stats.tool_usage_summary),
+        "most_used_tool": (
+            max(session_stats.tool_usage_summary, key=lambda t: t.call_count).tool_name
+            if session_stats.tool_usage_summary
+            else None
+        )
+    }
+    
+    return UsageStatsResponse(
+        chat_id=chat_id,
+        session_stats=session_stats,
+        recent_messages=recent_messages,
+        breakdown=breakdown
+    )
 
 
 # Startup and shutdown events

@@ -96,6 +96,7 @@ export default function Chat() {
                 content={message.content}
                 messageId={message.id}
                 chatId={activeChatId || undefined}
+                thoughtProcess={message.thought_process}
                 onEdit={editMessage}
                 onRegenerate={regenerateMessage}
                 onDelete={deleteMessage}
