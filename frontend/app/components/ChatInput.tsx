@@ -4,9 +4,10 @@ import { Send } from "lucide-react";
 interface ChatInputProps {
   onSend: (message: string) => void;
   disabled?: boolean;
+  inputRef?: React.RefObject<HTMLInputElement | null>;
 }
 
-export function ChatInput({ onSend, disabled = false }: Readonly<ChatInputProps>) {
+export function ChatInput({ onSend, disabled = false, inputRef }: Readonly<ChatInputProps>) {
   const [input, setInput] = useState("");
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -19,22 +20,23 @@ export function ChatInput({ onSend, disabled = false }: Readonly<ChatInputProps>
 
   return (
     <form onSubmit={handleSubmit} className="glass-card">
-      <div className="flex items-center space-x-4">
+      <div className="flex items-center space-x-3">
         <input
+          ref={inputRef}
           type="text"
           value={input}
           onChange={(e) => setInput(e.target.value)}
           disabled={disabled}
           placeholder="Ask me anything..."
-          className="flex-1 bg-transparent border-none outline-none text-white placeholder-gray-500 disabled:opacity-50"
+          className="flex-1 bg-transparent border-none outline-none text-white placeholder-gray-400 disabled:opacity-50 text-sm"
           maxLength={2000}
         />
         <button
           type="submit"
           disabled={disabled || !input.trim()}
-          className="gradient-button disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100 p-3"
+          className="gradient-button disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100 p-2"
         >
-          <Send className="w-5 h-5" />
+          <Send className="w-4 h-4" />
         </button>
       </div>
     </form>

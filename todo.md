@@ -126,57 +126,57 @@
 **Goal**: Multiple chat sessions with persistence
 
 ### Phase 3.1: Database Models
-- [ ] Create `models/chat_models.py`
-- [ ] Define `ChatSession` model
-- [ ] Define `Message` model
-- [ ] Add timestamps and metadata
+- [x] Create `models/chat_models.py`
+- [x] Define `ChatSession` model
+- [x] Define `Message` model
+- [x] Add timestamps and metadata
 
-**Commit**: "Add chat session and message data models"
+**Commit**: "Add chat session and message data models" ✅
 
 ### Phase 3.2: Chat Repository (CRUD)
-- [ ] Create `database/chat_repository.py`
-- [ ] Implement `create_chat_session()`
-- [ ] Implement `get_chat_session(chat_id)`
-- [ ] Implement `list_chat_sessions()`
-- [ ] Implement `add_message(chat_id, message)`
-- [ ] Implement `delete_chat_session(chat_id)`
+- [x] Create `database/chat_repository.py`
+- [x] Implement `create_chat_session()`
+- [x] Implement `get_chat_session(chat_id)`
+- [x] Implement `list_chat_sessions()`
+- [x] Implement `add_message(chat_id, message)`
+- [x] Implement `delete_chat_session(chat_id)`
 
-**Commit**: "Implement chat repository with CRUD operations"
+**Commit**: "Implement chat repository with CRUD operations" ✅
 
 ### Phase 3.3: Chat Management Endpoints
-- [ ] Add `GET /api/chats` - List all chats
-- [ ] Add `POST /api/chats` - Create new chat
-- [ ] Add `GET /api/chats/{chat_id}` - Get specific chat
-- [ ] Add `DELETE /api/chats/{chat_id}` - Delete chat
-- [ ] Update `POST /api/chat` to accept `chat_id`
+- [x] Add `GET /api/chats` - List all chats
+- [x] Add `POST /api/chats` - Create new chat
+- [x] Add `GET /api/chats/{chat_id}` - Get specific chat
+- [x] Add `DELETE /api/chats/{chat_id}` - Delete chat
+- [x] Update `POST /api/chat` to accept `chat_id`
 
-**Commit**: "Add chat session management API endpoints"
+**Commit**: "Add chat session management API endpoints" ✅
 
 ### Phase 3.4: Frontend Chat Sidebar
-- [ ] Create `components/ChatSidebar.tsx`
-- [ ] Implement chat list display
-- [ ] Add "New Chat" button
-- [ ] Add active chat highlighting
-- [ ] Make collapsible on mobile
+- [x] Create `components/ChatSidebar.tsx`
+- [x] Implement chat list display
+- [x] Add "New Chat" button
+- [x] Add active chat highlighting
+- [x] Make collapsible on mobile
 
-**Commit**: "Add chat sidebar for session management"
+**Commit**: "Add chat sidebar for session management" ✅
 
 ### Phase 3.5: Frontend State Management
-- [ ] Create `hooks/useChatSession.ts`
-- [ ] Create `hooks/useLocalStorage.ts`
-- [ ] Implement chat switching logic
-- [ ] Persist active chat ID locally
-- [ ] Load chat history on mount
+- [x] Create `hooks/useChatSession.ts`
+- [x] Create `hooks/useLocalStorage.ts`
+- [x] Implement chat switching logic
+- [x] Persist active chat ID locally
+- [x] Load chat history on mount
 
-**Commit**: "Implement chat session state management"
+**Commit**: "Implement chat session state management" ✅
 
 ### Phase 3.6: Auto-titling Feature
-- [ ] Add auto-title generation from first message
-- [ ] Update chat repository to set title
-- [ ] Display titles in sidebar
-- [ ] Allow manual title editing (optional)
+- [x] Add auto-title generation from first message
+- [x] Update chat repository to set title
+- [x] Display titles in sidebar
+- [x] Allow manual title editing (via PUT endpoint)
 
-**Commit**: "Add automatic chat title generation"
+**Commit**: "Add automatic chat title generation" ✅
 
 ---
 

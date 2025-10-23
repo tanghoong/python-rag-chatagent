@@ -9,6 +9,7 @@ from typing import Optional
 from pymongo import MongoClient
 from pymongo.collection import Collection
 from pymongo.database import Database
+from motor.motor_asyncio import AsyncIOMotorClient, AsyncIOMotorDatabase, AsyncIOMotorCollection
 from dotenv import load_dotenv
 
 # Load environment variables
@@ -20,9 +21,11 @@ DB_NAME = os.getenv("DB_NAME", "rag_chatbot")
 POSTS_COLLECTION = os.getenv("POSTS_COLLECTION", "personal_posts")
 CHATS_COLLECTION = os.getenv("CHATS_COLLECTION", "chat_sessions")
 
-# Global MongoDB client
+# Global MongoDB clients (sync and async)
 _client: Optional[MongoClient] = None
 _database: Optional[Database] = None
+_async_client: Optional[AsyncIOMotorClient] = None
+_async_database: Optional[AsyncIOMotorDatabase] = None
 
 
 def get_database() -> Database:
@@ -56,12 +59,41 @@ def get_posts_collection() -> Collection:
 
 def get_chats_collection() -> Collection:
     """
-    Get chat sessions collection.
+    Get chat sessions collection (synchronous).
     
     Returns:
         Collection: MongoDB collection for chat sessions
     """
     db = get_database()
+    return db[CHATS_COLLECTION]
+
+
+def get_async_database() -> AsyncIOMotorDatabase:
+    """
+    Get async MongoDB database instance for chat operations.
+    Creates connection if not exists.
+    
+    Returns:
+        AsyncIOMotorDatabase: Async MongoDB database instance
+    """
+    global _async_client, _async_database
+    
+    if _async_database is None:
+        _async_client = AsyncIOMotorClient(MONGODB_URI)
+        _async_database = _async_client[DB_NAME]
+        print(f"✅ Connected to async MongoDB database: {DB_NAME}")
+    
+    return _async_database
+
+
+def get_async_chats_collection() -> AsyncIOMotorCollection:
+    """
+    Get async chat sessions collection for async operations.
+    
+    Returns:
+        AsyncIOMotorCollection: Async MongoDB collection for chat sessions
+    """
+    db = get_async_database()
     return db[CHATS_COLLECTION]
 
 
