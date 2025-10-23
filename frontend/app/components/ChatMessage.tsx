@@ -1,15 +1,30 @@
 import { User, Bot } from "lucide-react";
+import { ChatControls } from "./ChatControls";
 
 interface ChatMessageProps {
   role: "user" | "bot";
   content: string;
+  messageId?: string;
+  chatId?: string;
+  onEdit?: (messageId: string, newContent: string) => Promise<void>;
+  onRegenerate?: (messageId: string) => Promise<void>;
+  onDelete?: (messageId: string) => Promise<void>;
 }
 
-export function ChatMessage({ role, content }: Readonly<ChatMessageProps>) {
+export function ChatMessage({ 
+  role, 
+  content, 
+  messageId, 
+  chatId,
+  onEdit,
+  onRegenerate,
+  onDelete 
+}: Readonly<ChatMessageProps>) {
   const isUser = role === "user";
+  const normalizedRole = role === "bot" ? "assistant" : role;
 
   return (
-    <div className={`flex items-start space-x-3 animate-fade-in ${isUser ? "flex-row-reverse space-x-reverse" : ""}`}>
+    <div className={`group flex items-start space-x-3 animate-fade-in ${isUser ? "flex-row-reverse space-x-reverse" : ""}`}>
       {/* Avatar */}
       <div 
         className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 shadow-lg ${
@@ -30,6 +45,19 @@ export function ChatMessage({ role, content }: Readonly<ChatMessageProps>) {
         <div className="whitespace-pre-wrap text-gray-100 leading-relaxed text-sm">
           {content}
         </div>
+        
+        {/* Chat Controls */}
+        {messageId && chatId && onEdit && onRegenerate && onDelete && (
+          <ChatControls
+            messageId={messageId}
+            chatId={chatId}
+            role={normalizedRole}
+            content={content}
+            onEdit={onEdit}
+            onRegenerate={onRegenerate}
+            onDelete={onDelete}
+          />
+        )}
       </div>
     </div>
   );

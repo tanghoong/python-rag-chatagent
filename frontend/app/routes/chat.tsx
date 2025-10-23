@@ -23,6 +23,9 @@ export default function Chat() {
     createNewChat,
     switchChat,
     startNewChat,
+    editMessage,
+    regenerateMessage,
+    deleteMessage,
   } = useChatSession();
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -88,9 +91,14 @@ export default function Chat() {
 
             {messages.map((message, index) => (
               <ChatMessage 
-                key={index} 
+                key={message.id || index}
                 role={message.role === "assistant" ? "bot" : message.role} 
-                content={message.content} 
+                content={message.content}
+                messageId={message.id}
+                chatId={activeChatId || undefined}
+                onEdit={editMessage}
+                onRegenerate={regenerateMessage}
+                onDelete={deleteMessage}
               />
             ))}
 

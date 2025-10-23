@@ -196,3 +196,115 @@ async def get_chat_messages(chat_id: str, limit: int = 10) -> List[Message]:
     except Exception as e:
         print(f"Error getting chat messages: {e}")
         return []
+
+
+async def update_message(chat_id: str, message_id: str, content: str) -> bool:
+    """
+    Update a specific message content in a chat session
+    
+    Args:
+        chat_id: Chat session ID
+        message_id: Message ID to update
+        content: New message content
+    
+    Returns:
+        bool: True if successful, False otherwise
+    """
+    collection: AsyncIOMotorCollection = get_async_chats_collection()
+    
+    try:
+        result = await collection.update_one(
+            {
+                "_id": ObjectId(chat_id),
+                "messages.id": message_id
+            },
+            {
+                "$set": {
+                    "messages.$.content": content,
+                    "updated_at": datetime.utcnow()
+                }
+            }
+        )
+        
+        return result.modified_count > 0
+    except Exception as e:
+        print(f"Error updating message: {e}")
+        return False
+
+
+async def delete_message(chat_id: str, message_id: str) -> bool:
+    """
+    Delete a specific message from a chat session
+    
+    Args:
+        chat_id: Chat session ID
+        message_id: Message ID to delete
+    
+    Returns:
+        bool: True if successful, False otherwise
+    """
+    collection: AsyncIOMotorCollection = get_async_chats_collection()
+    
+    try:
+        result = await collection.update_one(
+            {"_id": ObjectId(chat_id)},
+            {
+                "$pull": {"messages": {"id": message_id}},
+                "$set": {"updated_at": datetime.utcnow()}
+            }
+        )
+        
+        return result.modified_count > 0
+    except Exception as e:
+        print(f"Error deleting message: {e}")
+        return False
+
+
+async def regenerate_from_message(chat_id: str, message_id: str) -> bool:
+    """
+    Remove all messages after a specific message (for regeneration)
+    
+    Args:
+        chat_id: Chat session ID
+        message_id: Message ID to regenerate from
+    
+    Returns:
+        bool: True if successful, False otherwise
+    """
+    collection: AsyncIOMotorCollection = get_async_chats_collection()
+    
+    try:
+        # First, get the chat to find the message index
+        chat_data = await collection.find_one({"_id": ObjectId(chat_id)})
+        
+        if not chat_data or "messages" not in chat_data:
+            return False
+        
+        # Find the index of the message to regenerate from
+        message_index = -1
+        for i, msg in enumerate(chat_data["messages"]):
+            if msg.get("id") == message_id:
+                message_index = i
+                break
+        
+        if message_index == -1:
+            return False
+        
+        # Keep messages up to and including the target message
+        messages_to_keep = chat_data["messages"][:message_index + 1]
+        
+        # Update the chat with truncated messages
+        result = await collection.update_one(
+            {"_id": ObjectId(chat_id)},
+            {
+                "$set": {
+                    "messages": messages_to_keep,
+                    "updated_at": datetime.utcnow()
+                }
+            }
+        )
+        
+        return result.modified_count > 0
+    except Exception as e:
+        print(f"Error regenerating from message: {e}")
+        return False

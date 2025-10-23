@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from "react";
 import { useLocalStorage } from "./useLocalStorage";
 
 interface Message {
+  id?: string;
   role: "user" | "assistant";
   content: string;
 }
@@ -156,6 +157,85 @@ export function useChatSession() {
     setMessages([]);
   }, [setActiveChatId]);
 
+  // Edit a message
+  const editMessage = async (messageId: string, newContent: string) => {
+    if (!activeChatId) return;
+
+    try {
+      const response = await fetch(
+        `http://localhost:8000/api/chats/${activeChatId}/messages/${messageId}`,
+        {
+          method: "PUT",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ content: newContent }),
+        }
+      );
+
+      if (response.ok) {
+        // Reload the chat session to get updated messages
+        await loadChatSession(activeChatId);
+      } else {
+        throw new Error("Failed to edit message");
+      }
+    } catch (error) {
+      console.error("Error editing message:", error);
+      throw error;
+    }
+  };
+
+  // Regenerate a message
+  const regenerateMessage = async (messageId: string) => {
+    if (!activeChatId) return;
+
+    try {
+      setLoading(true);
+      const response = await fetch(
+        `http://localhost:8000/api/chats/${activeChatId}/regenerate/${messageId}`,
+        {
+          method: "POST",
+        }
+      );
+
+      if (response.ok) {
+        // Reload the chat session to get updated messages
+        await loadChatSession(activeChatId);
+      } else {
+        throw new Error("Failed to regenerate message");
+      }
+    } catch (error) {
+      console.error("Error regenerating message:", error);
+      throw error;
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Delete a message
+  const deleteMessage = async (messageId: string) => {
+    if (!activeChatId) return;
+
+    try {
+      const response = await fetch(
+        `http://localhost:8000/api/chats/${activeChatId}/messages/${messageId}`,
+        {
+          method: "DELETE",
+        }
+      );
+
+      if (response.ok) {
+        // Reload the chat session to get updated messages
+        await loadChatSession(activeChatId);
+      } else {
+        throw new Error("Failed to delete message");
+      }
+    } catch (error) {
+      console.error("Error deleting message:", error);
+      throw error;
+    }
+  };
+
   return {
     activeChatId,
     messages,
@@ -165,5 +245,8 @@ export function useChatSession() {
     switchChat,
     startNewChat,
     loadChatSession,
+    editMessage,
+    regenerateMessage,
+    deleteMessage,
   };
 }

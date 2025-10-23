@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { Link, useLocation } from "react-router";
 import { Menu, X, MessageSquare, Trash2 } from "lucide-react";
+import { ConfirmModal } from "./ConfirmModal";
 
 interface ChatSession {
   id: string;
@@ -21,6 +22,8 @@ export function ChatSidebar({ activeChatId, onChatSelect, onNewChat, onChatListR
   const [isOpen, setIsOpen] = useState(true);
   const [chats, setChats] = useState<ChatSession[]>([]);
   const [loading, setLoading] = useState(true);
+  const [deleteModalOpen, setDeleteModalOpen] = useState(false);
+  const [chatToDelete, setChatToDelete] = useState<string | null>(null);
   const location = useLocation();
   const isChatPage = location.pathname === "/chat";
 
@@ -56,26 +59,31 @@ export function ChatSidebar({ activeChatId, onChatSelect, onNewChat, onChatListR
 
   const handleDeleteChat = async (chatId: string, e: React.MouseEvent) => {
     e.stopPropagation();
-    
-    if (!confirm("Are you sure you want to delete this chat?")) {
-      return;
-    }
+    setChatToDelete(chatId);
+    setDeleteModalOpen(true);
+  };
+
+  const confirmDeleteChat = async () => {
+    if (!chatToDelete) return;
 
     try {
-      const response = await fetch(`http://localhost:8000/api/chats/${chatId}`, {
+      const response = await fetch(`http://localhost:8000/api/chats/${chatToDelete}`, {
         method: "DELETE",
       });
 
       if (response.ok) {
-        setChats(chats.filter((chat) => chat.id !== chatId));
+        setChats(chats.filter((chat) => chat.id !== chatToDelete));
         
         // If deleted chat was active, start new chat
-        if (activeChatId === chatId) {
+        if (activeChatId === chatToDelete) {
           onNewChat();
         }
       }
     } catch (error) {
       console.error("Failed to delete chat:", error);
+    } finally {
+      setDeleteModalOpen(false);
+      setChatToDelete(null);
     }
   };
 
@@ -171,6 +179,21 @@ export function ChatSidebar({ activeChatId, onChatSelect, onNewChat, onChatListR
           className="md:hidden fixed inset-0 bg-black/50 z-30"
         />
       )}
+
+      {/* Delete Confirmation Modal */}
+      <ConfirmModal
+        isOpen={deleteModalOpen}
+        title="Delete Chat"
+        message="Are you sure you want to delete this chat? All messages will be permanently removed."
+        confirmText="Delete"
+        cancelText="Cancel"
+        onConfirm={confirmDeleteChat}
+        onCancel={() => {
+          setDeleteModalOpen(false);
+          setChatToDelete(null);
+        }}
+        danger
+      />
     </>
   );
 }

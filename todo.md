@@ -184,37 +184,37 @@
 **Goal**: Edit, delete, regenerate messages
 
 ### Phase 4.1: Message Editing Backend
-- [ ] Add `update_message(chat_id, message_id, content)` to repository
-- [ ] Add `regenerate_from_message(chat_id, message_id)` function
-- [ ] Implement `PUT /api/chats/{chat_id}/messages/{message_id}` endpoint
-- [ ] Test message editing and regeneration
+- [x] Add `update_message(chat_id, message_id, content)` to repository
+- [x] Add `regenerate_from_message(chat_id, message_id)` function
+- [x] Implement `PUT /api/chats/{chat_id}/messages/{message_id}` endpoint
+- [x] Test message editing and regeneration
 
-**Commit**: "Add message editing and regeneration backend"
+**Commit**: "Add message editing and regeneration backend" ✅
 
 ### Phase 4.2: Message Editing Frontend
-- [ ] Create `components/ChatControls.tsx`
-- [ ] Add edit button to messages
-- [ ] Implement edit mode UI
-- [ ] Add regenerate functionality
-- [ ] Show controls on hover
+- [x] Create `components/ChatControls.tsx`
+- [x] Add edit button to messages
+- [x] Implement edit mode UI
+- [x] Add regenerate functionality
+- [x] Show controls on hover
 
-**Commit**: "Implement message editing UI with controls"
+**Commit**: "Implement message editing UI with controls" ✅
 
 ### Phase 4.3: Delete Confirmation
-- [ ] Add delete confirmation modal
-- [ ] Implement chat deletion UI
-- [ ] Add message deletion (optional)
-- [ ] Test delete functionality
+- [x] Add delete confirmation modal
+- [x] Implement chat deletion UI
+- [x] Add message deletion (optional)
+- [x] Test delete functionality
 
-**Commit**: "Add delete confirmation for chat sessions"
+**Commit**: "Add delete confirmation for chat sessions" ✅
 
 ### Phase 4.4: Conversation Context/Memory
-- [ ] Update agent to use chat history
-- [ ] Pass last 10 messages to agent for context
-- [ ] Test context-aware responses
-- [ ] Optimize context window size
+- [x] Update agent to use chat history
+- [x] Pass last 10 messages to agent for context
+- [x] Test context-aware responses
+- [x] Optimize context window size
 
-**Commit**: "Add conversation memory for context-aware responses"
+**Commit**: "Add conversation memory for context-aware responses" ✅
 
 ---
 

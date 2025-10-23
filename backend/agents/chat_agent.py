@@ -4,6 +4,7 @@ LangChain ReAct Agent Module
 Implements a poetic AI assistant that responds in rhymes and intelligently uses tools.
 """
 
+from typing import List, Dict
 from langchain.agents import AgentExecutor, create_react_agent
 from langchain_core.prompts import PromptTemplate
 from utils.llm import get_llm
@@ -35,6 +36,9 @@ CRITICAL RULES:
 3. For general questions, skip tools and answer directly in rhyme
 4. Keep your rhymes creative, engaging, and informative
 5. Maximum 8 iterations - be efficient with tool usage
+6. Use conversation history to maintain context and remember previous exchanges
+
+{chat_history}
 
 Examples:
 - "What is Python?" → Answer directly in rhyme (NO tool usage)
@@ -82,19 +86,33 @@ def create_chat_agent() -> AgentExecutor:
     return agent_executor
 
 
-def get_agent_response(user_message: str) -> str:
+def get_agent_response(user_message: str, chat_history: List[Dict[str, str]] | None = None) -> str:
     """
-    Get response from the agent for a user message.
+    Get response from the agent for a user message with conversation history.
     
     Args:
         user_message: The user's input message
+        chat_history: List of previous messages [{"role": "user"|"assistant", "content": "..."}]
     
     Returns:
         str: The agent's response (in rhyme)
     """
     try:
         agent = create_chat_agent()
-        result = agent.invoke({"input": user_message})
+        
+        # Format chat history for the prompt
+        history_text = ""
+        if chat_history and len(chat_history) > 0:
+            history_text = "\nConversation History:\n"
+            for msg in chat_history[-10:]:  # Last 10 messages for context
+                role_label = "User" if msg["role"] == "user" else "Assistant"
+                history_text += f"{role_label}: {msg['content']}\n"
+            history_text += "\n"
+        
+        result = agent.invoke({
+            "input": user_message,
+            "chat_history": history_text
+        })
         
         # Extract the output
         response = result.get("output", "I apologize, but I encountered an error processing your request.")

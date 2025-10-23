@@ -19,7 +19,10 @@ from database.chat_repository import (
     add_message,
     delete_chat_session,
     update_chat_title,
-    get_chat_messages
+    get_chat_messages,
+    update_message,
+    delete_message,
+    regenerate_from_message
 )
 from models.chat_models import (
     Message,
@@ -76,6 +79,11 @@ class ChatResponse(BaseModel):
 class UpdateTitleRequest(BaseModel):
     """Request model for updating chat title"""
     title: str = Field(..., min_length=1, max_length=200)
+
+
+class UpdateMessageRequest(BaseModel):
+    """Request model for updating message content"""
+    content: str = Field(..., min_length=1, max_length=5000)
 
 
 class HealthResponse(BaseModel):
@@ -161,8 +169,15 @@ async def chat(chat_message: ChatMessage):
             title = await generate_chat_title(chat_message.message.strip())
             await update_chat_title(chat_id, title)
         
-        # Get response from agent
-        response = get_agent_response(chat_message.message)
+        # Get conversation history for context (last 10 messages, excluding current one)
+        chat_history_messages = await get_chat_messages(chat_id, limit=10)
+        chat_history = [
+            {"role": msg.role, "content": msg.content}
+            for msg in chat_history_messages[:-1]  # Exclude the message we just added
+        ]
+        
+        # Get response from agent with conversation history
+        response = get_agent_response(chat_message.message, chat_history=chat_history)
         
         # Save assistant message
         assistant_message = Message(
@@ -341,6 +356,148 @@ async def update_title(chat_id: str, request: UpdateTitleRequest):
         raise HTTPException(
             status_code=500,
             detail=f"Failed to update chat title: {str(e)}"
+        )
+
+
+@app.put("/api/chats/{chat_id}/messages/{message_id}", tags=["Messages"])
+async def update_chat_message(chat_id: str, message_id: str, request: UpdateMessageRequest):
+    """
+    Update a specific message content
+    
+    Args:
+        chat_id: Chat session ID
+        message_id: Message ID
+        request: UpdateMessageRequest with new content
+    
+    Returns:
+        Success message
+    """
+    try:
+        updated = await update_message(chat_id, message_id, request.content)
+        
+        if not updated:
+            raise HTTPException(
+                status_code=404,
+                detail="Message not found"
+            )
+        
+        return {
+            "message": "Message updated successfully",
+            "chat_id": chat_id,
+            "message_id": message_id
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to update message: {str(e)}"
+        )
+
+
+@app.delete("/api/chats/{chat_id}/messages/{message_id}", tags=["Messages"])
+async def delete_chat_message(chat_id: str, message_id: str):
+    """
+    Delete a specific message
+    
+    Args:
+        chat_id: Chat session ID
+        message_id: Message ID
+    
+    Returns:
+        Success message
+    """
+    try:
+        deleted = await delete_message(chat_id, message_id)
+        
+        if not deleted:
+            raise HTTPException(
+                status_code=404,
+                detail="Message not found"
+            )
+        
+        return {
+            "message": "Message deleted successfully",
+            "chat_id": chat_id,
+            "message_id": message_id
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to delete message: {str(e)}"
+        )
+
+
+@app.post("/api/chats/{chat_id}/regenerate/{message_id}", tags=["Messages"])
+async def regenerate_message(chat_id: str, message_id: str):
+    """
+    Regenerate response from a specific message (removes all messages after it)
+    
+    Args:
+        chat_id: Chat session ID
+        message_id: Message ID to regenerate from
+    
+    Returns:
+        Success message with new response
+    """
+    try:
+        # Truncate messages after the specified message
+        truncated = await regenerate_from_message(chat_id, message_id)
+        
+        if not truncated:
+            raise HTTPException(
+                status_code=404,
+                detail="Message not found"
+            )
+        
+        # Get the updated chat to retrieve the last message
+        chat = await get_chat_session(chat_id)
+        
+        if not chat or len(chat.messages) == 0:
+            raise HTTPException(
+                status_code=400,
+                detail="No messages to regenerate from"
+            )
+        
+        # Get the last message (which should be the one we want to regenerate from)
+        last_message = chat.messages[-1]
+        
+        if last_message.role != "user":
+            raise HTTPException(
+                status_code=400,
+                detail="Can only regenerate from user messages"
+            )
+        
+        # Get conversation history for context (all remaining messages after truncation)
+        chat_history_messages = await get_chat_messages(chat_id, limit=10)
+        chat_history = [
+            {"role": msg.role, "content": msg.content}
+            for msg in chat_history_messages[:-1]  # Exclude the last message (user message to regenerate)
+        ]
+        
+        # Generate new response with conversation history
+        response = get_agent_response(last_message.content, chat_history=chat_history)
+        
+        # Save assistant message
+        assistant_message = Message(
+            role="assistant",
+            content=response
+        )
+        await add_message(chat_id, assistant_message)
+        
+        return {
+            "message": "Response regenerated successfully",
+            "chat_id": chat_id,
+            "response": response
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to regenerate message: {str(e)}"
         )
 
 
