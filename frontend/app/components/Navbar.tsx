@@ -47,7 +47,8 @@ export function Navbar({ onShowShortcuts }: Readonly<NavbarProps>) {
           {/* Mobile Menu Button */}
           <button
             onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-            className="md:hidden p-2 rounded-lg glass hover:bg-white/10 transition-colors"
+            className="md:hidden p-2 rounded-lg glass hover:bg-white/10 transition-colors min-w-[44px] min-h-[44px] flex items-center justify-center"
+            aria-label="Toggle menu"
           >
             {isMobileMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
           </button>

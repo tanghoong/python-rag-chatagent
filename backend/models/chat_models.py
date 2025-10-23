@@ -31,6 +31,7 @@ class Message(BaseModel):
     role: str = Field(..., description="Role: 'user' or 'assistant'")
     content: str = Field(..., description="Message content")
     timestamp: datetime = Field(default_factory=datetime.utcnow)
+    thought_process: Optional[List[dict]] = Field(default=None, description="Agent reasoning steps")
     metadata: Optional[dict] = Field(default=None, description="Optional metadata (tools used, etc.)")
 
     class Config:

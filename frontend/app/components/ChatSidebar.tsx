@@ -2,6 +2,8 @@ import { useState, useEffect, useRef } from "react";
 import { Link, useLocation } from "react-router";
 import { Menu, X, MessageSquare, Trash2 } from "lucide-react";
 import { ConfirmModal } from "./ConfirmModal";
+import { ChatListSkeleton } from "./SkeletonLoader";
+import { API_ENDPOINTS } from "../config";
 
 interface ChatSession {
   id: string;
@@ -68,7 +70,7 @@ export function ChatSidebar({
   const loadChats = async () => {
     try {
       setLoading(true);
-      const response = await fetch("http://localhost:8000/api/chats");
+      const response = await fetch(API_ENDPOINTS.chats);
       
       if (response.ok) {
         const data = await response.json();
@@ -104,7 +106,7 @@ export function ChatSidebar({
     if (!chatToDelete) return;
 
     try {
-      const response = await fetch(`http://localhost:8000/api/chats/${chatToDelete}`, {
+      const response = await fetch(API_ENDPOINTS.chatById(chatToDelete), {
         method: "DELETE",
       });
 
@@ -139,14 +141,15 @@ export function ChatSidebar({
       {/* Mobile toggle button */}
       <button
         onClick={handleToggle}
-        className="md:hidden fixed top-20 left-4 z-50 glass-card p-2 rounded-lg"
+        className="md:hidden fixed top-20 left-4 z-50 glass-card p-2 rounded-lg min-w-[44px] min-h-[44px] flex items-center justify-center"
+        aria-label={isOpen ? "Close sidebar" : "Open sidebar"}
       >
         {isOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
       </button>
 
       {/* Sidebar */}
       <aside
-        className={`fixed top-16 left-0 h-[calc(100vh-4rem)] w-56 glass-card transition-transform duration-300 z-40 flex flex-col ${
+        className={`fixed top-16 left-0 h-[calc(100vh-4rem)] w-64 sm:w-56 glass-card transition-transform duration-300 z-40 flex flex-col ${
           isOpen ? "translate-x-0" : "-translate-x-full"
         } md:translate-x-0`}
       >
@@ -176,9 +179,7 @@ export function ChatSidebar({
         {/* Chat List */}
         <div className="flex-1 overflow-y-auto p-2 space-y-1">
           {loading ? (
-            <div className="text-center text-gray-400 py-6 text-sm">
-              Loading...
-            </div>
+            <ChatListSkeleton />
           ) : filteredChats.length === 0 ? (
             <div className="text-center text-gray-400 py-6 text-xs">
               {searchQuery ? 'No chats found.' : 'No chats yet.'}<br />

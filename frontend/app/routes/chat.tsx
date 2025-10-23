@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import type { Route } from "./+types/chat";
+import { toast } from "sonner";
 import { AnimatedBackground } from "../components/AnimatedBackground";
 import { ChatMessage } from "../components/ChatMessage";
 import { ChatInput } from "../components/ChatInput";
@@ -123,6 +124,9 @@ export default function Chat() {
           if (codeBlocks.length > 0) {
             const lastCodeBlock = codeBlocks[codeBlocks.length - 1];
             navigator.clipboard.writeText(lastCodeBlock.textContent || '');
+            toast.success('Code copied to clipboard');
+          } else {
+            toast.error('No code blocks found');
           }
         },
         description: "Copy last code block",
@@ -224,20 +228,20 @@ export default function Chat() {
 
       {/* Main Chat Area */}
       <div className="relative z-10 flex-1 flex flex-col md:ml-64 overflow-hidden">
-        <div className="flex-1 flex flex-col max-w-4xl mx-auto w-full px-3 py-4 overflow-hidden">
+        <div className="flex-1 flex flex-col max-w-4xl mx-auto w-full px-2 sm:px-4 py-2 sm:py-4 overflow-hidden">
           {/* Header - Compact */}
-          <div className="text-center mb-4 shrink-0">
-            <h1 className="text-2xl font-bold gradient-text mb-1">Chat with AI</h1>
-            <p className="text-sm text-gray-400">Ask me anything in rhyme</p>
+          <div className="text-center mb-3 sm:mb-4 shrink-0">
+            <h1 className="text-xl sm:text-2xl font-bold gradient-text mb-1">Chat with AI</h1>
+            <p className="text-xs sm:text-sm text-gray-400">Ask me anything in rhyme</p>
           </div>
 
           {/* Messages Container */}
-          <div className="flex-1 overflow-y-auto custom-scrollbar space-y-3 mb-3 min-h-0">
+          <div className="flex-1 overflow-y-auto custom-scrollbar space-y-2 sm:space-y-3 mb-2 sm:mb-3 min-h-0">
             {messages.length === 0 && (
-              <div className="flex items-center justify-center h-full">
+              <div className="flex items-center justify-center h-full px-4">
                 <div className="text-center text-gray-500">
-                  <p className="text-lg mb-2">No messages yet</p>
-                  <p className="text-sm">Start a conversation by typing a message below</p>
+                  <p className="text-base sm:text-lg mb-2">No messages yet</p>
+                  <p className="text-xs sm:text-sm">Start a conversation by typing a message below</p>
                 </div>
               </div>
             )}
@@ -264,6 +268,7 @@ export default function Chat() {
                   thoughtProcess={message.thought_process}
                   isLastMessage={isLastMessage}
                   isLastUserMessage={isLastUserMessage}
+                  timestamp={message.created_at || message.timestamp}
                   onEdit={editMessage}
                   onRegenerate={handleRegenerate}
                   onDelete={deleteMessage}

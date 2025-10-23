@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { toast } from "sonner";
 import { Copy, ThumbsUp, ThumbsDown, Check } from "lucide-react";
 
 interface QuickActionsProps {
@@ -15,9 +16,11 @@ export function QuickActions({ content, messageId, onFeedback }: Readonly<QuickA
     try {
       await navigator.clipboard.writeText(content);
       setCopied(true);
+      toast.success("Copied to clipboard");
       setTimeout(() => setCopied(false), 2000);
     } catch (error) {
       console.error("Failed to copy text:", error);
+      toast.error("Failed to copy");
     }
   };
 
@@ -26,6 +29,7 @@ export function QuickActions({ content, messageId, onFeedback }: Readonly<QuickA
     if (messageId && onFeedback) {
       onFeedback(messageId, type);
     }
+    toast.success(type === "up" ? "Thanks for the positive feedback!" : "Thanks for the feedback");
   };
 
   return (

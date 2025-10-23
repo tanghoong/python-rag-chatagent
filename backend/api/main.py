@@ -189,10 +189,12 @@ async def chat(chat_message: ChatMessage):
         # Get response from agent with conversation history and thought process
         response, thought_process = get_agent_response(chat_message.message, chat_history=chat_history)
         
-        # Save assistant message
+        # Save assistant message with thought process
         assistant_message = Message(
             role="assistant",
-            content=response
+            content=response,
+            thought_process=thought_process,
+            metadata={"thought_process": thought_process} if thought_process else None
         )
         await add_message(chat_id, assistant_message)
         
@@ -282,10 +284,12 @@ async def chat_stream(chat_message: ChatMessage):
                 yield f"data: {json.dumps({'type': 'token', 'content': word + (' ' if i < len(words) - 1 else '')})}\n\n"
                 await asyncio.sleep(0.05)  # Small delay between words for streaming effect
             
-            # Save assistant message
+            # Save assistant message with thought process
             assistant_message = Message(
                 role="assistant",
-                content=response
+                content=response,
+                thought_process=thought_process,
+                metadata={"thought_process": thought_process} if thought_process else None
             )
             await add_message(chat_id, assistant_message)
             
@@ -577,10 +581,11 @@ async def regenerate_message(chat_id: str, message_id: str):
         # Generate new response with conversation history and thought process
         response, thought_process = get_agent_response(last_message.content, chat_history=chat_history)
         
-        # Save assistant message
+        # Save assistant message with thought process in metadata
         assistant_message = Message(
             role="assistant",
-            content=response
+            content=response,
+            metadata={"thought_process": thought_process} if thought_process else None
         )
         await add_message(chat_id, assistant_message)
         

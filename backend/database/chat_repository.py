@@ -59,6 +59,12 @@ async def get_chat_session(chat_id: str) -> Optional[ChatDetailResponse]:
         # Convert ObjectId to string for response
         chat_data["id"] = str(chat_data.pop("_id"))
         
+        # Transform messages to include thought_process from metadata
+        if "messages" in chat_data:
+            for msg in chat_data["messages"]:
+                if msg.get("metadata") and "thought_process" in msg["metadata"]:
+                    msg["thought_process"] = msg["metadata"]["thought_process"]
+        
         return ChatDetailResponse(**chat_data)
     except Exception as e:
         print(f"Error getting chat session: {e}")

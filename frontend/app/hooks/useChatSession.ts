@@ -1,6 +1,8 @@
 import { useState, useEffect, useCallback } from "react";
+import { toast } from "sonner";
 import { useLocalStorage } from "./useLocalStorage";
 import { fetchWithRetry } from "../utils/fetchWithRetry";
+import { API_ENDPOINTS } from "../config";
 
 interface ThoughtStep {
   step: string;
@@ -12,6 +14,8 @@ interface Message {
   role: "user" | "assistant";
   content: string;
   thought_process?: ThoughtStep[];
+  created_at?: string;
+  timestamp?: string;
 }
 
 interface ChatSession {
@@ -53,7 +57,7 @@ export function useChatSession() {
   const loadChatSession = async (chatId: string) => {
     try {
       setLoading(true);
-      const response = await fetchWithRetry(`http://localhost:8000/api/chats/${chatId}`, {
+      const response = await fetchWithRetry(API_ENDPOINTS.chatById(chatId), {
         method: "GET",
       }, {
         maxRetries: 2,
@@ -65,10 +69,12 @@ export function useChatSession() {
         setMessages(data.messages);
       } else {
         console.error("Failed to load chat session");
+        toast.error("Failed to load chat session");
         setMessages([]);
       }
     } catch (error) {
       console.error("Error loading chat session:", error);
+      toast.error("Error loading chat");
       setMessages([]);
     } finally {
       setLoading(false);
@@ -78,7 +84,7 @@ export function useChatSession() {
   // Create a new chat session
   const createNewChat = useCallback(async () => {
     try {
-      const response = await fetchWithRetry("http://localhost:8000/api/chats", {
+      const response = await fetchWithRetry(API_ENDPOINTS.chats, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -95,10 +101,12 @@ export function useChatSession() {
         const data = await response.json();
         setActiveChatId(data.chat_id);
         setMessages([]);
+        toast.success("New chat created");
         return data.chat_id;
       }
     } catch (error) {
       console.error("Error creating new chat:", error);
+      toast.error("Failed to create new chat");
     }
     return null;
   }, [setActiveChatId]);
@@ -129,15 +137,16 @@ export function useChatSession() {
       const controller = new AbortController();
       setAbortController(controller);
 
-      // Add user message optimistically
+      // Add user message optimistically with timestamp
       const userMessage: Message = {
         role: "user",
         content: message,
+        timestamp: new Date().toISOString(),
       };
       setMessages((prev) => [...prev, userMessage]);
 
       // Use streaming endpoint
-      const response = await fetch("http://localhost:8000/api/chat/stream", {
+      const response = await fetch(API_ENDPOINTS.chatStream, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -255,8 +264,10 @@ export function useChatSession() {
     } catch (error: any) {
       if (error.name === 'AbortError') {
         console.log("Message cancelled by user");
+        toast.info("Message cancelled");
       } else {
         console.error("Error sending message:", error);
+        toast.error("Failed to send message");
       }
       // Remove optimistic user message on error
       setMessages((prev) => prev.slice(0, -1));
@@ -297,6 +308,7 @@ export function useChatSession() {
       if (response.ok) {
         // Reload the chat session to get updated messages
         await loadChatSession(activeChatId);
+        toast.success("Message updated");
         
         // If this is the last user message, regenerate the assistant response
         if (shouldRegenerate) {
@@ -307,6 +319,7 @@ export function useChatSession() {
       }
     } catch (error) {
       console.error("Error editing message:", error);
+      toast.error("Failed to edit message");
       throw error;
     } finally {
       setLoading(false);
@@ -320,7 +333,7 @@ export function useChatSession() {
     try {
       setLoading(true);
       const response = await fetchWithRetry(
-        `http://localhost:8000/api/chats/${activeChatId}/regenerate/${messageId}`,
+        API_ENDPOINTS.regenerate(activeChatId, messageId),
         {
           method: "POST",
         },
@@ -333,11 +346,13 @@ export function useChatSession() {
       if (response.ok) {
         // Reload the chat session to get updated messages
         await loadChatSession(activeChatId);
+        toast.success("Response regenerated");
       } else {
         throw new Error("Failed to regenerate message");
       }
     } catch (error) {
       console.error("Error regenerating message:", error);
+      toast.error("Failed to regenerate message");
       throw error;
     } finally {
       setLoading(false);
@@ -363,11 +378,13 @@ export function useChatSession() {
       if (response.ok) {
         // Reload the chat session to get updated messages
         await loadChatSession(activeChatId);
+        toast.success("Message deleted");
       } else {
         throw new Error("Failed to delete message");
       }
     } catch (error) {
       console.error("Error deleting message:", error);
+      toast.error("Failed to delete message");
       throw error;
     }
   };

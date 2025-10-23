@@ -125,7 +125,7 @@ print("Sample posts inserted!")
 **IMPORTANT:** Run from the `backend` directory (not `api` directory):
 
 ```cmd
-python -m uvicorn api.main:app --reload --host 0.0.0.0 --port 8000
+py -m uvicorn api.main:app --reload --host 0.0.0.0 --port 8000
 ```
 
 OR using the quick start script:

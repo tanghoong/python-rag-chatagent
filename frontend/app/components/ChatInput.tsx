@@ -25,7 +25,7 @@ export function ChatInput({ onSend, disabled = false, inputRef }: Readonly<ChatI
 
   return (
     <form onSubmit={handleSubmit} className="glass-card">
-      <div className="flex items-center space-x-3">
+      <div className="flex items-center space-x-2 sm:space-x-3">
         <input
           ref={inputRef}
           type="text"
@@ -33,16 +33,17 @@ export function ChatInput({ onSend, disabled = false, inputRef }: Readonly<ChatI
           onChange={(e) => setInput(e.target.value)}
           disabled={disabled}
           placeholder="Ask me anything..."
-          className="flex-1 bg-transparent border-none outline-none text-white placeholder-gray-400 disabled:opacity-50 text-sm"
+          className="flex-1 bg-transparent border-none outline-none text-white placeholder-gray-400 disabled:opacity-50 text-sm sm:text-base py-1"
           maxLength={2000}
         />
         <VoiceInput onTranscript={handleVoiceTranscript} disabled={disabled} />
         <button
           type="submit"
           disabled={disabled || !input.trim()}
-          className="gradient-button disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100 p-2"
+          className="gradient-button disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100 p-2 sm:p-2.5 min-w-[40px] min-h-[40px]"
+          aria-label="Send message"
         >
-          <Send className="w-4 h-4" />
+          <Send className="w-4 h-4 sm:w-5 sm:h-5" />
         </button>
       </div>
     </form>
