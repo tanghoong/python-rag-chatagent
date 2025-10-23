@@ -1,6 +1,7 @@
 import { User, Bot } from "lucide-react";
 import { ChatControls } from "./ChatControls";
 import ThoughtProcess from "./ThoughtProcess";
+import { QuickActions } from "./QuickActions";
 
 interface ThoughtStep {
   step: string;
@@ -13,6 +14,8 @@ interface ChatMessageProps {
   messageId?: string;
   chatId?: string;
   thoughtProcess?: ThoughtStep[];
+  isLastMessage?: boolean;
+  isLastUserMessage?: boolean;
   onEdit?: (messageId: string, newContent: string) => Promise<void>;
   onRegenerate?: (messageId: string) => Promise<void>;
   onDelete?: (messageId: string) => Promise<void>;
@@ -24,6 +27,8 @@ export function ChatMessage({
   messageId, 
   chatId,
   thoughtProcess,
+  isLastMessage = false,
+  isLastUserMessage = false,
   onEdit,
   onRegenerate,
   onDelete 
@@ -59,6 +64,9 @@ export function ChatMessage({
           <ThoughtProcess steps={thoughtProcess} />
         )}
         
+        {/* Quick Actions - Only for bot messages */}
+        {!isUser && <QuickActions content={content} messageId={messageId} />}
+        
         {/* Chat Controls */}
         {messageId && chatId && onEdit && onRegenerate && onDelete && (
           <ChatControls
@@ -66,6 +74,8 @@ export function ChatMessage({
             chatId={chatId}
             role={normalizedRole}
             content={content}
+            isLastMessage={isLastMessage}
+            isLastUserMessage={isLastUserMessage}
             onEdit={onEdit}
             onRegenerate={onRegenerate}
             onDelete={onDelete}

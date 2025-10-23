@@ -5,9 +5,12 @@ Main API server for the RAG chatbot with LangChain agent integration.
 """
 
 import os
+import json
+import asyncio
 from typing import Optional, List
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
 from dotenv import load_dotenv
 from agents.chat_agent import get_agent_response
@@ -217,6 +220,92 @@ async def chat(chat_message: ChatMessage):
             chat_id="",
             error=error_msg
         )
+
+
+@app.post("/api/chat/stream", tags=["Chat"])
+async def chat_stream(chat_message: ChatMessage):
+    """
+    Stream chat responses word-by-word using Server-Sent Events (SSE).
+    
+    This endpoint provides real-time streaming of the agent's response.
+    """
+    async def generate_stream():
+        try:
+            # Validate message
+            if not chat_message.message.strip():
+                yield f"data: {json.dumps({'error': 'Message cannot be empty'})}\n\n"
+                return
+            
+            # Get or create chat session
+            chat_id = chat_message.chat_id
+            is_first_message = False
+            
+            if not chat_id:
+                chat_id = await create_chat_session(title="New Chat")
+                is_first_message = True
+                yield f"data: {json.dumps({'type': 'chat_id', 'chat_id': chat_id})}\n\n"
+            else:
+                chat = await get_chat_session(chat_id)
+                if chat and len(chat.messages) == 0:
+                    is_first_message = True
+            
+            # Save user message
+            user_message = Message(
+                role="user",
+                content=chat_message.message.strip()
+            )
+            await add_message(chat_id, user_message)
+            
+            # Auto-generate title from first message
+            if is_first_message:
+                title = await generate_chat_title(chat_message.message.strip())
+                await update_chat_title(chat_id, title)
+                yield f"data: {json.dumps({'type': 'title', 'title': title})}\n\n"
+            
+            # Get conversation history
+            chat_history_messages = await get_chat_messages(chat_id, limit=10)
+            chat_history = [
+                {"role": msg.role, "content": msg.content}
+                for msg in chat_history_messages[:-1]
+            ]
+            
+            # Get response from agent
+            response, thought_process = get_agent_response(chat_message.message, chat_history=chat_history)
+            
+            # Send thought process first
+            if thought_process:
+                yield f"data: {json.dumps({'type': 'thought_process', 'steps': thought_process})}\n\n"
+            
+            # Stream response word by word
+            words = response.split()
+            for i, word in enumerate(words):
+                yield f"data: {json.dumps({'type': 'token', 'content': word + (' ' if i < len(words) - 1 else '')})}\n\n"
+                await asyncio.sleep(0.05)  # Small delay between words for streaming effect
+            
+            # Save assistant message
+            assistant_message = Message(
+                role="assistant",
+                content=response
+            )
+            await add_message(chat_id, assistant_message)
+            
+            # Send completion signal
+            yield f"data: {json.dumps({'type': 'done', 'chat_id': chat_id})}\n\n"
+            
+        except Exception as e:
+            error_msg = f"Error in streaming: {str(e)}"
+            print(f"❌ {error_msg}")
+            yield f"data: {json.dumps({'type': 'error', 'error': error_msg})}\n\n"
+    
+    return StreamingResponse(
+        generate_stream(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+            "X-Accel-Buffering": "no"
+        }
+    )
 
 
 @app.post("/api/chats", response_model=dict, tags=["Chat Sessions"])

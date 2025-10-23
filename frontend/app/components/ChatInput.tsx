@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { Send } from "lucide-react";
+import { VoiceInput } from "./VoiceInput";
 
 interface ChatInputProps {
   onSend: (message: string) => void;
@@ -18,6 +19,10 @@ export function ChatInput({ onSend, disabled = false, inputRef }: Readonly<ChatI
     }
   };
 
+  const handleVoiceTranscript = (transcript: string) => {
+    setInput((prev) => (prev ? `${prev} ${transcript}` : transcript));
+  };
+
   return (
     <form onSubmit={handleSubmit} className="glass-card">
       <div className="flex items-center space-x-3">
@@ -31,6 +36,7 @@ export function ChatInput({ onSend, disabled = false, inputRef }: Readonly<ChatI
           className="flex-1 bg-transparent border-none outline-none text-white placeholder-gray-400 disabled:opacity-50 text-sm"
           maxLength={2000}
         />
+        <VoiceInput onTranscript={handleVoiceTranscript} disabled={disabled} />
         <button
           type="submit"
           disabled={disabled || !input.trim()}

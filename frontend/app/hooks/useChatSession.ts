@@ -37,6 +37,7 @@ export function useChatSession() {
   const [activeChatId, setActiveChatId] = useLocalStorage<string | null>("activeChatId", null);
   const [messages, setMessages] = useState<Message[]>([]);
   const [loading, setLoading] = useState(false);
+  const [abortController, setAbortController] = useState<AbortController | null>(null);
 
   // Load chat session when activeChatId changes
   useEffect(() => {
@@ -101,12 +102,23 @@ export function useChatSession() {
     [setActiveChatId]
   );
 
+  // Cancel ongoing message
+  const cancelMessage = useCallback(() => {
+    if (abortController) {
+      abortController.abort();
+      setAbortController(null);
+      setLoading(false);
+    }
+  }, [abortController]);
+
   // Send a message to the current chat
   const sendMessage = async (message: string) => {
     if (!message.trim()) return null;
 
     try {
       setLoading(true);
+      const controller = new AbortController();
+      setAbortController(controller);
 
       // Add user message optimistically
       const userMessage: Message = {
@@ -120,6 +132,7 @@ export function useChatSession() {
         headers: {
           "Content-Type": "application/json",
         },
+        signal: controller.signal,
         body: JSON.stringify({
           message,
           chat_id: activeChatId,
@@ -148,12 +161,17 @@ export function useChatSession() {
         setMessages((prev) => prev.slice(0, -1));
         throw new Error("Failed to send message");
       }
-    } catch (error) {
-      console.error("Error sending message:", error);
+    } catch (error: any) {
+      if (error.name === 'AbortError') {
+        console.log("Message cancelled by user");
+      } else {
+        console.error("Error sending message:", error);
+      }
       // Remove optimistic user message on error
       setMessages((prev) => prev.slice(0, -1));
       return null;
     } finally {
+      setAbortController(null);
       setLoading(false);
     }
   };
@@ -165,10 +183,11 @@ export function useChatSession() {
   }, [setActiveChatId]);
 
   // Edit a message
-  const editMessage = async (messageId: string, newContent: string) => {
+  const editMessage = async (messageId: string, newContent: string, shouldRegenerate: boolean = false) => {
     if (!activeChatId) return;
 
     try {
+      setLoading(true);
       const response = await fetch(
         `http://localhost:8000/api/chats/${activeChatId}/messages/${messageId}`,
         {
@@ -183,12 +202,19 @@ export function useChatSession() {
       if (response.ok) {
         // Reload the chat session to get updated messages
         await loadChatSession(activeChatId);
+        
+        // If this is the last user message, regenerate the assistant response
+        if (shouldRegenerate) {
+          await regenerateMessage(messageId);
+        }
       } else {
         throw new Error("Failed to edit message");
       }
     } catch (error) {
       console.error("Error editing message:", error);
       throw error;
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -248,6 +274,7 @@ export function useChatSession() {
     messages,
     loading,
     sendMessage,
+    cancelMessage,
     createNewChat,
     switchChat,
     startNewChat,

@@ -1,8 +1,12 @@
 import { Link, useLocation } from "react-router";
-import { MessageCircle, Home, Menu, X } from "lucide-react";
+import { MessageCircle, Home, Menu, X, Keyboard } from "lucide-react";
 import { useState } from "react";
 
-export function Navbar() {
+interface NavbarProps {
+  onShowShortcuts?: () => void;
+}
+
+export function Navbar({ onShowShortcuts }: Readonly<NavbarProps>) {
   const location = useLocation();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
@@ -28,6 +32,16 @@ export function Navbar() {
             <NavLink to="/chat" icon={<MessageCircle className="w-5 h-5" />} active={isActive("/chat")}>
               Chat
             </NavLink>
+            {onShowShortcuts && (
+              <button
+                onClick={onShowShortcuts}
+                className="flex items-center gap-2 px-3 py-2 rounded-lg border border-white/10 text-gray-300 hover:text-white hover:bg-white/5 transition-all text-sm"
+                title="Keyboard shortcuts (Ctrl + /)"
+              >
+                <Keyboard className="w-4 h-4" />
+                <span>Shortcuts</span>
+              </button>
+            )}
           </div>
 
           {/* Mobile Menu Button */}

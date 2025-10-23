@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Link, useLocation } from "react-router";
 import { Menu, X, MessageSquare, Trash2 } from "lucide-react";
 import { ConfirmModal } from "./ConfirmModal";
@@ -16,14 +16,26 @@ interface ChatSidebarProps {
   onChatSelect: (chatId: string) => void;
   onNewChat: () => void;
   onChatListRefresh?: () => void;
+  isOpen?: boolean;
+  onToggle?: () => void;
 }
 
-export function ChatSidebar({ activeChatId, onChatSelect, onNewChat, onChatListRefresh }: Readonly<ChatSidebarProps>) {
-  const [isOpen, setIsOpen] = useState(true);
+export function ChatSidebar({ 
+  activeChatId, 
+  onChatSelect, 
+  onNewChat, 
+  onChatListRefresh,
+  isOpen: controlledIsOpen,
+  onToggle 
+}: Readonly<ChatSidebarProps>) {
+  const [internalIsOpen, setInternalIsOpen] = useState(true);
+  const isOpen = controlledIsOpen !== undefined ? controlledIsOpen : internalIsOpen;
   const [chats, setChats] = useState<ChatSession[]>([]);
   const [loading, setLoading] = useState(true);
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
   const [chatToDelete, setChatToDelete] = useState<string | null>(null);
+  const [searchQuery, setSearchQuery] = useState("");
+  const searchInputRef = useRef<HTMLInputElement>(null);
   const location = useLocation();
   const isChatPage = location.pathname === "/chat";
 
@@ -41,6 +53,18 @@ export function ChatSidebar({ activeChatId, onChatSelect, onNewChat, onChatListR
     }
   }, [activeChatId]);
 
+  // Listen for search toggle event
+  useEffect(() => {
+    const handleToggleSearch = () => {
+      searchInputRef.current?.focus();
+    };
+
+    window.addEventListener('toggle-search', handleToggleSearch);
+    return () => {
+      window.removeEventListener('toggle-search', handleToggleSearch);
+    };
+  }, []);
+
   const loadChats = async () => {
     try {
       setLoading(true);
@@ -56,6 +80,19 @@ export function ChatSidebar({ activeChatId, onChatSelect, onNewChat, onChatListR
       setLoading(false);
     }
   };
+
+  const handleToggle = () => {
+    if (onToggle) {
+      onToggle();
+    } else {
+      setInternalIsOpen(!internalIsOpen);
+    }
+  };
+
+  // Filter chats based on search query
+  const filteredChats = chats.filter((chat) =>
+    chat.title.toLowerCase().includes(searchQuery.toLowerCase())
+  );
 
   const handleDeleteChat = async (chatId: string, e: React.MouseEvent) => {
     e.stopPropagation();
@@ -101,7 +138,7 @@ export function ChatSidebar({ activeChatId, onChatSelect, onNewChat, onChatListR
     <>
       {/* Mobile toggle button */}
       <button
-        onClick={() => setIsOpen(!isOpen)}
+        onClick={handleToggle}
         className="md:hidden fixed top-20 left-4 z-50 glass-card p-2 rounded-lg"
       >
         {isOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
@@ -124,20 +161,31 @@ export function ChatSidebar({ activeChatId, onChatSelect, onNewChat, onChatListR
           </button>
         </div>
 
+        {/* Search Input */}
+        <div className="p-3 border-b border-white/10">
+          <input
+            ref={searchInputRef}
+            type="text"
+            placeholder="Search chats (Ctrl + K)"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="w-full px-3 py-1.5 text-sm bg-white/5 border border-white/10 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500/50 text-white placeholder-gray-400"
+          />
+        </div>
+
         {/* Chat List */}
         <div className="flex-1 overflow-y-auto p-2 space-y-1">
           {loading ? (
             <div className="text-center text-gray-400 py-6 text-sm">
               Loading...
             </div>
-          ) : chats.length === 0 ? (
+          ) : filteredChats.length === 0 ? (
             <div className="text-center text-gray-400 py-6 text-xs">
-              No chats yet.
-              <br />
-              Start a new conversation!
+              {searchQuery ? 'No chats found.' : 'No chats yet.'}<br />
+              {!searchQuery && 'Start a new conversation!'}
             </div>
           ) : (
-            chats.map((chat) => (
+            filteredChats.map((chat) => (
               <div
                 key={chat.id}
                 onClick={() => onChatSelect(chat.id)}
@@ -175,7 +223,7 @@ export function ChatSidebar({ activeChatId, onChatSelect, onNewChat, onChatListR
       {/* Backdrop for mobile */}
       {isOpen && (
         <div
-          onClick={() => setIsOpen(false)}
+          onClick={handleToggle}
           className="md:hidden fixed inset-0 bg-black/50 z-30"
         />
       )}

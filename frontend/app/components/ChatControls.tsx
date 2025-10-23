@@ -7,7 +7,9 @@ interface ChatControlsProps {
   chatId: string;
   role: "user" | "assistant";
   content: string;
-  onEdit: (messageId: string, newContent: string) => Promise<void>;
+  isLastMessage: boolean;
+  isLastUserMessage?: boolean;
+  onEdit: (messageId: string, newContent: string, shouldRegenerate?: boolean) => Promise<void>;
   onRegenerate: (messageId: string) => Promise<void>;
   onDelete: (messageId: string) => Promise<void>;
 }
@@ -17,6 +19,8 @@ export function ChatControls({
   chatId,
   role,
   content,
+  isLastMessage,
+  isLastUserMessage = false,
   onEdit,
   onRegenerate,
   onDelete,
@@ -24,6 +28,7 @@ export function ChatControls({
   const [isEditing, setIsEditing] = useState(false);
   const [editedContent, setEditedContent] = useState(content);
   const [loading, setLoading] = useState(false);
+  const [isRegenerating, setIsRegenerating] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
 
   const handleSave = async () => {
@@ -34,7 +39,9 @@ export function ChatControls({
 
     try {
       setLoading(true);
-      await onEdit(messageId, editedContent.trim());
+      // If editing last user message, regenerate the assistant response
+      const shouldRegenerate = role === "user" && isLastUserMessage;
+      await onEdit(messageId, editedContent.trim(), shouldRegenerate);
       setIsEditing(false);
     } catch (error) {
       console.error("Failed to edit message:", error);
@@ -106,13 +113,13 @@ export function ChatControls({
 
   return (
     <div className="flex items-center space-x-1 mt-2 opacity-0 group-hover:opacity-100 transition-opacity">
-      {/* Edit button - only for user messages */}
-      {role === "user" && (
+      {/* Edit button (last user message only) */}
+      {role === "user" && isLastUserMessage && (
         <button
           onClick={() => setIsEditing(true)}
           disabled={loading}
           className="p-1.5 hover:bg-white/10 rounded text-gray-400 hover:text-white transition-colors"
-          title="Edit message"
+          title="Edit last message"
         >
           <Edit2 className="w-3.5 h-3.5" />
         </button>
@@ -130,15 +137,17 @@ export function ChatControls({
         </button>
       )}
 
-      {/* Delete button - for both */}
-      <button
-        onClick={() => setShowDeleteModal(true)}
-        disabled={loading}
-        className="p-1.5 hover:bg-red-500/20 rounded text-gray-400 hover:text-red-400 transition-colors"
-        title="Delete message"
-      >
-        <Trash2 className="w-3.5 h-3.5" />
-      </button>
+      {/* Delete button (last message only) */}
+      {isLastMessage && (
+        <button
+          onClick={() => setShowDeleteModal(true)}
+          disabled={loading}
+          className="p-1.5 hover:bg-red-500/20 rounded text-gray-400 hover:text-red-400 transition-colors"
+          title="Delete last message"
+        >
+          <Trash2 className="w-3.5 h-3.5" />
+        </button>
+      )}
 
       {/* Delete Confirmation Modal */}
       <ConfirmModal

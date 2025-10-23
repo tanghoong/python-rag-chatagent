@@ -5,6 +5,7 @@ import {
   Outlet,
   Scripts,
   ScrollRestoration,
+  useLocation,
 } from "react-router";
 
 import type { Route } from "./+types/root";
@@ -43,9 +44,16 @@ export function Layout({ children }: { children: React.ReactNode }) {
 }
 
 export default function App() {
+  const location = useLocation();
+  const isChat = location?.pathname === "/chat";
+
   return (
     <>
-      <Navbar />
+      <Navbar 
+        onShowShortcuts={isChat ? () => {
+          window.dispatchEvent(new CustomEvent('toggle-shortcuts'));
+        } : undefined} 
+      />
       <main className="pt-16">
         <Outlet />
       </main>
