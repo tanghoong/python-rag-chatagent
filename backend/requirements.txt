@@ -1,0 +1,23 @@
+# Core FastAPI dependencies
+fastapi==0.119.0
+uvicorn[standard]==0.37.0
+pydantic==2.12.2
+pydantic-settings==2.7.0
+python-dotenv==1.1.1
+
+# LangChain dependencies
+langchain==0.3.27
+langchain-core==0.3.79
+langchain-google-genai==2.1.12
+
+# MongoDB dependencies
+pymongo==4.9.1
+motor==3.6.0
+
+# Additional tools (for future milestones)
+duckduckgo-search==7.2.0
+wikipedia==1.4.0
+tiktoken==0.8.0
+
+# CORS and middleware
+python-multipart==0.0.20
