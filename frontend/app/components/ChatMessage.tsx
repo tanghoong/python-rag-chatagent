@@ -48,7 +48,7 @@ const markdownComponents: Components = {
     </a>
   ),
   table: ({ children }) => (
-    <div className="overflow-x-auto my-2">
+    <div className="overflow-x-auto code-scroll my-2">
       <table className="min-w-full border border-gray-700">{children}</table>
     </div>
   ),

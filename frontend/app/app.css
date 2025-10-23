@@ -1,80 +1,169 @@
 @import "tailwindcss";
 
 @theme {
-  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif,
+  --font-sans: "-apple-system", "BlinkMacSystemFont", "SF Pro Display", "Inter", 
+    ui-sans-serif, system-ui, sans-serif,
     "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";
 }
 
 html,
 body {
-  background-color: rgb(2 6 23);
-  color: white;
+  background-color: rgb(0, 0, 0);
+  color: rgb(235, 235, 245);
   font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
-/* Glassmorphism styles */
+/* iOS/macOS Dark Theme Colors */
+:root {
+  --ios-bg-primary: rgb(0, 0, 0);
+  --ios-bg-secondary: rgb(28, 28, 30);
+  --ios-bg-tertiary: rgb(44, 44, 46);
+  --ios-text-primary: rgb(235, 235, 245);
+  --ios-text-secondary: rgb(174, 174, 178);
+  --ios-separator: rgba(84, 84, 88, 0.65);
+  --ios-fill-tertiary: rgba(118, 118, 128, 0.24);
+  --ios-blue: rgb(10, 132, 255);
+  --ios-purple: rgb(191, 90, 242);
+  --ios-cyan: rgb(100, 210, 255);
+}
+
+/* Glassmorphism styles - iOS style */
 .glass {
-  backdrop-filter: blur(16px);
-  background-color: rgba(255, 255, 255, 0.05);
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(20px) saturate(180%);
+  background-color: rgba(28, 28, 30, 0.72);
+  border: 0.5px solid rgba(84, 84, 88, 0.48);
 }
 
 .glass-card {
-  backdrop-filter: blur(16px);
-  background-color: rgba(255, 255, 255, 0.05);
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(20px) saturate(180%);
+  background-color: rgba(28, 28, 30, 0.72);
+  border: 0.5px solid rgba(84, 84, 88, 0.48);
   border-radius: 1rem;
   padding: 1.5rem;
-  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.24);
 }
 
-/* Gradient text */
+/* Gradient text - iOS style */
 .gradient-text {
-  background: linear-gradient(to right, rgb(192 132 252), rgb(244 114 182), rgb(103 232 249));
+  background: linear-gradient(135deg, rgb(191, 90, 242), rgb(10, 132, 255), rgb(100, 210, 255));
   -webkit-background-clip: text;
   background-clip: text;
   color: transparent;
 }
 
-/* Gradient button */
+/* Gradient button - iOS style */
 .gradient-button {
-  background: linear-gradient(to right, rgb(168 85 247), rgb(6 182 212));
+  background: linear-gradient(135deg, rgb(191, 90, 242), rgb(10, 132, 255));
   color: white;
   font-weight: 600;
   padding: 0.75rem 1.5rem;
   border-radius: 0.75rem;
-  box-shadow: 0 10px 15px -3px rgba(168, 85, 247, 0.5);
-  transition: all 0.3s;
+  box-shadow: 0 4px 12px rgba(191, 90, 242, 0.4);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .gradient-button:hover {
-  background: linear-gradient(to right, rgb(147 51 234), rgb(8 145 178));
-  transform: scale(1.05);
+  background: linear-gradient(135deg, rgb(175, 82, 222), rgb(8, 120, 230));
+  transform: translateY(-1px);
+  box-shadow: 0 6px 16px rgba(191, 90, 242, 0.5);
 }
 
-/* Custom scrollbar */
+/* iOS-style Scrollbar - Main Document */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.18) transparent;
+}
+
+/* WebKit Scrollbar - Main document level (macOS/iOS style) */
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background-color: rgba(255, 255, 255, 0.18);
+  border-radius: 10px;
+  border: 2px solid transparent;
+  background-clip: padding-box;
+  transition: background-color 0.2s ease;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background-color: rgba(255, 255, 255, 0.28);
+}
+
+::-webkit-scrollbar-thumb:active {
+  background-color: rgba(255, 255, 255, 0.38);
+}
+
+/* Horizontal scrollbar */
+::-webkit-scrollbar-thumb:horizontal {
+  background-color: rgba(255, 255, 255, 0.18);
+}
+
+/* Custom scrollbar class for inner scrollable areas */
+.custom-scrollbar {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.2) rgba(28, 28, 30, 0.3);
+}
+
 .custom-scrollbar::-webkit-scrollbar {
-  width: 0.5rem;
+  width: 8px;
+  height: 8px;
 }
 
 .custom-scrollbar::-webkit-scrollbar-track {
-  background-color: rgba(15, 23, 42, 0.5);
+  background-color: rgba(28, 28, 30, 0.3);
+  border-radius: 10px;
 }
 
 .custom-scrollbar::-webkit-scrollbar-thumb {
   background-color: rgba(255, 255, 255, 0.2);
-  border-radius: 9999px;
+  border-radius: 10px;
+  border: 2px solid transparent;
+  background-clip: padding-box;
+  transition: background-color 0.2s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-  background-color: rgba(255, 255, 255, 0.3);
+  background-color: rgba(255, 255, 255, 0.32);
 }
 
-/* Animations */
+.custom-scrollbar::-webkit-scrollbar-thumb:active {
+  background-color: rgba(255, 255, 255, 0.44);
+}
+
+/* Code block scrollbar - smaller and more subtle */
+.code-scroll::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+.code-scroll::-webkit-scrollbar-track {
+  background-color: rgba(0, 0, 0, 0.2);
+  border-radius: 6px;
+}
+
+.code-scroll::-webkit-scrollbar-thumb {
+  background-color: rgba(255, 255, 255, 0.15);
+  border-radius: 6px;
+}
+
+.code-scroll::-webkit-scrollbar-thumb:hover {
+  background-color: rgba(255, 255, 255, 0.25);
+}
+
+/* Animations - iOS style easing */
 @keyframes fadeIn {
   from {
     opacity: 0;
-    transform: translateY(10px);
+    transform: translateY(8px);
   }
   to {
     opacity: 1;
@@ -83,7 +172,7 @@ body {
 }
 
 .animate-fade-in {
-  animation: fadeIn 0.5s ease-in-out;
+  animation: fadeIn 0.4s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 @keyframes pulse-glow {
@@ -93,11 +182,37 @@ body {
   }
   50% {
     opacity: 0.6;
-    transform: scale(1.05);
+    transform: scale(1.02);
   }
 }
 
 .animate-pulse-glow {
-  animation: pulse-glow 3s ease-in-out infinite;
+  animation: pulse-glow 3s cubic-bezier(0.4, 0, 0.6, 1) infinite;
 }
+
+/* iOS-style focus rings */
+button:focus-visible,
+input:focus-visible,
+textarea:focus-visible,
+select:focus-visible {
+  outline: 2px solid var(--ios-blue);
+  outline-offset: 2px;
+}
+
+/* Smooth scrolling behavior */
+html {
+  scroll-behavior: smooth;
+}
+
+/* iOS-style selection */
+::selection {
+  background-color: rgba(10, 132, 255, 0.3);
+  color: rgb(235, 235, 245);
+}
+
+::-moz-selection {
+  background-color: rgba(10, 132, 255, 0.3);
+  color: rgb(235, 235, 245);
+}
+
 

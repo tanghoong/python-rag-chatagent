@@ -177,7 +177,7 @@ export function ChatSidebar({
         </div>
 
         {/* Chat List */}
-        <div className="flex-1 overflow-y-auto p-2 space-y-1">
+        <div className="flex-1 overflow-y-auto custom-scrollbar p-2 space-y-1">
           {loading ? (
             <ChatListSkeleton />
           ) : filteredChats.length === 0 ? (

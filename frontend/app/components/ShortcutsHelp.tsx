@@ -18,7 +18,7 @@ export function ShortcutsHelp({ isOpen, onClose }: Readonly<ShortcutsHelpProps>)
       />
 
       {/* Modal */}
-      <div className="relative glass-card max-w-4xl w-full mx-4 p-6 max-h-[90vh] overflow-y-auto">
+      <div className="relative glass-card max-w-4xl w-full mx-4 p-6 max-h-[90vh] overflow-y-auto custom-scrollbar">
         {/* Header */}
         <div className="flex items-center justify-between mb-6">
           <div className="flex items-center gap-2">

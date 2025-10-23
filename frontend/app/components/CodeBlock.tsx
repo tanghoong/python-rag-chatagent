@@ -59,7 +59,7 @@ export default function CodeBlock({ language, children, inline }: CodeBlockProps
           )}
         </button>
       </div>
-      <pre className="m-0! rounded-t-none! rounded-b-lg! overflow-x-auto">
+      <pre className="m-0! rounded-t-none! rounded-b-lg! overflow-x-auto code-scroll">
         <code
           ref={codeRef}
           className={language ? `language-${language}` : 'language-text'}
