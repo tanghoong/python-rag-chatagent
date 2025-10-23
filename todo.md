@@ -222,36 +222,36 @@
 **Goal**: Web search, Wikipedia, Calculator tools
 
 ### Phase 5.1: Web Search Tool
-- [ ] Install `duckduckgo-search` package
-- [ ] Implement `web_search` tool in `utils/tools.py`
-- [ ] Add tool description and triggering logic
-- [ ] Test with current events queries
+- [x] Install `duckduckgo-search` package
+- [x] Implement `web_search` tool in `utils/tools.py`
+- [x] Add tool description and triggering logic
+- [x] Test with current events queries
 
-**Commit**: "Add web search tool for real-time information"
+**Commit**: "Add web search tool for real-time information" ✅
 
 ### Phase 5.2: Wikipedia Tool
-- [ ] Install `wikipedia` package
-- [ ] Implement `wikipedia_search` tool
-- [ ] Handle disambiguation and errors
-- [ ] Test with general knowledge queries
+- [x] Install `wikipedia` package
+- [x] Implement `wikipedia_search` tool
+- [x] Handle disambiguation and errors
+- [x] Test with general knowledge queries
 
-**Commit**: "Add Wikipedia tool for encyclopedia knowledge"
+**Commit**: "Add Wikipedia tool for encyclopedia knowledge" ✅
 
 ### Phase 5.3: Calculator Tool
-- [ ] Implement `calculate` tool with safe eval
-- [ ] Add math library support
-- [ ] Test with various expressions
-- [ ] Add unit conversion (optional)
+- [x] Implement `calculate` tool with safe eval
+- [x] Add math library support
+- [x] Test with various expressions
+- [x] Add unit conversion (optional)
 
-**Commit**: "Add calculator tool for mathematical operations"
+**Commit**: "Add calculator tool for mathematical operations" ✅
 
 ### Phase 5.4: Update Agent Tool Selection
-- [ ] Update agent prompt with all tools
-- [ ] Refine tool selection logic
-- [ ] Test tool prioritization
-- [ ] Ensure correct tool usage
+- [x] Update agent prompt with all tools
+- [x] Refine tool selection logic
+- [x] Test tool prioritization
+- [x] Ensure correct tool usage
 
-**Commit**: "Update agent with all four tools and smart selection"
+**Commit**: "Update agent with all four tools and smart selection" ✅
 
 ---
 
