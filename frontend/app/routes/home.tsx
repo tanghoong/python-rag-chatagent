@@ -25,7 +25,7 @@ export default function Home() {
             <span className="text-white">With Poetic Flair</span>
           </h1>
           <p className="text-xl text-gray-400 mb-8 max-w-2xl mx-auto">
-            Experience intelligent conversations with our AI assistant that responds in beautiful rhyming verse,
+            Experience intelligent conversations with our AI assistant,
             powered by Google Gemini and MongoDB RAG technology.
           </p>
           <Link to="/chat" className="inline-flex items-center space-x-2 gradient-button text-lg">
@@ -43,8 +43,8 @@ export default function Home() {
           />
           <FeatureCard
             icon={MessageCircle}
-            title="Poetic Responses"
-            description="Every answer delivered in creative rhyming verse, making conversations engaging and memorable while staying informative."
+            title="Natural Conversations"
+            description="Clear, concise responses that provide accurate information in a friendly and professional manner."
           />
           <FeatureCard
             icon={Sparkles}

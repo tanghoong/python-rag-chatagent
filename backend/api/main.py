@@ -44,7 +44,7 @@ load_dotenv()
 # Initialize FastAPI app
 app = FastAPI(
     title="RAG Chatbot API",
-    description="AI-powered chatbot with poetic responses and MongoDB RAG capabilities",
+    description="AI-powered chatbot with intelligent responses and MongoDB RAG capabilities",
     version="1.0.0"
 )
 
@@ -77,7 +77,7 @@ class ChatMessage(BaseModel):
 
 class ChatResponse(BaseModel):
     """Response model for chat messages"""
-    response: str = Field(..., description="Bot's response in rhyme")
+    response: str = Field(..., description="Bot's response")
     chat_id: str = Field(..., description="Chat session ID")
     error: Optional[str] = Field(None, description="Error message if any")
     thought_process: List[dict[str, str]] = Field(
@@ -131,10 +131,10 @@ async def health_check():
 @app.post("/api/chat", response_model=ChatResponse, tags=["Chat"])
 async def chat(chat_message: ChatMessage):
     """
-    Chat endpoint - send a message and get a poetic response.
+    Chat endpoint - send a message and get an intelligent response.
     
     The agent will:
-    - Respond in rhyming verse
+    - Respond clearly and concisely
     - Use MongoDB tool only for personal post queries
     - Answer general questions directly
     - Maintain conversation history when chat_id is provided
@@ -213,12 +213,7 @@ async def chat(chat_message: ChatMessage):
         
         # Return error response
         return ChatResponse(
-            response=(
-                "I'm sorry, dear friend, but something went wrong,\n"
-                "An error occurred as I tried to respond along.\n"
-                "Please try again with a different phrase,\n"
-                "And I'll assist you in much better ways!"
-            ),
+            response="I apologize, but I encountered an error while processing your request. Please try again.",
             chat_id="",
             error=error_msg
         )
