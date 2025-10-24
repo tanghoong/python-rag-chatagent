@@ -1,6 +1,7 @@
 import { User, Bot } from "lucide-react";
 import { ChatControls } from "./ChatControls";
 import ThoughtProcess from "./ThoughtProcess";
+import { LLMBadge } from "./LLMBadge";
 import { QuickActions } from "./QuickActions";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
@@ -65,12 +66,23 @@ interface ThoughtStep {
   content: string;
 }
 
+interface LLMMetadata {
+  auto_switched: boolean;
+  model: string;
+  provider: string;
+  complexity: string;
+  complexity_score?: number;
+  indicators?: string[];
+  word_count?: number;
+}
+
 interface ChatMessageProps {
   role: "user" | "bot";
   content: string;
   messageId?: string;
   chatId?: string;
   thoughtProcess?: ThoughtStep[];
+  llmMetadata?: LLMMetadata;
   isLastMessage?: boolean;
   isLastUserMessage?: boolean;
   timestamp?: string;
@@ -85,6 +97,7 @@ export function ChatMessage({
   messageId, 
   chatId,
   thoughtProcess,
+  llmMetadata,
   isLastMessage = false,
   isLastUserMessage = false,
   timestamp,
@@ -136,6 +149,11 @@ export function ChatMessage({
         {/* Thought Process - Only for bot messages */}
         {!isUser && thoughtProcess && thoughtProcess.length > 0 && (
           <ThoughtProcess steps={thoughtProcess} />
+        )}
+        
+        {/* LLM Metadata Badge - Only for bot messages */}
+        {!isUser && llmMetadata && (
+          <LLMBadge metadata={llmMetadata} />
         )}
         
         {/* Quick Actions - Only for bot messages */}

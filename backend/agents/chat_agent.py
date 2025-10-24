@@ -74,15 +74,19 @@ Begin!
 Question: {input}
 Thought: {agent_scratchpad}"""
 
-def create_chat_agent() -> AgentExecutor:
+def create_chat_agent(llm=None) -> AgentExecutor:
     """
     Create and configure the LangChain ReAct agent.
+    
+    Args:
+        llm: Optional LLM instance. If None, creates default LLM.
     
     Returns:
         AgentExecutor: Configured agent executor
     """
     # Get LLM and tools
-    llm = get_llm(temperature=0.2)
+    if llm is None:
+        llm = get_llm(temperature=0.2)
     tools = get_all_tools()
     
     # Create prompt template
@@ -111,21 +115,29 @@ def create_chat_agent() -> AgentExecutor:
 def get_agent_response(
     user_message: str, 
     chat_history: List[Dict[str, str]] | None = None
-) -> Tuple[str, List[Dict[str, str]]]:
+) -> Tuple[str, List[Dict[str, str]], Dict]:
     """
     Get response from the agent for a user message with conversation history.
+    Uses smart LLM selection based on message complexity.
     
     Args:
         user_message: The user's input message
         chat_history: List of previous messages [{"role": "user"|"assistant", "content": "..."}]
     
     Returns:
-        Tuple[str, List[Dict[str, str]]]: (response, thought_process)
+        Tuple[str, List[Dict[str, str]], Dict]: (response, thought_process, llm_metadata)
             - response: The agent's final answer
             - thought_process: List of reasoning steps [{"step": "Thought|Action|Observation", "content": "..."}]
+            - llm_metadata: Metadata about LLM selection (model, complexity, etc.)
     """
     try:
-        agent = create_chat_agent()
+        from utils.llm import get_smart_llm
+        
+        # Use smart LLM selection based on message complexity
+        llm, llm_metadata = get_smart_llm(user_message, temperature=0.2)
+        
+        # Create agent with the selected LLM
+        agent = create_chat_agent(llm=llm)
         
         # Format chat history for the prompt
         history_text = ""
@@ -165,19 +177,26 @@ def get_agent_response(
                     "content": str(observation)[:500]  # Limit observation length
                 })
         
-        return response, thought_process
+        return response, thought_process, llm_metadata
         
     except Exception as e:
         error_msg = f"An error occurred while processing your request: {str(e)}"
         print(f"❌ Agent Error: {error_msg}")
         
-        # Return a clear error message with empty thought process
+        # Return a clear error message with empty thought process and metadata
         error_response = (
             "I apologize, but I encountered an error while processing your request. "
             "Please try rephrasing your question or try again."
         )
         
-        return error_response, [{"step": "Error", "content": error_msg}]
+        error_metadata = {
+            "auto_switched": False,
+            "model": "error",
+            "provider": "error",
+            "complexity": "error"
+        }
+        
+        return error_response, [{"step": "Error", "content": error_msg}], error_metadata
 
 
 # For testing
@@ -186,12 +205,14 @@ if __name__ == "__main__":
     
     # Test 1: General question (no tool usage)
     print("\n--- Test 1: General Question ---")
-    response1, steps1 = get_agent_response("What is Python?")
+    response1, steps1, metadata1 = get_agent_response("What is Python?")
     print(f"Response: {response1}")
-    print(f"Thought Process: {steps1}\n")
+    print(f"Thought Process: {steps1}")
+    print(f"LLM Metadata: {metadata1}\n")
     
     # Test 2: Database query (tool usage)
     print("\n--- Test 2: Database Query ---")
-    response2, steps2 = get_agent_response("Show me my posts about programming")
+    response2, steps2, metadata2 = get_agent_response("Show me my posts about programming")
     print(f"Response: {response2}")
-    print(f"Thought Process: {steps2}\n")
+    print(f"Thought Process: {steps2}")
+    print(f"LLM Metadata: {metadata2}\n")

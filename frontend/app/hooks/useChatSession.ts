@@ -9,11 +9,27 @@ interface ThoughtStep {
   content: string;
 }
 
+interface LLMMetadata {
+  auto_switched: boolean;
+  model: string;
+  provider: string;
+  complexity: string;
+  complexity_score?: number;
+  indicators?: string[];
+  word_count?: number;
+}
+
 interface Message {
   id?: string;
   role: "user" | "assistant";
   content: string;
   thought_process?: ThoughtStep[];
+  llm_metadata?: LLMMetadata;
+  metadata?: {
+    llm_metadata?: LLMMetadata;
+    thought_process?: ThoughtStep[];
+    [key: string]: unknown;
+  };
   created_at?: string;
   timestamp?: string;
 }
@@ -66,7 +82,12 @@ export function useChatSession() {
 
       if (response.ok) {
         const data: ChatDetail = await response.json();
-        setMessages(data.messages);
+        // Extract llm_metadata from message metadata if available
+        const messagesWithMetadata = data.messages.map(msg => ({
+          ...msg,
+          llm_metadata: msg.metadata?.llm_metadata as LLMMetadata | undefined,
+        }));
+        setMessages(messagesWithMetadata);
       } else {
         console.error("Failed to load chat session");
         toast.error("Failed to load chat session");
@@ -168,6 +189,7 @@ export function useChatSession() {
       let currentChatId = activeChatId;
       let accumulatedContent = "";
       let currentThoughtProcess: ThoughtStep[] = [];
+      let currentLlmMetadata: LLMMetadata | undefined = undefined;
       let streamingMessageIndex = -1;
 
       if (reader) {
@@ -198,6 +220,12 @@ export function useChatSession() {
                       // Title updated
                       break;
 
+                    case "llm_metadata":
+                      if (event.metadata) {
+                        currentLlmMetadata = event.metadata;
+                      }
+                      break;
+
                     case "thought_process":
                       if (event.steps) {
                         currentThoughtProcess = event.steps;
@@ -214,6 +242,7 @@ export function useChatSession() {
                             role: "assistant",
                             content: accumulatedContent,
                             thought_process: currentThoughtProcess,
+                            llm_metadata: currentLlmMetadata,
                           };
                           setMessages((prev) => [...prev, tempMessage]);
                           streamingMessageIndex = messages.length + 1;
@@ -224,6 +253,7 @@ export function useChatSession() {
                               role: "assistant",
                               content: accumulatedContent,
                               thought_process: currentThoughtProcess,
+                              llm_metadata: currentLlmMetadata,
                             };
                             return updated;
                           });
@@ -240,6 +270,7 @@ export function useChatSession() {
                             role: "assistant",
                             content: accumulatedContent,
                             thought_process: currentThoughtProcess,
+                            llm_metadata: currentLlmMetadata,
                           };
                           return updated;
                         });

@@ -266,6 +266,7 @@ export default function Chat() {
                   messageId={message.id}
                   chatId={activeChatId || undefined}
                   thoughtProcess={message.thought_process}
+                  llmMetadata={message.llm_metadata}
                   isLastMessage={isLastMessage}
                   isLastUserMessage={isLastUserMessage}
                   timestamp={message.created_at || message.timestamp}

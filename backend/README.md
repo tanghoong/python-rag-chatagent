@@ -1,10 +1,20 @@
 # Backend Setup and Installation Guide
 
+## ✨ New Feature: Intelligent LLM Auto-Switching
+
+The backend now includes **automatic model selection** based on query complexity:
+- 🚀 **Simple queries** → Fast & cost-effective models (gpt-4o-mini, gemini-flash)
+- 🧠 **Complex queries** → High-performance models (gpt-4o, gemini-pro)
+- 💰 **Save up to 66%** on API costs while maintaining quality
+- 📊 **Full transparency** - every response includes model selection metadata
+
+See [AUTO_SWITCHING_GUIDE.md](../AUTO_SWITCHING_GUIDE.md) for complete details.
+
 ## Prerequisites
 
 - Python 3.10 or higher
 - MongoDB (local installation or MongoDB Atlas account)
-- Google Gemini API key
+- OpenAI API key (recommended) or Google Gemini API key
 
 ## Installation Steps
 
@@ -43,8 +53,15 @@ pip install -r requirements.txt
 Edit the `.env` file and add your credentials:
 
 ```env
-# Google Gemini API Configuration
-GOOGLE_API_KEY=your_actual_google_api_key_here
+# LLM Provider Configuration
+LLM_PROVIDER=openai  # or 'google' for Google Gemini
+AUTO_SWITCH_LLM=true  # Enable intelligent model auto-switching
+
+# OpenAI API Configuration (recommended)
+OPENAI_API_KEY=sk-proj-your_openai_key_here
+
+# Google Gemini API Configuration (alternative)
+GOOGLE_API_KEY=your_google_api_key_here
 
 # MongoDB Configuration
 MONGODB_URI=mongodb://localhost:27017/rag_chatbot
@@ -66,7 +83,15 @@ API_PORT=8000
 CORS_ORIGINS=http://localhost:5173,http://127.0.0.1:5173
 ```
 
-### 6. Get Google Gemini API Key
+### 6. Get API Keys
+
+**OpenAI API Key (Recommended for Auto-Switching):**
+1. Visit [OpenAI Platform](https://platform.openai.com/api-keys)
+2. Sign in or create an account
+3. Click "Create new secret key"
+4. Copy the key to your `.env` file
+
+**Google Gemini API Key (Alternative):**
 
 1. Go to [Google AI Studio](https://makersuite.google.com/app/apikey)
 2. Click "Create API Key"

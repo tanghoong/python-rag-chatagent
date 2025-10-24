@@ -6,17 +6,29 @@ interface ThoughtStep {
   content: string;
 }
 
+interface LLMMetadata {
+  auto_switched: boolean;
+  model: string;
+  provider: string;
+  complexity: string;
+  complexity_score?: number;
+  indicators?: string[];
+  word_count?: number;
+}
+
 interface Message {
   id?: string;
   role: "user" | "assistant";
   content: string;
   thought_process?: ThoughtStep[];
+  llm_metadata?: LLMMetadata;
 }
 
 interface StreamEvent {
-  type: "chat_id" | "title" | "thought_process" | "token" | "done" | "error";
+  type: "chat_id" | "title" | "llm_metadata" | "thought_process" | "token" | "done" | "error";
   chat_id?: string;
   title?: string;
+  metadata?: LLMMetadata;
   steps?: ThoughtStep[];
   content?: string;
   error?: string;
@@ -31,6 +43,7 @@ export function useStreamingChat() {
   const [loading, setLoading] = useState(false);
   const [streamingMessage, setStreamingMessage] = useState("");
   const [thoughtProcess, setThoughtProcess] = useState<ThoughtStep[]>([]);
+  const [llmMetadata, setLlmMetadata] = useState<LLMMetadata | null>(null);
 
   // Send message with streaming
   const sendStreamingMessage = useCallback(
@@ -41,6 +54,7 @@ export function useStreamingChat() {
         setLoading(true);
         setStreamingMessage("");
         setThoughtProcess([]);
+        setLlmMetadata(null);
 
         // Add user message optimistically
         const userMessage: Message = {
@@ -82,6 +96,7 @@ export function useStreamingChat() {
         let currentChatId = activeChatId;
         let accumulatedContent = "";
         let currentThoughtProcess: ThoughtStep[] = [];
+        let currentLlmMetadata: LLMMetadata | null = null;
 
         if (reader) {
           while (true) {
@@ -111,6 +126,13 @@ export function useStreamingChat() {
                         // Title updated, could refresh sidebar
                         break;
 
+                      case "llm_metadata":
+                        if (event.metadata) {
+                          currentLlmMetadata = event.metadata;
+                          setLlmMetadata(event.metadata);
+                        }
+                        break;
+
                       case "thought_process":
                         if (event.steps) {
                           currentThoughtProcess = event.steps;
@@ -131,10 +153,12 @@ export function useStreamingChat() {
                           role: "assistant",
                           content: accumulatedContent,
                           thought_process: currentThoughtProcess,
+                          llm_metadata: currentLlmMetadata || undefined,
                         };
                         setMessages((prev) => [...prev, assistantMessage]);
                         setStreamingMessage("");
                         setThoughtProcess([]);
+                        setLlmMetadata(null);
                         break;
 
                       case "error":
@@ -169,6 +193,7 @@ export function useStreamingChat() {
     loading,
     streamingMessage,
     thoughtProcess,
+    llmMetadata,
     sendStreamingMessage,
     setMessages,
     setActiveChatId,

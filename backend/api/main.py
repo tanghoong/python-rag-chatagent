@@ -84,6 +84,10 @@ class ChatResponse(BaseModel):
         default_factory=list,
         description="Agent's reasoning steps (Thought/Action/Observation)"
     )
+    llm_metadata: Optional[dict] = Field(
+        None,
+        description="LLM selection metadata (model, complexity, auto-switching info)"
+    )
 
 
 class UpdateTitleRequest(BaseModel):
@@ -186,15 +190,18 @@ async def chat(chat_message: ChatMessage):
             for msg in chat_history_messages[:-1]  # Exclude the message we just added
         ]
         
-        # Get response from agent with conversation history and thought process
-        response, thought_process = get_agent_response(chat_message.message, chat_history=chat_history)
+        # Get response from agent with conversation history, thought process, and LLM metadata
+        response, thought_process, llm_metadata = get_agent_response(chat_message.message, chat_history=chat_history)
         
-        # Save assistant message with thought process
+        # Save assistant message with thought process and LLM metadata
         assistant_message = Message(
             role="assistant",
             content=response,
             thought_process=thought_process,
-            metadata={"thought_process": thought_process} if thought_process else None
+            metadata={
+                "thought_process": thought_process,
+                "llm_metadata": llm_metadata
+            } if thought_process or llm_metadata else None
         )
         await add_message(chat_id, assistant_message)
         
@@ -202,7 +209,8 @@ async def chat(chat_message: ChatMessage):
             response=response,
             chat_id=chat_id,
             error=None,
-            thought_process=thought_process
+            thought_process=thought_process,
+            llm_metadata=llm_metadata
         )
         
     except HTTPException:
@@ -266,10 +274,14 @@ async def chat_stream(chat_message: ChatMessage):
                 for msg in chat_history_messages[:-1]
             ]
             
-            # Get response from agent
-            response, thought_process = get_agent_response(chat_message.message, chat_history=chat_history)
+            # Get response from agent with LLM metadata
+            response, thought_process, llm_metadata = get_agent_response(chat_message.message, chat_history=chat_history)
             
-            # Send thought process first
+            # Send LLM metadata first
+            if llm_metadata:
+                yield f"data: {json.dumps({'type': 'llm_metadata', 'metadata': llm_metadata})}\n\n"
+            
+            # Send thought process
             if thought_process:
                 yield f"data: {json.dumps({'type': 'thought_process', 'steps': thought_process})}\n\n"
             
@@ -279,12 +291,15 @@ async def chat_stream(chat_message: ChatMessage):
                 yield f"data: {json.dumps({'type': 'token', 'content': word + (' ' if i < len(words) - 1 else '')})}\n\n"
                 await asyncio.sleep(0.05)  # Small delay between words for streaming effect
             
-            # Save assistant message with thought process
+            # Save assistant message with thought process and LLM metadata
             assistant_message = Message(
                 role="assistant",
                 content=response,
                 thought_process=thought_process,
-                metadata={"thought_process": thought_process} if thought_process else None
+                metadata={
+                    "thought_process": thought_process,
+                    "llm_metadata": llm_metadata
+                } if thought_process or llm_metadata else None
             )
             await add_message(chat_id, assistant_message)
             
@@ -573,14 +588,17 @@ async def regenerate_message(chat_id: str, message_id: str):
             for msg in chat_history_messages[:-1]  # Exclude the last message (user message to regenerate)
         ]
         
-        # Generate new response with conversation history and thought process
-        response, thought_process = get_agent_response(last_message.content, chat_history=chat_history)
+        # Generate new response with conversation history, thought process, and LLM metadata
+        response, thought_process, llm_metadata = get_agent_response(last_message.content, chat_history=chat_history)
         
-        # Save assistant message with thought process in metadata
+        # Save assistant message with thought process and LLM metadata
         assistant_message = Message(
             role="assistant",
             content=response,
-            metadata={"thought_process": thought_process} if thought_process else None
+            metadata={
+                "thought_process": thought_process,
+                "llm_metadata": llm_metadata
+            } if thought_process or llm_metadata else None
         )
         await add_message(chat_id, assistant_message)
         
@@ -588,7 +606,8 @@ async def regenerate_message(chat_id: str, message_id: str):
             "message": "Response regenerated successfully",
             "chat_id": chat_id,
             "response": response,
-            "thought_process": thought_process
+            "thought_process": thought_process,
+            "llm_metadata": llm_metadata
         }
     except HTTPException:
         raise
