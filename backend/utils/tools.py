@@ -7,7 +7,7 @@ Contains tools for the RAG chatbot agent, including MongoDB query tool.
 from typing import List, Dict, Any
 import math
 import re
-from langchain.agents import tool
+from langchain_core.tools import tool
 from database.connection import get_posts_collection
 
 try:

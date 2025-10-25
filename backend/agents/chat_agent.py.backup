@@ -120,7 +120,6 @@ def get_agent_response(
     """
     try:
         from utils.llm import get_smart_llm
-        from langchain_core.messages import HumanMessage, AIMessage
         
         # Use smart LLM selection based on message complexity
         llm, llm_metadata = get_smart_llm(user_message, temperature=0.2)
@@ -128,44 +127,42 @@ def get_agent_response(
         # Create agent with the selected LLM
         agent = create_chat_agent(llm=llm)
         
-        # Convert chat history to LangChain messages
-        messages = []
+        # Format chat history for the prompt
+        history_text = ""
         if chat_history and len(chat_history) > 0:
+            history_text = "\nConversation History:\n"
             for msg in chat_history[-10:]:  # Last 10 messages for context
-                if msg["role"] == "user":
-                    messages.append(HumanMessage(content=msg["content"]))
-                else:
-                    messages.append(AIMessage(content=msg["content"]))
+                role_label = "User" if msg["role"] == "user" else "Assistant"
+                history_text += f"{role_label}: {msg['content']}\n"
+            history_text += "\n"
         
-        # Add current user message
-        messages.append(HumanMessage(content=user_message))
+        result = agent.invoke({
+            "input": user_message,
+            "chat_history": history_text
+        })
         
-        # Invoke the agent with messages
-        result = agent.invoke({"messages": messages})
+        # Extract the output
+        response = result.get("output", "I apologize, but I encountered an error processing your request.")
         
-        # Extract the response from the result
-        # LangGraph returns a dict with 'messages' key containing all messages including the response
-        if "messages" in result:
-            # Get the last message which should be the agent's response
-            last_message = result["messages"][-1]
-            response = last_message.content if hasattr(last_message, 'content') else str(last_message)
-        else:
-            response = "I apologize, but I encountered an error processing your request."
-        
-        # Extract thought process from intermediate steps if available
+        # Extract thought process from intermediate steps
         thought_process = []
-        # In LangGraph, tool calls are embedded in the message history
-        for msg in result.get("messages", []):
-            if hasattr(msg, 'additional_kwargs') and 'tool_calls' in msg.additional_kwargs:
-                for tool_call in msg.additional_kwargs['tool_calls']:
-                    thought_process.append({
-                        "step": "Action",
-                        "content": f"Tool: {tool_call.get('function', {}).get('name', 'unknown')}"
-                    })
-            elif hasattr(msg, 'type') and msg.type == 'tool':
+        intermediate_steps = result.get("intermediate_steps", [])
+        
+        for step_tuple in intermediate_steps:
+            # Each step is a tuple: (AgentAction, observation)
+            if len(step_tuple) >= 2:
+                action, observation = step_tuple[0], step_tuple[1]
+                
+                # Add the thought/action
+                thought_process.append({
+                    "step": "Action",
+                    "content": f"Tool: {action.tool}, Input: {action.tool_input}"
+                })
+                
+                # Add the observation
                 thought_process.append({
                     "step": "Observation",
-                    "content": str(msg.content)[:500]  # Limit observation length
+                    "content": str(observation)[:500]  # Limit observation length
                 })
         
         return response, thought_process, llm_metadata
@@ -173,8 +170,6 @@ def get_agent_response(
     except Exception as e:
         error_msg = f"An error occurred while processing your request: {str(e)}"
         print(f"❌ Agent Error: {error_msg}")
-        import traceback
-        traceback.print_exc()
         
         # Return a clear error message with empty thought process and metadata
         error_response = (
