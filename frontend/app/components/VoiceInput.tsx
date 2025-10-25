@@ -152,12 +152,12 @@ declare global {
 
   // Web Speech API type declarations
   interface SpeechRecognitionEvent extends Event {
-    results: SpeechRecognitionResultList;
-    resultIndex: number;
+    readonly results: SpeechRecognitionResultList;
+    readonly resultIndex: number;
   }
 
   interface SpeechRecognitionErrorEvent extends Event {
-    error: string;
-    message?: string;
+    readonly error: string;
+    readonly message?: string;
   }
 }

@@ -186,8 +186,9 @@ def main():
     # Check if server is running
     try:
         requests.get("http://localhost:8000", timeout=2)
-    except requests.exceptions.RequestException:
+    except requests.exceptions.RequestException as e:
         print("\n❌ Server not running!")
+        print(f"Error: {e}")
         print("Please start the backend server first:")
         print("   cd backend")
         print("   start.bat")
