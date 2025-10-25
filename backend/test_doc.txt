@@ -1,0 +1,13 @@
+
+# RAG System Test Document
+
+This is a test document for the RAG chatbot system.
+
+## Features
+- Autonomous memory management
+- Multi-format document support
+- Intelligent chunking
+- Vector search capabilities
+
+The system can process PDF, TXT, MD, DOCX, and HTML files.
+        

@@ -1,7 +1,7 @@
 """
 LangChain Tools Module
 
-Contains tools for the RAG chatbot agent, including MongoDB query tool.
+Contains tools for the RAG chatbot agent, including MongoDB query tool and RAG memory tools.
 """
 
 from typing import List, Dict, Any
@@ -9,6 +9,14 @@ import math
 import re
 from langchain_core.tools import tool
 from database.connection import get_posts_collection
+
+# Import RAG tools
+try:
+    from utils.rag_tools import get_rag_tools
+    RAG_TOOLS_AVAILABLE = True
+except ImportError:
+    RAG_TOOLS_AVAILABLE = False
+    print("⚠️ RAG tools not available yet")
 
 try:
     from duckduckgo_search import DDGS
@@ -262,11 +270,26 @@ def calculate(expression: str) -> str:
 def get_all_tools() -> List:
     """
     Get list of all available tools for the agent.
+    Includes basic tools and RAG memory management tools.
     
     Returns:
         List: List of LangChain tools
     """
-    return [post_data_from_db, web_search, wikipedia_search, calculate]
+    # Basic tools
+    basic_tools = [post_data_from_db, web_search, wikipedia_search, calculate]
+    
+    # Add RAG tools if available
+    if RAG_TOOLS_AVAILABLE:
+        try:
+            rag_tools = get_rag_tools()
+            all_tools = basic_tools + rag_tools
+            print(f"✅ Loaded {len(all_tools)} tools ({len(basic_tools)} basic + {len(rag_tools)} RAG)")
+            return all_tools
+        except Exception as e:
+            print(f"⚠️ Error loading RAG tools: {str(e)}")
+            return basic_tools
+    
+    return basic_tools
 
 
 # For testing

@@ -8,7 +8,7 @@ import os
 import json
 import asyncio
 from typing import Optional, List
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, UploadFile, File, Form
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
@@ -663,6 +663,318 @@ async def get_statistics(chat_id: str):
         recent_messages=recent_messages,
         breakdown=breakdown
     )
+
+
+# ========================================
+# RAG & Document Management Endpoints
+# ========================================
+
+@app.post("/api/documents/upload", tags=["Documents"])
+async def upload_document(
+    file: UploadFile = File(...),
+    collection_name: str = Form("global_memory"),
+    chat_id: Optional[str] = Form(None)
+):
+    """
+    Upload and process a document for RAG.
+    
+    Automatically:
+    - Validates file type (PDF, TXT, MD, DOCX, HTML)
+    - Processes and chunks the document
+    - Embeds and stores in vector database
+    - Associates with global or chat-specific memory
+    
+    Args:
+        file: Uploaded document file
+        collection_name: Memory collection name (default: "global_memory")
+        chat_id: Optional chat ID for chat-specific memory
+    
+    Returns:
+        Upload status and document metadata
+    """
+    try:
+        from utils.document_processor import DocumentProcessor
+        from database.vector_store import VectorStoreManager
+        import tempfile
+        from pathlib import Path
+        
+        # Validate file type
+        supported_extensions = ['.pdf', '.txt', '.md', '.docx', '.html', '.htm']
+        file_ext = Path(file.filename).suffix.lower()
+        
+        if file_ext not in supported_extensions:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Unsupported file type. Supported: {', '.join(supported_extensions)}"
+            )
+        
+        # Save uploaded file temporarily
+        with tempfile.NamedTemporaryFile(delete=False, suffix=file_ext) as tmp_file:
+            content = await file.read()
+            tmp_file.write(content)
+            tmp_path = tmp_file.name
+        
+        try:
+            # Process document
+            processor = DocumentProcessor(chunk_size=1000, chunk_overlap=200)
+            chunks = processor.process_file(
+                tmp_path,
+                additional_metadata={
+                    "original_filename": file.filename,
+                    "chat_id": chat_id
+                }
+            )
+            
+            # Determine collection name
+            if chat_id:
+                collection_name = f"chat_{chat_id}"
+            
+            # Store in vector database
+            vs = VectorStoreManager(collection_name=collection_name)
+            doc_ids = vs.add_documents(chunks)
+            stats = vs.get_collection_stats()
+            
+            return {
+                "status": "success",
+                "message": f"Document '{file.filename}' uploaded and processed successfully",
+                "document": {
+                    "filename": file.filename,
+                    "file_type": file_ext,
+                    "chunks_created": len(chunks),
+                    "collection": collection_name,
+                    "document_ids": doc_ids[:5]  # Return first 5 IDs
+                },
+                "collection_stats": stats
+            }
+            
+        finally:
+            # Clean up temp file
+            os.unlink(tmp_path)
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Error processing document: {str(e)}"
+        )
+
+
+@app.get("/api/memory/stats", tags=["Memory"])
+async def get_memory_stats(collection_name: str = "global_memory"):
+    """
+    Get statistics about a memory collection.
+    
+    Args:
+        collection_name: Name of the collection (default: "global_memory")
+    
+    Returns:
+        Collection statistics
+    """
+    try:
+        from database.vector_store import VectorStoreManager
+        
+        vs = VectorStoreManager(collection_name=collection_name)
+        stats = vs.get_collection_stats()
+        
+        return {
+            "status": "success",
+            "stats": stats
+        }
+        
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Error getting memory stats: {str(e)}"
+        )
+
+
+@app.post("/api/memory/search", tags=["Memory"])
+async def search_memory(
+    query: str = Form(...),
+    collection_name: str = Form("global_memory"),
+    num_results: int = Form(5),
+    chat_id: Optional[str] = Form(None),
+    use_global: bool = Form(True),
+    scope: str = Form("both")
+):
+    """
+    Search memory for relevant information with scope awareness.
+    
+    Args:
+        query: Search query
+        collection_name: Collection to search (legacy parameter)
+        num_results: Number of results to return
+        chat_id: Optional chat ID for chat-specific search
+        use_global: Enable global memory search
+        scope: "global", "chat", or "both"
+    
+    Returns:
+        Search results with source indicators
+    """
+    try:
+        from utils.memory_scope import MemoryManager, MemoryScope
+        
+        # Map string to enum
+        scope_map = {
+            "global": MemoryScope.GLOBAL,
+            "chat": MemoryScope.CHAT,
+            "both": MemoryScope.BOTH
+        }
+        memory_scope = scope_map.get(scope.lower(), MemoryScope.BOTH)
+        
+        # Use new memory manager
+        manager = MemoryManager(chat_id=chat_id, use_global=use_global)
+        results = manager.search(query, scope=memory_scope, k=num_results)
+        
+        return {
+            "status": "success",
+            "query": query,
+            "scope": scope,
+            "chat_id": chat_id,
+            "use_global": use_global,
+            "results": results,
+            "total_found": len(results)
+        }
+        
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Error searching memory: {str(e)}"
+        )
+
+
+@app.delete("/api/memory/{collection_name}", tags=["Memory"])
+async def delete_memory_collection(collection_name: str):
+    """
+    Delete an entire memory collection.
+    
+    Args:
+        collection_name: Name of the collection to delete
+    
+    Returns:
+        Deletion status
+    """
+    try:
+        from database.vector_store import VectorStoreManager
+        
+        vs = VectorStoreManager(collection_name=collection_name)
+        success = vs.clear_collection()
+        
+        if success:
+            return {
+                "status": "success",
+                "message": f"Collection '{collection_name}' deleted successfully"
+            }
+        else:
+            raise HTTPException(
+                status_code=500,
+                detail=f"Failed to delete collection '{collection_name}'"
+            )
+        
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Error deleting collection: {str(e)}"
+        )
+
+
+@app.post("/api/memory/save", tags=["Memory"])
+async def save_to_memory_endpoint(
+    content: str = Form(...),
+    chat_id: Optional[str] = Form(None),
+    use_global: bool = Form(True),
+    scope: str = Form("global"),
+    metadata: Optional[str] = Form(None)
+):
+    """
+    Save information to memory with scope control.
+    
+    Args:
+        content: Content to save
+        chat_id: Optional chat ID for chat-specific memory
+        use_global: Enable global memory
+        scope: "global", "chat", or "both"
+        metadata: Optional JSON metadata
+    
+    Returns:
+        Save status
+    """
+    try:
+        from utils.memory_scope import MemoryManager, MemoryScope
+        import json
+        
+        # Parse metadata if provided
+        meta = json.loads(metadata) if metadata else {}
+        
+        # Map string to enum
+        scope_map = {
+            "global": MemoryScope.GLOBAL,
+            "chat": MemoryScope.CHAT,
+            "both": MemoryScope.BOTH
+        }
+        memory_scope = scope_map.get(scope.lower(), MemoryScope.GLOBAL)
+        
+        # Save using memory manager
+        manager = MemoryManager(chat_id=chat_id, use_global=use_global)
+        result = manager.save(content, metadata=meta, scope=memory_scope)
+        
+        return {
+            "status": result["status"],
+            "message": result["message"],
+            "saved_to": result.get("saved_to", [])
+        }
+        
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Error saving to memory: {str(e)}"
+        )
+
+
+@app.get("/api/memory/stats/{scope}", tags=["Memory"])
+async def get_scoped_memory_stats(
+    scope: str,
+    chat_id: Optional[str] = None,
+    use_global: bool = True
+):
+    """
+    Get memory statistics with scope awareness.
+    
+    Args:
+        scope: "global", "chat", or "both"
+        chat_id: Optional chat ID
+        use_global: Enable global memory
+    
+    Returns:
+        Memory statistics
+    """
+    try:
+        from utils.memory_scope import MemoryManager, MemoryScope
+        
+        # Map string to enum
+        scope_map = {
+            "global": MemoryScope.GLOBAL,
+            "chat": MemoryScope.CHAT,
+            "both": MemoryScope.BOTH
+        }
+        memory_scope = scope_map.get(scope.lower(), MemoryScope.BOTH)
+        
+        manager = MemoryManager(chat_id=chat_id, use_global=use_global)
+        stats = manager.get_stats(scope=memory_scope)
+        
+        return {
+            "status": "success",
+            "scope": scope,
+            "chat_id": chat_id,
+            "stats": stats
+        }
+        
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Error getting memory stats: {str(e)}"
+        )
 
 
 # Startup and shutdown events

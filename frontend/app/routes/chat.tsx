@@ -8,8 +8,11 @@ import { LoadingIndicator } from "../components/LoadingIndicator";
 import { ChatSidebar } from "../components/ChatSidebar";
 import { ShortcutsHelp } from "../components/ShortcutsHelp";
 import { CancelButton } from "../components/CancelButton";
+import { DocumentSelector } from "../components/DocumentSelector";
+import { QuickDocumentSwitcher } from "../components/QuickDocumentSwitcher";
 import { useChatSession } from "../hooks/useChatSession";
 import { useKeyboardShortcuts } from "../hooks/useKeyboardShortcuts";
+import { useDocumentContext } from "../hooks/useDocumentContext";
 
 export function meta({}: Route.MetaArgs) {
   return [
@@ -40,6 +43,14 @@ export default function Chat() {
   const [showSearch, setShowSearch] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const [showQuickSwitcher, setShowQuickSwitcher] = useState(false);
+  
+  // Document context management
+  const {
+    selectedDocuments,
+    updateDocuments,
+    addDocument,
+  } = useDocumentContext(activeChatId);
 
   // Auto-scroll to bottom when new messages arrive
   useEffect(() => {
@@ -90,6 +101,15 @@ export default function Chat() {
       {
         key: "k",
         ctrlKey: true,
+        handler: () => {
+          setShowQuickSwitcher((prev) => !prev);
+        },
+        description: "Quick document switcher",
+      },
+      {
+        key: "k",
+        ctrlKey: true,
+        shiftKey: true,
         handler: () => {
           // Trigger search event for sidebar
           window.dispatchEvent(new CustomEvent('toggle-search'));
@@ -229,10 +249,19 @@ export default function Chat() {
       {/* Main Chat Area */}
       <div className="relative z-10 flex-1 flex flex-col md:ml-64 overflow-hidden">
         <div className="flex-1 flex flex-col max-w-4xl mx-auto w-full px-2 sm:px-4 py-2 sm:py-4 overflow-hidden">
-          {/* Header - Compact */}
-          <div className="text-center mb-3 sm:mb-4 shrink-0">
-            <h1 className="text-xl sm:text-2xl font-bold gradient-text mb-1">Chat with AI</h1>
-            <p className="text-xs sm:text-sm text-gray-400">Ask me anything in rhyme</p>
+          {/* Header - Compact with Document Selector */}
+          <div className="shrink-0">
+            
+            {/* Active Documents Display */}
+            {activeChatId && (
+              <div className="flex justify-center mt-3">
+                <DocumentSelector
+                  chatId={activeChatId}
+                  onDocumentsChange={updateDocuments}
+                  initialDocuments={selectedDocuments}
+                />
+              </div>
+            )}
           </div>
 
           {/* Messages Container */}
@@ -311,6 +340,16 @@ export default function Chat() {
 
       {/* Keyboard Shortcuts Help Modal */}
       <ShortcutsHelp isOpen={showShortcuts} onClose={() => setShowShortcuts(false)} />
+      
+      {/* Quick Document Switcher Modal */}
+      <QuickDocumentSwitcher
+        isOpen={showQuickSwitcher}
+        onClose={() => setShowQuickSwitcher(false)}
+        onSelect={(documentName) => {
+          addDocument(documentName);
+        }}
+        currentDocuments={selectedDocuments}
+      />
     </div>
   );
 }
