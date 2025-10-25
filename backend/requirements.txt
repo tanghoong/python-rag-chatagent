@@ -6,10 +6,10 @@ pydantic-settings==2.7.0
 python-dotenv==1.1.1
 
 # LangChain dependencies
-langchain==0.3.27
-langchain-core==0.3.79
-langchain-google-genai==2.1.12
-langchain-openai==0.2.14
+langchain==1.0.2
+langchain-core==1.0.1
+langchain-google-genai==3.0.0
+langchain-openai==1.0.1
 
 # MongoDB dependencies
 pymongo==4.9.1

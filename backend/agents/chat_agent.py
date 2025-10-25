@@ -1,18 +1,18 @@
 """
 LangChain ReAct Agent Module
 
-Implements a poetic AI assistant that responds in rhymes and intelligently uses tools.
+Implements Mira, an intelligent AI assistant that provides clear, helpful responses and uses tools intelligently.
 """
 
 from typing import List, Dict, Tuple
-from langchain.agents import AgentExecutor, create_react_agent
-from langchain_core.prompts import PromptTemplate
+from langgraph.prebuilt import create_react_agent
+from langchain_core.messages import HumanMessage, AIMessage, SystemMessage
 from utils.llm import get_llm
 from utils.tools import get_all_tools
 
 
-# Define the ReAct prompt template with Mira-like persona and richer examples
-REACT_PROMPT = """You are Mira — an intelligent, calm, and pragmatic AI assistant.
+# Define the ReAct system prompt with Mira-like persona and richer examples
+SYSTEM_PROMPT = """You are Mira — an intelligent, calm, and pragmatic AI assistant.
 Tone: warm, concise, and helpful. Use natural, plain language. Be direct with technical details when needed,
 but keep explanations actionable and non-verbose. Avoid poetry, rhymes, or flowery language.
 
@@ -25,24 +25,6 @@ Behavior goals:
 - For emotional or friction situations, respond empathetically and propose a prioritized plan.
 
 
-REQUIREMENTS (must be present on each agent invocation):
-1. **tools** — a rendered list or mapping of tool names and descriptions must be inserted at `{tools}`.
-2. **tool_names** — a comma-separated list of tool identifiers must be provided at `{tool_names}`.
-3. **chat_history** — the last N messages (recommended: 10) must be provided at `{chat_history}`.
-4. **agent_scratchpad** — the agent's internal reasoning placeholder must be provided at `{agent_scratchpad}`.
-
-
-Use the following reasoning format (ReAct style):
-
-
-Question: the input question you must answer
-Thought: your internal reasoning about how to solve it (brief — 1–3 short sentences)
-Action: the action to take, should be one of [{tool_names}]
-Action Input: the input to the action
-Observation: the result of the action
-... (repeat as needed)
-Thought: I now know the final answer
-Final Answer: the final answer to the original input question (natural language, Mira-style)
 
 
 CRITICAL RULES:
@@ -66,50 +48,32 @@ Example Behaviors (reference — the agent should follow these styles):
 - "I’m frustrated — my deploy failed" → Final Answer: empathetic one-liner + prioritized recovery checklist.
 - "Generate a react component for a login form" → Final Answer: compact runnable component, dependencies, and security notes.
 
-{chat_history}
+"""
 
-Begin!
-
-
-Question: {input}
-Thought: {agent_scratchpad}"""
-
-def create_chat_agent(llm=None) -> AgentExecutor:
+def create_chat_agent(llm=None):
     """
-    Create and configure the LangChain ReAct agent.
+    Create and configure the LangChain ReAct agent using LangGraph.
     
     Args:
         llm: Optional LLM instance. If None, creates default LLM.
     
     Returns:
-        AgentExecutor: Configured agent executor
+        Agent graph executor
     """
     # Get LLM and tools
     if llm is None:
         llm = get_llm(temperature=0.2)
     tools = get_all_tools()
     
-    # Create prompt template
-    prompt = PromptTemplate.from_template(REACT_PROMPT)
-    
-    # Create ReAct agent
+    # Create ReAct agent using langgraph
+    # The new approach uses create_react_agent which returns a compiled graph
     agent = create_react_agent(
-        llm=llm,
+        model=llm,
         tools=tools,
-        prompt=prompt
+        prompt=SYSTEM_PROMPT  # System prompt for the agent
     )
     
-    # Create agent executor
-    agent_executor = AgentExecutor(
-        agent=agent,
-        tools=tools,
-        verbose=True,  # Enable verbose logging for debugging
-        max_iterations=8,
-        handle_parsing_errors=True,
-        return_intermediate_steps=True  # CHANGED: Return intermediate steps for thought process
-    )
-    
-    return agent_executor
+    return agent
 
 
 def get_agent_response(
@@ -132,6 +96,7 @@ def get_agent_response(
     """
     try:
         from utils.llm import get_smart_llm
+        from langchain_core.messages import HumanMessage, AIMessage
         
         # Use smart LLM selection based on message complexity
         llm, llm_metadata = get_smart_llm(user_message, temperature=0.2)
@@ -139,42 +104,44 @@ def get_agent_response(
         # Create agent with the selected LLM
         agent = create_chat_agent(llm=llm)
         
-        # Format chat history for the prompt
-        history_text = ""
+        # Convert chat history to LangChain messages
+        messages = []
         if chat_history and len(chat_history) > 0:
-            history_text = "\nConversation History:\n"
             for msg in chat_history[-10:]:  # Last 10 messages for context
-                role_label = "User" if msg["role"] == "user" else "Assistant"
-                history_text += f"{role_label}: {msg['content']}\n"
-            history_text += "\n"
+                if msg["role"] == "user":
+                    messages.append(HumanMessage(content=msg["content"]))
+                else:
+                    messages.append(AIMessage(content=msg["content"]))
         
-        result = agent.invoke({
-            "input": user_message,
-            "chat_history": history_text
-        })
+        # Add current user message
+        messages.append(HumanMessage(content=user_message))
         
-        # Extract the output
-        response = result.get("output", "I apologize, but I encountered an error processing your request.")
+        # Invoke the agent with messages
+        result = agent.invoke({"messages": messages})
         
-        # Extract thought process from intermediate steps
+        # Extract the response from the result
+        # LangGraph returns a dict with 'messages' key containing all messages including the response
+        if "messages" in result:
+            # Get the last message which should be the agent's response
+            last_message = result["messages"][-1]
+            response = last_message.content if hasattr(last_message, 'content') else str(last_message)
+        else:
+            response = "I apologize, but I encountered an error processing your request."
+        
+        # Extract thought process from intermediate steps if available
         thought_process = []
-        intermediate_steps = result.get("intermediate_steps", [])
-        
-        for step_tuple in intermediate_steps:
-            # Each step is a tuple: (AgentAction, observation)
-            if len(step_tuple) >= 2:
-                action, observation = step_tuple[0], step_tuple[1]
-                
-                # Add the thought/action
-                thought_process.append({
-                    "step": "Action",
-                    "content": f"Tool: {action.tool}, Input: {action.tool_input}"
-                })
-                
-                # Add the observation
+        # In LangGraph, tool calls are embedded in the message history
+        for msg in result.get("messages", []):
+            if hasattr(msg, 'additional_kwargs') and 'tool_calls' in msg.additional_kwargs:
+                for tool_call in msg.additional_kwargs['tool_calls']:
+                    thought_process.append({
+                        "step": "Action",
+                        "content": f"Tool: {tool_call.get('function', {}).get('name', 'unknown')}"
+                    })
+            elif hasattr(msg, 'type') and msg.type == 'tool':
                 thought_process.append({
                     "step": "Observation",
-                    "content": str(observation)[:500]  # Limit observation length
+                    "content": str(msg.content)[:500]  # Limit observation length
                 })
         
         return response, thought_process, llm_metadata
@@ -182,6 +149,8 @@ def get_agent_response(
     except Exception as e:
         error_msg = f"An error occurred while processing your request: {str(e)}"
         print(f"❌ Agent Error: {error_msg}")
+        import traceback
+        traceback.print_exc()
         
         # Return a clear error message with empty thought process and metadata
         error_response = (
