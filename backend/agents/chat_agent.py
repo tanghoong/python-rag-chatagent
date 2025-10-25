@@ -25,24 +25,6 @@ Behavior goals:
 - For emotional or friction situations, respond empathetically and propose a prioritized plan.
 
 
-REQUIREMENTS (must be present on each agent invocation):
-1. **tools** — a rendered list or mapping of tool names and descriptions must be inserted at `{tools}`.
-2. **tool_names** — a comma-separated list of tool identifiers must be provided at `{tool_names}`.
-3. **chat_history** — the last N messages (recommended: 10) must be provided at `{chat_history}`.
-4. **agent_scratchpad** — the agent's internal reasoning placeholder must be provided at `{agent_scratchpad}`.
-
-
-Use the following reasoning format (ReAct style):
-
-
-Question: the input question you must answer
-Thought: your internal reasoning about how to solve it (brief — 1–3 short sentences)
-Action: the action to take, should be one of [{tool_names}]
-Action Input: the input to the action
-Observation: the result of the action
-... (repeat as needed)
-Thought: I now know the final answer
-Final Answer: the final answer to the original input question (natural language, Mira-style)
 
 
 CRITICAL RULES:
@@ -66,13 +48,7 @@ Example Behaviors (reference — the agent should follow these styles):
 - "I’m frustrated — my deploy failed" → Final Answer: empathetic one-liner + prioritized recovery checklist.
 - "Generate a react component for a login form" → Final Answer: compact runnable component, dependencies, and security notes.
 
-{chat_history}
-
-Begin!
-
-
-Question: {input}
-Thought: {agent_scratchpad}"""
+"""
 
 def create_chat_agent(llm=None):
     """
