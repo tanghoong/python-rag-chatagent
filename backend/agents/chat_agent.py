@@ -1,7 +1,7 @@
 """
 LangChain ReAct Agent Module
 
-Implements a poetic AI assistant that responds in rhymes and intelligently uses tools.
+Implements Mira, an intelligent AI assistant that provides clear, helpful responses and uses tools intelligently.
 """
 
 from typing import List, Dict, Tuple
