@@ -94,7 +94,7 @@ def create_chat_agent(llm=None):
     agent = create_react_agent(
         model=llm,
         tools=tools,
-        state_modifier=SYSTEM_PROMPT  # System message for the agent
+        prompt=SYSTEM_PROMPT  # System prompt for the agent
     )
     
     return agent
