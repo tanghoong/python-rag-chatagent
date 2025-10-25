@@ -6,7 +6,7 @@ Implements Mira, an intelligent AI assistant that provides clear, helpful respon
 
 from typing import List, Dict, Tuple
 from langgraph.prebuilt import create_react_agent
-from langchain_core.messages import HumanMessage, AIMessage, SystemMessage
+from langchain_core.messages import HumanMessage, AIMessage
 from utils.llm import get_llm
 from utils.tools import get_all_tools
 
@@ -69,10 +69,10 @@ Example Behaviors (reference — the agent should follow these styles):
 def create_chat_agent(llm=None):
     """
     Create and configure the LangChain ReAct agent using LangGraph.
-    
+
     Args:
         llm: Optional LLM instance. If None, creates default LLM.
-    
+
     Returns:
         Agent graph executor
     """
@@ -80,7 +80,7 @@ def create_chat_agent(llm=None):
     if llm is None:
         llm = get_llm(temperature=0.2)
     tools = get_all_tools()
-    
+
     # Create ReAct agent using langgraph
     # The new approach uses create_react_agent which returns a compiled graph
     agent = create_react_agent(
@@ -88,22 +88,22 @@ def create_chat_agent(llm=None):
         tools=tools,
         prompt=SYSTEM_PROMPT  # System prompt for the agent
     )
-    
+
     return agent
 
 
 def get_agent_response(
-    user_message: str, 
+    user_message: str,
     chat_history: List[Dict[str, str]] | None = None
 ) -> Tuple[str, List[Dict[str, str]], Dict]:
     """
     Get response from the agent for a user message with conversation history.
     Uses smart LLM selection based on message complexity.
-    
+
     Args:
         user_message: The user's input message
         chat_history: List of previous messages [{"role": "user"|"assistant", "content": "..."}]
-    
+
     Returns:
         Tuple[str, List[Dict[str, str]], Dict]: (response, thought_process, llm_metadata)
             - response: The agent's final answer
@@ -112,14 +112,13 @@ def get_agent_response(
     """
     try:
         from utils.llm import get_smart_llm
-        from langchain_core.messages import HumanMessage, AIMessage
-        
+
         # Use smart LLM selection based on message complexity
         llm, llm_metadata = get_smart_llm(user_message, temperature=0.2)
-        
+
         # Create agent with the selected LLM
         agent = create_chat_agent(llm=llm)
-        
+
         # Convert chat history to LangChain messages
         messages = []
         if chat_history and len(chat_history) > 0:
@@ -128,13 +127,13 @@ def get_agent_response(
                     messages.append(HumanMessage(content=msg["content"]))
                 else:
                     messages.append(AIMessage(content=msg["content"]))
-        
+
         # Add current user message
         messages.append(HumanMessage(content=user_message))
-        
+
         # Invoke the agent with messages
         result = agent.invoke({"messages": messages})
-        
+
         # Extract the response from the result
         # LangGraph returns a dict with 'messages' key containing all messages including the response
         if "messages" in result:
@@ -143,7 +142,7 @@ def get_agent_response(
             response = last_message.content if hasattr(last_message, 'content') else str(last_message)
         else:
             response = "I apologize, but I encountered an error processing your request."
-        
+
         # Extract thought process from intermediate steps if available
         thought_process = []
         # In LangGraph, tool calls are embedded in the message history
@@ -159,42 +158,42 @@ def get_agent_response(
                     "step": "Observation",
                     "content": str(msg.content)[:500]  # Limit observation length
                 })
-        
+
         return response, thought_process, llm_metadata
-        
+
     except Exception as e:
         error_msg = f"An error occurred while processing your request: {str(e)}"
         print(f"❌ Agent Error: {error_msg}")
         import traceback
         traceback.print_exc()
-        
+
         # Return a clear error message with empty thought process and metadata
         error_response = (
             "I apologize, but I encountered an error while processing your request. "
             "Please try rephrasing your question or try again."
         )
-        
+
         error_metadata = {
             "auto_switched": False,
             "model": "error",
             "provider": "error",
             "complexity": "error"
         }
-        
+
         return error_response, [{"step": "Error", "content": error_msg}], error_metadata
 
 
 # For testing
 if __name__ == "__main__":
     print("Testing chat agent...")
-    
+
     # Test 1: General question (no tool usage)
     print("\n--- Test 1: General Question ---")
     response1, steps1, metadata1 = get_agent_response("What is Python?")
     print(f"Response: {response1}")
     print(f"Thought Process: {steps1}")
     print(f"LLM Metadata: {metadata1}\n")
-    
+
     # Test 2: Database query (tool usage)
     print("\n--- Test 2: Database Query ---")
     response2, steps2, metadata2 = get_agent_response("Show me my posts about programming")

@@ -21,27 +21,27 @@ class MessageComplexityAnalyzer:
     """
     Analyzes message complexity based on various heuristics.
     """
-    
+
     # Keywords indicating different complexity levels
     SIMPLE_KEYWORDS = [
         "hello", "hi", "hey", "thanks", "thank you", "ok", "okay",
         "yes", "no", "what is", "who is", "when is", "where is"
     ]
-    
+
     COMPLEX_KEYWORDS = [
         "explain", "compare", "analyze", "design", "architecture",
         "implement", "optimize", "refactor", "debug", "troubleshoot",
         "why does", "how can i", "what's the best way",
         "step by step", "walkthrough", "tutorial"
     ]
-    
+
     EXPERT_KEYWORDS = [
         "system design", "scalability", "performance optimization",
         "distributed system", "microservices", "design pattern",
         "trade-off", "production", "enterprise", "best practice",
         "security vulnerability", "code review", "algorithm complexity"
     ]
-    
+
     CODE_PATTERNS = [
         r"```[\s\S]*?```",           # Code blocks
         r"`[^`]+`",                   # Inline code
@@ -50,26 +50,26 @@ class MessageComplexityAnalyzer:
         r"def\s+\w+",                 # Python functions
         r"import\s+\w+",              # Imports
     ]
-    
+
     @staticmethod
     def analyze(message: str) -> Tuple[ComplexityLevel, Dict[str, any]]:
         """
         Analyze message complexity and return level with metadata.
-        
+
         Args:
             message: User message to analyze
-            
+
         Returns:
             Tuple of (ComplexityLevel, metadata_dict)
         """
         message_lower = message.lower()
         word_count = len(message.split())
         sentence_count = len(re.split(r'[.!?]+', message))
-        
+
         # Initialize scoring
         complexity_score = 0
         indicators = []
-        
+
         # 1. Length-based scoring
         if word_count < 10:
             complexity_score += 0
@@ -80,7 +80,7 @@ class MessageComplexityAnalyzer:
         else:
             complexity_score += 3
             indicators.append(f"Long message ({word_count} words)")
-        
+
         # 2. Question complexity
         question_words = ["how", "why", "what", "when", "where", "which", "who"]
         question_count = sum(1 for word in question_words if word in message_lower)
@@ -89,18 +89,18 @@ class MessageComplexityAnalyzer:
             indicators.append(f"Multiple questions ({question_count})")
         elif question_count > 0:
             complexity_score += 1
-        
+
         # 3. Check for code-related content
         has_code = any(re.search(pattern, message) for pattern in MessageComplexityAnalyzer.CODE_PATTERNS)
         if has_code:
             complexity_score += 3
             indicators.append("Contains code")
-        
+
         # 4. Keyword analysis
         simple_count = sum(1 for kw in MessageComplexityAnalyzer.SIMPLE_KEYWORDS if kw in message_lower)
         complex_count = sum(1 for kw in MessageComplexityAnalyzer.COMPLEX_KEYWORDS if kw in message_lower)
         expert_count = sum(1 for kw in MessageComplexityAnalyzer.EXPERT_KEYWORDS if kw in message_lower)
-        
+
         if expert_count > 0:
             complexity_score += 4
             indicators.append(f"Expert keywords ({expert_count})")
@@ -109,14 +109,14 @@ class MessageComplexityAnalyzer:
             indicators.append(f"Complex keywords ({complex_count})")
         elif simple_count > 0:
             complexity_score -= 1
-        
+
         # 5. Multi-part questions (numbered lists, bullet points)
         has_numbered_list = bool(re.search(r'\d+[\.)]\s', message))
         has_bullet_points = bool(re.search(r'[-*]\s', message))
         if has_numbered_list or has_bullet_points:
             complexity_score += 2
             indicators.append("Multi-part question")
-        
+
         # 6. Technical terms (APIs, frameworks, databases)
         technical_terms = [
             "api", "database", "mongodb", "sql", "react", "python",
@@ -129,7 +129,7 @@ class MessageComplexityAnalyzer:
             indicators.append(f"Technical terms ({tech_count})")
         elif tech_count > 0:
             complexity_score += 1
-        
+
         # Determine complexity level based on score
         if complexity_score <= 2:
             level = ComplexityLevel.SIMPLE
@@ -139,7 +139,7 @@ class MessageComplexityAnalyzer:
             level = ComplexityLevel.COMPLEX
         else:
             level = ComplexityLevel.EXPERT
-        
+
         metadata = {
             "score": complexity_score,
             "word_count": word_count,
@@ -148,18 +148,18 @@ class MessageComplexityAnalyzer:
             "has_code": has_code,
             "question_count": question_count
         }
-        
+
         return level, metadata
-    
+
     @staticmethod
     def recommend_model(complexity: ComplexityLevel, provider: str = "openai") -> str:
         """
         Recommend appropriate model based on complexity level.
-        
+
         Args:
             complexity: ComplexityLevel enum
             provider: LLM provider ('openai' or 'google')
-            
+
         Returns:
             str: Recommended model name
         """
@@ -177,7 +177,7 @@ class MessageComplexityAnalyzer:
                 ComplexityLevel.COMPLEX: "gemini-1.5-pro",
                 ComplexityLevel.EXPERT: "gemini-1.5-pro"
             }
-        
+
         return model_map.get(complexity, model_map[ComplexityLevel.MODERATE])
 
 
@@ -185,18 +185,18 @@ class MessageComplexityAnalyzer:
 def analyze_and_recommend(message: str, provider: str = "openai") -> Tuple[str, ComplexityLevel, Dict]:
     """
     Analyze message and recommend model in one call.
-    
+
     Args:
         message: User message to analyze
         provider: LLM provider
-        
+
     Returns:
         Tuple of (recommended_model, complexity_level, metadata)
     """
     analyzer = MessageComplexityAnalyzer()
     complexity, metadata = analyzer.analyze(message)
     recommended_model = analyzer.recommend_model(complexity, provider)
-    
+
     return recommended_model, complexity, metadata
 
 
@@ -209,7 +209,7 @@ if __name__ == "__main__":
         "Design a scalable microservices architecture for an e-commerce platform with high availability",
         "Can you help me debug this code: ```python\ndef calculate(x):\n    return x * 2\n```",
     ]
-    
+
     print("=== Message Complexity Analysis ===\n")
     for msg in test_messages:
         model, complexity, metadata = analyze_and_recommend(msg, provider="openai")

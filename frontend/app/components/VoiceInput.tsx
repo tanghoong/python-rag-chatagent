@@ -149,4 +149,15 @@ declare global {
     SpeechRecognition: any;
     webkitSpeechRecognition: any;
   }
+
+  // Web Speech API type declarations
+  interface SpeechRecognitionEvent extends Event {
+    results: SpeechRecognitionResultList;
+    resultIndex: number;
+  }
+
+  interface SpeechRecognitionErrorEvent extends Event {
+    error: string;
+    message?: string;
+  }
 }

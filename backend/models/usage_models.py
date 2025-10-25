@@ -4,7 +4,7 @@ Usage Statistics and Analytics Models
 Tracks token usage, costs, tool usage, and performance metrics for chat sessions.
 """
 
-from typing import List, Dict, Optional, Any
+from typing import List, Dict, Any
 from pydantic import BaseModel, Field
 from datetime import datetime, timezone
 
@@ -14,7 +14,7 @@ class TokenUsage(BaseModel):
     prompt_tokens: int = 0
     completion_tokens: int = 0
     total_tokens: int = 0
-    
+
     @property
     def estimated_cost(self) -> float:
         """
@@ -33,14 +33,14 @@ class ToolUsage(BaseModel):
     success_count: int = 0
     failure_count: int = 0
     total_duration_ms: float = 0.0
-    
+
     @property
     def average_duration_ms(self) -> float:
         """Calculate average duration per tool call."""
         if self.call_count == 0:
             return 0.0
         return round(self.total_duration_ms / self.call_count, 2)
-    
+
     @property
     def success_rate(self) -> float:
         """Calculate success rate as percentage."""
@@ -69,19 +69,19 @@ class ChatSessionStats(BaseModel):
     total_cost: float = 0.0
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
-    
+
     def add_message_stats(self, message_stats: MessageStats):
         """Update session stats with new message statistics."""
         # Update token counts
         self.total_tokens.prompt_tokens += message_stats.token_usage.prompt_tokens
         self.total_tokens.completion_tokens += message_stats.token_usage.completion_tokens
         self.total_tokens.total_tokens += message_stats.token_usage.total_tokens
-        
+
         # Update message count and response time
         self.total_messages += 1
         current_total = self.average_response_time_ms * (self.total_messages - 1)
         self.average_response_time_ms = (current_total + message_stats.duration_ms) / self.total_messages
-        
+
         # Update tool usage
         for tool_call in message_stats.tool_calls:
             existing_tool = next(
@@ -95,7 +95,7 @@ class ChatSessionStats(BaseModel):
                 existing_tool.total_duration_ms += tool_call.total_duration_ms
             else:
                 self.tool_usage_summary.append(tool_call)
-        
+
         # Update total cost
         self.total_cost = self.total_tokens.estimated_cost
         self.updated_at = datetime.now(timezone.utc)

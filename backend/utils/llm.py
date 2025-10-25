@@ -41,48 +41,48 @@ def get_llm(
 ) -> Union[ChatGoogleGenerativeAI, ChatOpenAI]:
     """
     Get configured LLM instance based on provider.
-    
+
     Args:
         temperature: Sampling temperature (0.0-1.0). Lower is more deterministic.
         model: Model name to use. If None, uses default for the provider.
         provider: LLM provider ('google' or 'openai'). If None, uses LLM_PROVIDER env var.
-    
+
     Returns:
         Union[ChatGoogleGenerativeAI, ChatOpenAI]: Configured LLM instance
-    
+
     Raises:
         ValueError: If provider is not supported or API key is missing
     """
     # Use provider from parameter or environment variable
     selected_provider = (provider or LLM_PROVIDER).lower()
-    
+
     if selected_provider == "google":
         # Default Google Gemini model
         default_model = "gemini-2.0-flash-exp"
         model_name = model or default_model
-        
+
         llm = ChatGoogleGenerativeAI(
             model=model_name,
             google_api_key=GOOGLE_API_KEY,
             temperature=temperature,
             convert_system_message_to_human=True,  # For better compatibility
         )
-        
+
         return llm
-    
+
     elif selected_provider == "openai":
         # Default OpenAI model
         default_model = "gpt-4o-mini"
         model_name = model or default_model
-        
+
         llm = ChatOpenAI(
             model=model_name,
             openai_api_key=OPENAI_API_KEY,
             temperature=temperature,
         )
-        
+
         return llm
-    
+
     else:
         raise ValueError(
             f"Unsupported LLM provider: {selected_provider}. "
@@ -98,25 +98,25 @@ def get_smart_llm(
 ) -> Tuple[Union[ChatGoogleGenerativeAI, ChatOpenAI], dict]:
     """
     Get LLM instance with automatic model selection based on message complexity.
-    
+
     This function analyzes the input message and automatically selects the most
     appropriate model based on complexity:
     - Simple queries -> gpt-4o-mini / gemini-2.0-flash-exp (fast & cost-effective)
     - Complex queries -> gpt-4o / gemini-1.5-pro (higher quality)
-    
+
     Args:
         message: User message to analyze for complexity
         temperature: Sampling temperature (0.0-1.0)
         provider: LLM provider ('google' or 'openai'). If None, uses LLM_PROVIDER env var
         force_model: Force a specific model (overrides auto-selection)
-    
+
     Returns:
         Tuple of (LLM instance, metadata dict with complexity info)
     """
     from utils.complexity_analyzer import analyze_and_recommend
-    
+
     selected_provider = (provider or LLM_PROVIDER).lower()
-    
+
     # If auto-switching is disabled or model is forced, use standard get_llm
     if not AUTO_SWITCH_LLM or force_model:
         model = force_model or ("gpt-4o-mini" if selected_provider == "openai" else "gemini-2.0-flash-exp")
@@ -128,13 +128,13 @@ def get_smart_llm(
             "complexity": "not_analyzed"
         }
         return llm, metadata
-    
+
     # Analyze message complexity and get recommendation
     recommended_model, complexity, analysis_metadata = analyze_and_recommend(message, selected_provider)
-    
+
     # Get LLM with recommended model
     llm = get_llm(temperature=temperature, model=recommended_model, provider=selected_provider)
-    
+
     # Prepare metadata
     metadata = {
         "auto_switched": True,
@@ -145,9 +145,9 @@ def get_smart_llm(
         "indicators": analysis_metadata["indicators"],
         "word_count": analysis_metadata["word_count"]
     }
-    
+
     print(f"🧠 Smart LLM Selection: {recommended_model} (complexity: {complexity.value}, score: {analysis_metadata['score']})")
-    
+
     return llm, metadata
 
 
@@ -179,7 +179,7 @@ def test_smart_llm():
         "What is Python?",
         "Design a scalable microservices architecture for e-commerce",
     ]
-    
+
     print("\n=== Testing Smart LLM Selection ===\n")
     for msg in test_messages:
         try:
@@ -195,6 +195,6 @@ def test_smart_llm():
 if __name__ == "__main__":
     print("Testing LLM connection...")
     test_llm()
-    
+
     if AUTO_SWITCH_LLM:
         test_smart_llm()

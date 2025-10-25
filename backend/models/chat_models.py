@@ -9,7 +9,7 @@ from bson import ObjectId
 
 class PyObjectId(ObjectId):
     """Custom type for MongoDB ObjectId validation"""
-    
+
     @classmethod
     def __get_validators__(cls):
         yield cls.validate
