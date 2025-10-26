@@ -772,6 +772,256 @@ async def upload_document(
         )
 
 
+@app.get("/api/documents/list", tags=["Documents"])
+async def list_documents(collection_name: str = "global_memory", limit: int = 100):
+    """
+    List all documents in a collection with metadata.
+
+    Args:
+        collection_name: Name of the collection (default: "global_memory")
+        limit: Maximum number of documents to return (default: 100)
+
+    Returns:
+        List of documents with metadata
+    """
+    try:
+        from database.vector_store import VectorStoreManager
+
+        vs = VectorStoreManager(collection_name=collection_name)
+        documents = vs.get_all_documents(limit=limit)
+        stats = vs.get_collection_stats()
+
+        # Group documents by filename
+        grouped_docs = {}
+        for doc in documents:
+            metadata = doc.get("metadata", {})
+            filename = metadata.get("original_filename") or metadata.get("filename") or metadata.get("source", "Unknown")
+            
+            if filename not in grouped_docs:
+                grouped_docs[filename] = {
+                    "filename": filename,
+                    "chunks": 0,
+                    "file_type": metadata.get("file_type", "unknown"),
+                    "uploaded_at": metadata.get("uploaded_at") or metadata.get("timestamp", "N/A"),
+                    "total_chars": 0,
+                    "metadata": metadata
+                }
+            
+            grouped_docs[filename]["chunks"] += 1
+            grouped_docs[filename]["total_chars"] += len(doc.get("content", ""))
+
+        return {
+            "status": "success",
+            "collection": collection_name,
+            "total_documents": len(grouped_docs),
+            "total_chunks": len(documents),
+            "documents": list(grouped_docs.values()),
+            "collection_stats": stats
+        }
+
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Error listing documents: {str(e)}"
+        )
+
+
+@app.delete("/api/documents/{collection_name}/{filename}", tags=["Documents"])
+async def delete_document(collection_name: str, filename: str):
+    """
+    Delete a specific document from a collection.
+
+    Args:
+        collection_name: Name of the collection
+        filename: Name of the file to delete
+
+    Returns:
+        Deletion status
+    """
+    try:
+        from database.vector_store import VectorStoreManager
+
+        vs = VectorStoreManager(collection_name=collection_name)
+        
+        # Get all documents
+        all_docs = vs.get_all_documents(limit=1000)
+        
+        # Find IDs of chunks belonging to this filename
+        ids_to_delete = []
+        chunks_found = 0
+        
+        for i, doc in enumerate(all_docs):
+            metadata = doc.get("metadata", {})
+            doc_filename = metadata.get("original_filename") or metadata.get("filename") or metadata.get("source")
+            
+            if doc_filename == filename:
+                # Generate ID (this is a simplified approach - in production, store actual IDs)
+                ids_to_delete.append(str(i))
+                chunks_found += 1
+
+        if not ids_to_delete:
+            raise HTTPException(
+                status_code=404,
+                detail=f"Document '{filename}' not found in collection '{collection_name}'"
+            )
+
+        # Delete the chunks
+        vs.delete_documents(ids_to_delete)
+
+        return {
+            "status": "success",
+            "message": f"Deleted document '{filename}' ({chunks_found} chunks)",
+            "collection": collection_name,
+            "filename": filename,
+            "chunks_deleted": chunks_found
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Error deleting document: {str(e)}"
+        )
+
+
+@app.post("/api/documents/bulk-delete", tags=["Documents"])
+async def bulk_delete_documents(
+    collection_name: str = Form(...),
+    filenames: str = Form(...)  # JSON string array
+):
+    """
+    Delete multiple documents at once.
+
+    Args:
+        collection_name: Name of the collection
+        filenames: JSON string array of filenames to delete
+
+    Returns:
+        Bulk deletion status
+    """
+    try:
+        import json
+        from database.vector_store import VectorStoreManager
+
+        # Parse filenames
+        try:
+            filename_list = json.loads(filenames)
+        except json.JSONDecodeError:
+            raise HTTPException(status_code=400, detail="Invalid filenames format")
+
+        vs = VectorStoreManager(collection_name=collection_name)
+        all_docs = vs.get_all_documents(limit=1000)
+
+        results = []
+        total_chunks_deleted = 0
+
+        for filename in filename_list:
+            ids_to_delete = []
+            chunks_found = 0
+
+            for i, doc in enumerate(all_docs):
+                metadata = doc.get("metadata", {})
+                doc_filename = metadata.get("original_filename") or metadata.get("filename") or metadata.get("source")
+                
+                if doc_filename == filename:
+                    ids_to_delete.append(str(i))
+                    chunks_found += 1
+
+            if ids_to_delete:
+                vs.delete_documents(ids_to_delete)
+                total_chunks_deleted += chunks_found
+                results.append({
+                    "filename": filename,
+                    "status": "success",
+                    "chunks_deleted": chunks_found
+                })
+            else:
+                results.append({
+                    "filename": filename,
+                    "status": "not_found",
+                    "chunks_deleted": 0
+                })
+
+        return {
+            "status": "success",
+            "message": f"Bulk delete completed: {len(results)} files processed",
+            "total_chunks_deleted": total_chunks_deleted,
+            "results": results
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Error in bulk delete: {str(e)}"
+        )
+
+
+@app.get("/api/documents/preview/{collection_name}/{filename}", tags=["Documents"])
+async def preview_document(collection_name: str, filename: str, max_chars: int = 500):
+    """
+    Get a preview of a document.
+
+    Args:
+        collection_name: Name of the collection
+        filename: Name of the file
+        max_chars: Maximum characters to return (default: 500)
+
+    Returns:
+        Document preview with first few chunks
+    """
+    try:
+        from database.vector_store import VectorStoreManager
+
+        vs = VectorStoreManager(collection_name=collection_name)
+        all_docs = vs.get_all_documents(limit=1000)
+
+        # Find chunks for this file
+        file_chunks = []
+        for doc in all_docs:
+            metadata = doc.get("metadata", {})
+            doc_filename = metadata.get("original_filename") or metadata.get("filename") or metadata.get("source")
+            
+            if doc_filename == filename:
+                file_chunks.append({
+                    "content": doc.get("content", ""),
+                    "metadata": metadata
+                })
+
+        if not file_chunks:
+            raise HTTPException(
+                status_code=404,
+                detail=f"Document '{filename}' not found"
+            )
+
+        # Get preview from first chunks
+        preview_text = ""
+        for chunk in file_chunks[:3]:  # First 3 chunks
+            preview_text += chunk["content"] + "\n\n"
+            if len(preview_text) >= max_chars:
+                preview_text = preview_text[:max_chars] + "..."
+                break
+
+        return {
+            "status": "success",
+            "filename": filename,
+            "collection": collection_name,
+            "total_chunks": len(file_chunks),
+            "preview": preview_text,
+            "metadata": file_chunks[0]["metadata"] if file_chunks else {}
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Error previewing document: {str(e)}"
+        )
+
+
 @app.get("/api/memory/stats", tags=["Memory"])
 async def get_memory_stats(collection_name: str = "global_memory"):
     """
