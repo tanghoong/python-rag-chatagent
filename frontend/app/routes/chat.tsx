@@ -4,15 +4,10 @@ import { toast } from "sonner";
 import { AnimatedBackground } from "../components/AnimatedBackground";
 import { ChatMessage } from "../components/ChatMessage";
 import { ChatInput } from "../components/ChatInput";
-import { LoadingIndicator } from "../components/LoadingIndicator";
 import { ChatSidebar } from "../components/ChatSidebar";
 import { ShortcutsHelp } from "../components/ShortcutsHelp";
-import { CancelButton } from "../components/CancelButton";
-import { DocumentSelector } from "../components/DocumentSelector";
-import { QuickDocumentSwitcher } from "../components/QuickDocumentSwitcher";
 import { useChatSession } from "../hooks/useChatSession";
 import { useKeyboardShortcuts } from "../hooks/useKeyboardShortcuts";
-import { useDocumentContext } from "../hooks/useDocumentContext";
 
 export function meta({}: Route.MetaArgs) {
   return [
@@ -37,20 +32,13 @@ export default function Chat() {
   } = useChatSession();
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
-  const inputRef = useRef<HTMLInputElement | null>(null);
+  const inputRef = useRef<HTMLTextAreaElement | null>(null);
   const sidebarRefreshRef = useRef<(() => void) | null>(null);
   const [showShortcuts, setShowShortcuts] = useState(false);
   const [showSearch, setShowSearch] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
-  const [showQuickSwitcher, setShowQuickSwitcher] = useState(false);
-  
-  // Document context management
-  const {
-    selectedDocuments,
-    updateDocuments,
-    addDocument,
-  } = useDocumentContext(activeChatId);
+  const [error, setError] = useState<string | null>(null);
 
   // Auto-scroll to bottom when new messages arrive
   useEffect(() => {
@@ -65,9 +53,14 @@ export default function Chat() {
   }, [loading]);
 
   const handleSendMessage = async (content: string) => {
-    await sendMessage(content);
-    // Trigger sidebar refresh to update chat title
-    sidebarRefreshRef.current?.();
+    try {
+      setError(null);
+      await sendMessage(content);
+      // Trigger sidebar refresh to update chat title
+      sidebarRefreshRef.current?.();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to send message');
+    }
   };
 
   const handleRegenerate = async (messageId: string) => {
@@ -97,14 +90,6 @@ export default function Chat() {
           inputRef.current?.form?.requestSubmit();
         },
         description: "Send message",
-      },
-      {
-        key: "k",
-        ctrlKey: true,
-        handler: () => {
-          setShowQuickSwitcher((prev) => !prev);
-        },
-        description: "Quick document switcher",
       },
       {
         key: "k",
@@ -224,14 +209,30 @@ export default function Chat() {
       setShowSearch((prev) => !prev);
     };
 
+    const handleToggleSidebar = () => {
+      setSidebarOpen((prev) => {
+        const newState = !prev;
+        // Notify root about sidebar state change
+        window.dispatchEvent(new CustomEvent('sidebar-state-changed', { detail: newState }));
+        return newState;
+      });
+    };
+
     window.addEventListener('toggle-shortcuts', handleToggleShortcuts);
     window.addEventListener('toggle-search', handleSearchShortcut);
+    window.addEventListener('toggle-sidebar', handleToggleSidebar);
     
     return () => {
       window.removeEventListener('toggle-shortcuts', handleToggleShortcuts);
       window.removeEventListener('toggle-search', handleSearchShortcut);
+      window.removeEventListener('toggle-sidebar', handleToggleSidebar);
     };
   }, []);
+
+  // Emit initial sidebar state
+  useEffect(() => {
+    window.dispatchEvent(new CustomEvent('sidebar-state-changed', { detail: sidebarOpen }));
+  }, [sidebarOpen]);
 
   return (
     <div className="relative h-screen flex overflow-hidden">
@@ -248,24 +249,9 @@ export default function Chat() {
 
       {/* Main Chat Area */}
       <div className="relative z-10 flex-1 flex flex-col md:ml-64 overflow-hidden">
-        <div className="flex-1 flex flex-col max-w-4xl mx-auto w-full px-2 sm:px-4 py-2 sm:py-4 overflow-hidden">
-          {/* Header - Compact with Document Selector */}
-          <div className="shrink-0">
-            
-            {/* Active Documents Display */}
-            {activeChatId && (
-              <div className="flex justify-center mt-3">
-                <DocumentSelector
-                  chatId={activeChatId}
-                  onDocumentsChange={updateDocuments}
-                  initialDocuments={selectedDocuments}
-                />
-              </div>
-            )}
-          </div>
-
-          {/* Messages Container */}
-          <div className="flex-1 overflow-y-auto custom-scrollbar space-y-2 sm:space-y-3 mb-2 sm:mb-3 min-h-0">
+        <div className="flex-1 flex flex-col max-w-4xl mx-auto w-full overflow-hidden">
+          {/* Messages Container with bottom padding for fixed input */}
+          <div className="flex-1 overflow-y-auto custom-scrollbar space-y-2 sm:space-y-3 px-2 sm:px-4 py-2 sm:py-4 pb-24 sm:pb-28 min-h-0">
             {messages.length === 0 && (
               <div className="flex items-center justify-center h-full px-4">
                 <div className="text-center text-gray-500">
@@ -311,13 +297,6 @@ export default function Chat() {
               );
             })}
 
-            {loading && (
-              <div className="flex flex-col items-center gap-3">
-                <LoadingIndicator />
-                <CancelButton onCancel={cancelMessage} />
-              </div>
-            )}
-
             <div ref={messagesEndRef} />
           </div>
 
@@ -336,25 +315,23 @@ export default function Chat() {
             }}
           />
 
-          {/* Input - Sticky */}
-          <div className="mt-auto pt-2 pb-2 bg-gradient-to-t from-black/50 to-transparent">
-            <ChatInput onSend={handleSendMessage} disabled={loading} inputRef={inputRef} />
+          {/* Input - Fixed at bottom */}
+          <div className="fixed bottom-0 left-0 right-0 md:left-64 z-20 px-2 sm:px-4 pb-3 sm:pb-4 pt-2 bg-linear-to-t from-black/80 via-black/50 to-transparent backdrop-blur-sm">
+            <div className="max-w-4xl mx-auto">
+              <ChatInput 
+                onSend={handleSendMessage} 
+                onCancel={cancelMessage}
+                loading={loading}
+                error={error}
+                inputRef={inputRef} 
+              />
+            </div>
           </div>
         </div>
       </div>
 
       {/* Keyboard Shortcuts Help Modal */}
       <ShortcutsHelp isOpen={showShortcuts} onClose={() => setShowShortcuts(false)} />
-      
-      {/* Quick Document Switcher Modal */}
-      <QuickDocumentSwitcher
-        isOpen={showQuickSwitcher}
-        onClose={() => setShowQuickSwitcher(false)}
-        onSelect={(documentName) => {
-          addDocument(documentName);
-        }}
-        currentDocuments={selectedDocuments}
-      />
     </div>
   );
 }

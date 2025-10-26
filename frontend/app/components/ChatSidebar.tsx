@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react";
-import { Link, useLocation } from "react-router";
-import { Menu, X, MessageSquare, Trash2 } from "lucide-react";
+import { useLocation } from "react-router";
+import { MessageSquare, Trash2 } from "lucide-react";
 import { ConfirmModal } from "./ConfirmModal";
 import { ChatListSkeleton } from "./SkeletonLoader";
 import { API_ENDPOINTS } from "../config";
@@ -138,21 +138,25 @@ export function ChatSidebar({
 
   return (
     <>
-      {/* Mobile toggle button */}
-      <button
-        onClick={handleToggle}
-        className="md:hidden fixed top-20 left-4 z-50 glass-card p-2 rounded-lg min-w-[44px] min-h-[44px] flex items-center justify-center"
-        aria-label={isOpen ? "Close sidebar" : "Open sidebar"}
-      >
-        {isOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
-      </button>
-
       {/* Sidebar */}
       <aside
-        className={`fixed top-16 left-0 h-[calc(100vh-4rem)] w-64 sm:w-56 glass-card transition-transform duration-300 z-40 flex flex-col ${
+        className={`fixed top-0 left-0 h-screen w-64 sm:w-56 glass-card transition-transform duration-300 z-50 flex flex-col ${
           isOpen ? "translate-x-0" : "-translate-x-full"
         } md:translate-x-0`}
+        style={{ padding: 0, borderRadius: 0 }}
       >
+        {/* Search Input */}
+        <div className="p-3 pt-14 border-b border-white/10">
+          <input
+            ref={searchInputRef}
+            type="text"
+            placeholder="Search chats (Ctrl + K)"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="w-full px-3 py-1.5 text-sm bg-white/5 border border-white/10 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500/50 text-white placeholder-gray-400"
+          />
+        </div>
+
         {/* New Chat Button */}
         <div className="p-3 border-b border-white/10">
           <button
@@ -162,18 +166,6 @@ export function ChatSidebar({
             <MessageSquare className="w-3.5 h-3.5" />
             <span>New Chat</span>
           </button>
-        </div>
-
-        {/* Search Input */}
-        <div className="p-3 border-b border-white/10">
-          <input
-            ref={searchInputRef}
-            type="text"
-            placeholder="Search chats (Ctrl + K)"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full px-3 py-1.5 text-sm bg-white/5 border border-white/10 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500/50 text-white placeholder-gray-400"
-          />
         </div>
 
         {/* Chat List */}

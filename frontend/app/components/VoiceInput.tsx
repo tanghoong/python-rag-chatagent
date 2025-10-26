@@ -124,20 +124,20 @@ export function VoiceInput({ onTranscript, disabled = false, useSpacebar = true 
     <button
       onClick={toggleListening}
       disabled={disabled}
-      className={`p-2 rounded-lg transition-all ${
+      className={`p-2 rounded-full transition-all ${
         isListening
           ? "bg-red-500/20 text-red-400 border border-red-500/50 animate-pulse"
-          : "glass-card hover:scale-105 text-purple-300 border border-white/10"
+          : "bg-white/5 hover:bg-white/10 text-purple-300 border border-white/10"
       } ${disabled ? "opacity-50 cursor-not-allowed" : ""}`}
       title={isListening ? "Stop recording" : "Start voice input"}
     >
       {isListening ? (
         <div className="relative">
-          <Mic className="w-5 h-5" />
+          <Mic className="w-4 h-4" />
           <span className="absolute -top-1 -right-1 w-2 h-2 bg-red-500 rounded-full animate-ping" />
         </div>
       ) : (
-        <MicOff className="w-5 h-5" />
+        <MicOff className="w-4 h-4" />
       )}
     </button>
   );

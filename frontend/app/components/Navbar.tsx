@@ -1,53 +1,69 @@
 import { Link, useLocation } from "react-router";
-import { MessageCircle, Home, Menu, X, Keyboard, Settings, Brain, ListTodo } from "lucide-react";
+import { MessageCircle, Home, Menu, X, Keyboard, Settings, Brain, ListTodo, PanelLeft } from "lucide-react";
 import { useState } from "react";
 
 interface NavbarProps {
   onShowShortcuts?: () => void;
+  onToggleSidebar?: () => void;
+  isSidebarOpen?: boolean;
 }
 
-export function Navbar({ onShowShortcuts }: Readonly<NavbarProps>) {
+export function Navbar({ onShowShortcuts, onToggleSidebar, isSidebarOpen }: Readonly<NavbarProps>) {
   const location = useLocation();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   const isActive = (path: string) => location.pathname === path;
+  const isChatPage = location.pathname === "/chat";
 
   return (
     <nav className="fixed top-0 left-0 right-0 z-50 glass border-b border-white/10">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex items-center justify-between h-16">
-          {/* Logo */}
-          <Link to="/" className="flex items-center space-x-2 group">
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-purple-500 to-cyan-500 flex items-center justify-center shadow-lg shadow-purple-500/50 group-hover:scale-110 transition-transform">
-              <MessageCircle className="w-6 h-6 text-white" />
-            </div>
-            <span className="text-xl font-bold gradient-text">RAG Chatbot</span>
-          </Link>
+      <div className="max-w-7xl mx-auto px-3 sm:px-4 lg:px-6">
+        <div className="flex items-center justify-between h-12">
+          {/* Left side: Logo + Sidebar Toggle (on chat page) */}
+          <div className="flex items-center space-x-2">
+            {/* Sidebar toggle on mobile - only on chat page */}
+            {isChatPage && onToggleSidebar && (
+              <button
+                onClick={onToggleSidebar}
+                className="md:hidden p-1.5 rounded-lg glass-card hover:bg-white/10 transition-colors min-w-[36px] min-h-[36px] flex items-center justify-center"
+                aria-label={isSidebarOpen ? "Close sidebar" : "Open sidebar"}
+              >
+                <PanelLeft className={`w-4 h-4 transition-transform ${isSidebarOpen ? 'scale-x-[-1]' : ''}`} />
+              </button>
+            )}
+            
+            <Link to="/" className="flex items-center space-x-2 group">
+              <div className="w-8 h-8 rounded-lg bg-linear-to-br from-purple-500 to-cyan-500 flex items-center justify-center shadow-md shadow-purple-500/50 group-hover:scale-110 transition-transform">
+                <MessageCircle className="w-5 h-5 text-white" />
+              </div>
+              <span className="text-lg font-bold gradient-text">RAG Chatbot</span>
+            </Link>
+          </div>
 
           {/* Desktop Navigation */}
-          <div className="hidden md:flex items-center space-x-1">
-            <NavLink to="/" icon={<Home className="w-5 h-5" />} active={isActive("/")}>
+          <div className="hidden md:flex items-center space-x-0.5">
+            <NavLink to="/" icon={<Home className="w-4 h-4" />} active={isActive("/")}>
               Home
             </NavLink>
-            <NavLink to="/chat" icon={<MessageCircle className="w-5 h-5" />} active={isActive("/chat")}>
+            <NavLink to="/chat" icon={<MessageCircle className="w-4 h-4" />} active={isActive("/chat")}>
               Chat
             </NavLink>
-            <NavLink to="/memory" icon={<Brain className="w-5 h-5" />} active={isActive("/memory")}>
+            <NavLink to="/memory" icon={<Brain className="w-4 h-4" />} active={isActive("/memory")}>
               Memory
             </NavLink>
-            <NavLink to="/tasks" icon={<ListTodo className="w-5 h-5" />} active={isActive("/tasks")}>
+            <NavLink to="/tasks" icon={<ListTodo className="w-4 h-4" />} active={isActive("/tasks")}>
               Tasks
             </NavLink>
-            <NavLink to="/settings" icon={<Settings className="w-5 h-5" />} active={isActive("/settings")}>
+            <NavLink to="/settings" icon={<Settings className="w-4 h-4" />} active={isActive("/settings")}>
               Settings
             </NavLink>
             {onShowShortcuts && (
               <button
                 onClick={onShowShortcuts}
-                className="flex items-center gap-2 px-3 py-2 rounded-lg border border-white/10 text-gray-300 hover:text-white hover:bg-white/5 transition-all text-sm"
+                className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-white/10 text-gray-300 hover:text-white hover:bg-white/5 transition-all text-xs"
                 title="Keyboard shortcuts (Ctrl + /)"
               >
-                <Keyboard className="w-4 h-4" />
+                <Keyboard className="w-3.5 h-3.5" />
                 <span>Shortcuts</span>
               </button>
             )}
@@ -56,10 +72,10 @@ export function Navbar({ onShowShortcuts }: Readonly<NavbarProps>) {
           {/* Mobile Menu Button */}
           <button
             onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-            className="md:hidden p-2 rounded-lg glass hover:bg-white/10 transition-colors min-w-[44px] min-h-[44px] flex items-center justify-center"
+            className="md:hidden p-1.5 rounded-lg glass hover:bg-white/10 transition-colors min-w-[36px] min-h-[36px] flex items-center justify-center"
             aria-label="Toggle menu"
           >
-            {isMobileMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
+            {isMobileMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
           </button>
         </div>
       </div>

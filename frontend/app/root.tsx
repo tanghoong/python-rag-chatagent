@@ -8,6 +8,7 @@ import {
   useLocation,
 } from "react-router";
 import { Toaster } from "sonner";
+import { useEffect, useState } from "react";
 
 import type { Route } from "./+types/root";
 import "./app.css";
@@ -53,13 +54,33 @@ export function Layout({ children }: { children: React.ReactNode }) {
 export default function App() {
   const location = useLocation();
   const isChat = location?.pathname === "/chat";
+  const [sidebarOpen, setSidebarOpen] = useState(true);
+
+  // Listen for sidebar state changes from chat page
+  useEffect(() => {
+    const handleSidebarToggle = (e: Event) => {
+      const customEvent = e as CustomEvent<boolean>;
+      setSidebarOpen(customEvent.detail);
+    };
+
+    window.addEventListener('sidebar-state-changed', handleSidebarToggle as EventListener);
+    return () => {
+      window.removeEventListener('sidebar-state-changed', handleSidebarToggle as EventListener);
+    };
+  }, []);
+
+  const handleToggleSidebar = () => {
+    window.dispatchEvent(new CustomEvent('toggle-sidebar'));
+  };
 
   return (
     <>
       <Navbar 
         onShowShortcuts={isChat ? () => {
           window.dispatchEvent(new CustomEvent('toggle-shortcuts'));
-        } : undefined} 
+        } : undefined}
+        onToggleSidebar={isChat ? handleToggleSidebar : undefined}
+        isSidebarOpen={sidebarOpen}
       />
       <main className="pt-16">
         <Outlet />
