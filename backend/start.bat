@@ -56,7 +56,7 @@ if not exist ".env" (
     echo and configure your GOOGLE_API_KEY and MONGODB_URI
     echo.
     pause
-    REM Continue anyway - don't exit
+    REM Continuing without .env file - server may fail if environment variables are not set
 ) else (
     echo [OK] .env file found
 )

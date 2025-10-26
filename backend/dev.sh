@@ -32,6 +32,7 @@ run_lint() {
 
 run_format() {
     echo -e "${BLUE}Formatting code with autopep8...${NC}"
+    # Using --aggressive twice enables level 2 aggressive formatting
     python3 -m autopep8 --in-place --aggressive --aggressive --recursive .
     echo -e "${GREEN}✓ Code formatted${NC}"
 }
