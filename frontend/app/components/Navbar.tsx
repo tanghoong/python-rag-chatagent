@@ -1,5 +1,5 @@
 import { Link, useLocation } from "react-router";
-import { MessageCircle, Home, Menu, X, Keyboard, Settings, Brain } from "lucide-react";
+import { MessageCircle, Home, Menu, X, Keyboard, Settings, Brain, ListTodo } from "lucide-react";
 import { useState } from "react";
 
 interface NavbarProps {
@@ -34,6 +34,9 @@ export function Navbar({ onShowShortcuts }: Readonly<NavbarProps>) {
             </NavLink>
             <NavLink to="/memory" icon={<Brain className="w-5 h-5" />} active={isActive("/memory")}>
               Memory
+            </NavLink>
+            <NavLink to="/tasks" icon={<ListTodo className="w-5 h-5" />} active={isActive("/tasks")}>
+              Tasks
             </NavLink>
             <NavLink to="/settings" icon={<Settings className="w-5 h-5" />} active={isActive("/settings")}>
               Settings
@@ -88,6 +91,14 @@ export function Navbar({ onShowShortcuts }: Readonly<NavbarProps>) {
               onClick={() => setIsMobileMenuOpen(false)}
             >
               Memory
+            </MobileNavLink>
+            <MobileNavLink 
+              to="/tasks" 
+              icon={<ListTodo className="w-5 h-5" />} 
+              active={isActive("/tasks")}
+              onClick={() => setIsMobileMenuOpen(false)}
+            >
+              Tasks
             </MobileNavLink>
             <MobileNavLink 
               to="/settings" 

@@ -18,6 +18,14 @@ except ImportError:
     RAG_TOOLS_AVAILABLE = False
     print("⚠️ RAG tools not available yet")
 
+# Import Task tools
+try:
+    from utils.task_tools import get_task_tools
+    TASK_TOOLS_AVAILABLE = True
+except ImportError:
+    TASK_TOOLS_AVAILABLE = False
+    print("⚠️ Task tools not available yet")
+
 try:
     from duckduckgo_search import DDGS
 except ImportError:
@@ -270,7 +278,7 @@ def calculate(expression: str) -> str:
 def get_all_tools() -> List:
     """
     Get list of all available tools for the agent.
-    Includes basic tools and RAG memory management tools.
+    Includes basic tools, RAG memory management tools, and task management tools.
 
     Returns:
         List: List of LangChain tools
@@ -279,17 +287,27 @@ def get_all_tools() -> List:
     basic_tools = [post_data_from_db, web_search, wikipedia_search, calculate]
 
     # Add RAG tools if available
+    all_tools = basic_tools.copy()
+    
     if RAG_TOOLS_AVAILABLE:
         try:
             rag_tools = get_rag_tools()
-            all_tools = basic_tools + rag_tools
-            print(f"✅ Loaded {len(all_tools)} tools ({len(basic_tools)} basic + {len(rag_tools)} RAG)")
-            return all_tools
+            all_tools.extend(rag_tools)
+            print(f"✅ Loaded {len(rag_tools)} RAG tools")
         except Exception as e:
             print(f"⚠️ Error loading RAG tools: {str(e)}")
-            return basic_tools
-
-    return basic_tools
+    
+    # Add Task tools if available
+    if TASK_TOOLS_AVAILABLE:
+        try:
+            task_tools = get_task_tools()
+            all_tools.extend(task_tools)
+            print(f"✅ Loaded {len(task_tools)} task management tools")
+        except Exception as e:
+            print(f"⚠️ Error loading task tools: {str(e)}")
+    
+    print(f"✅ Total tools loaded: {len(all_tools)}")
+    return all_tools
 
 
 # For testing

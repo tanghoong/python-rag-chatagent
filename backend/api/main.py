@@ -29,11 +29,23 @@ from database.chat_repository import (
     get_chat_stats,
     get_recent_message_stats
 )
+from database.task_repository import task_repository
 from models.chat_models import (
     Message,
     CreateChatRequest,
     ChatSessionResponse,
     ChatDetailResponse
+)
+from models.task_models import (
+    Task,
+    TaskCreate,
+    TaskUpdate,
+    TaskStatusUpdate,
+    TaskListResponse,
+    TaskStatsResponse,
+    BulkDeleteRequest as TaskBulkDeleteRequest,
+    TaskStatus,
+    TaskPriority
 )
 from models.usage_models import UsageStatsResponse
 from utils.title_generator import generate_chat_title
@@ -1691,6 +1703,261 @@ async def list_collection_memories(
         raise HTTPException(
             status_code=500,
             detail=f"Error listing memories: {str(e)}"
+        )
+
+
+# ============================================================================
+# TASK MANAGEMENT ENDPOINTS
+# ============================================================================
+
+@app.post("/api/tasks/create", response_model=Task, tags=["Tasks"])
+async def create_task(task_data: TaskCreate):
+    """
+    Create a new task
+    
+    Args:
+        task_data: Task creation data
+        
+    Returns:
+        Created task
+    """
+    try:
+        await task_repository.ensure_indexes()
+        task = await task_repository.create(task_data)
+        return task
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Error creating task: {str(e)}"
+        )
+
+
+@app.get("/api/tasks/list", response_model=TaskListResponse, tags=["Tasks"])
+async def list_tasks(
+    page: int = 1,
+    page_size: int = 50,
+    status: Optional[TaskStatus] = None,
+    priority: Optional[TaskPriority] = None,
+    tags: Optional[str] = None,
+    search: Optional[str] = None
+):
+    """
+    List tasks with pagination and filters
+    
+    Args:
+        page: Page number (1-indexed)
+        page_size: Number of tasks per page
+        status: Filter by status
+        priority: Filter by priority
+        tags: Filter by tags (comma-separated)
+        search: Text search in title/description
+        
+    Returns:
+        Paginated list of tasks
+    """
+    try:
+        # Parse tags
+        tag_list = [tag.strip() for tag in tags.split(",")] if tags else None
+        
+        # Get tasks
+        tasks, total = await task_repository.list(
+            page=page,
+            page_size=page_size,
+            status=status,
+            priority=priority,
+            tags=tag_list,
+            search=search
+        )
+        
+        # Calculate total pages
+        total_pages = (total + page_size - 1) // page_size
+        
+        return TaskListResponse(
+            tasks=tasks,
+            total=total,
+            page=page,
+            page_size=page_size,
+            total_pages=total_pages
+        )
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Error listing tasks: {str(e)}"
+        )
+
+
+@app.get("/api/tasks/{task_id}", response_model=Task, tags=["Tasks"])
+async def get_task(task_id: str):
+    """
+    Get specific task by ID
+    
+    Args:
+        task_id: Task identifier
+        
+    Returns:
+        Task details
+    """
+    try:
+        task = await task_repository.get_by_id(task_id)
+        if not task:
+            raise HTTPException(
+                status_code=404,
+                detail=f"Task not found: {task_id}"
+            )
+        return task
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Error retrieving task: {str(e)}"
+        )
+
+
+@app.put("/api/tasks/{task_id}", response_model=Task, tags=["Tasks"])
+async def update_task(task_id: str, task_update: TaskUpdate):
+    """
+    Update task
+    
+    Args:
+        task_id: Task identifier
+        task_update: Update data
+        
+    Returns:
+        Updated task
+    """
+    try:
+        task = await task_repository.update(task_id, task_update)
+        if not task:
+            raise HTTPException(
+                status_code=404,
+                detail=f"Task not found: {task_id}"
+            )
+        return task
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Error updating task: {str(e)}"
+        )
+
+
+@app.delete("/api/tasks/{task_id}", tags=["Tasks"])
+async def delete_task(task_id: str):
+    """
+    Delete task
+    
+    Args:
+        task_id: Task identifier
+        
+    Returns:
+        Success status
+    """
+    try:
+        deleted = await task_repository.delete(task_id)
+        if not deleted:
+            raise HTTPException(
+                status_code=404,
+                detail=f"Task not found: {task_id}"
+            )
+        return {"status": "success", "message": f"Task {task_id} deleted successfully"}
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Error deleting task: {str(e)}"
+        )
+
+
+@app.post("/api/tasks/bulk-delete", tags=["Tasks"])
+async def bulk_delete_tasks(request: TaskBulkDeleteRequest):
+    """
+    Bulk delete tasks
+    
+    Args:
+        request: Bulk delete request with task IDs
+        
+    Returns:
+        Number of tasks deleted
+    """
+    try:
+        deleted_count = await task_repository.bulk_delete(request.task_ids)
+        return {
+            "status": "success",
+            "deleted_count": deleted_count,
+            "message": f"Successfully deleted {deleted_count} task(s)"
+        }
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Error bulk deleting tasks: {str(e)}"
+        )
+
+
+@app.patch("/api/tasks/{task_id}/status", response_model=Task, tags=["Tasks"])
+async def update_task_status(task_id: str, status_update: TaskStatusUpdate):
+    """
+    Quick status update for a task
+    
+    Args:
+        task_id: Task identifier
+        status_update: New status
+        
+    Returns:
+        Updated task
+    """
+    try:
+        task = await task_repository.update_status(task_id, status_update.status)
+        if not task:
+            raise HTTPException(
+                status_code=404,
+                detail=f"Task not found: {task_id}"
+            )
+        return task
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Error updating task status: {str(e)}"
+        )
+
+
+@app.get("/api/tasks/tags/list", response_model=List[str], tags=["Tasks"])
+async def get_task_tags():
+    """
+    Get all unique task tags
+    
+    Returns:
+        List of unique tags
+    """
+    try:
+        tags = await task_repository.get_all_tags()
+        return tags
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Error retrieving task tags: {str(e)}"
+        )
+
+
+@app.get("/api/tasks/stats/summary", response_model=TaskStatsResponse, tags=["Tasks"])
+async def get_task_stats():
+    """
+    Get task statistics
+    
+    Returns:
+        Task statistics including counts by status and priority
+    """
+    try:
+        stats = await task_repository.get_stats()
+        return TaskStatsResponse(**stats)
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Error retrieving task statistics: {str(e)}"
         )
 
 
