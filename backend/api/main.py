@@ -88,6 +88,10 @@ class ChatResponse(BaseModel):
         None,
         description="LLM selection metadata (model, complexity, auto-switching info)"
     )
+    retrieval_context: Optional[dict] = Field(
+        None,
+        description="RAG retrieval context (chunks, scores, sources)"
+    )
 
 
 class UpdateTitleRequest(BaseModel):
@@ -190,22 +194,23 @@ async def chat(chat_message: ChatMessage):
             for msg in chat_history_messages[:-1]  # Exclude the message we just added
         ]
 
-        # Get response from agent with conversation history, thought process, and LLM metadata
-        response, thought_process, llm_metadata = get_agent_response(
+        # Get response from agent with conversation history, thought process, LLM metadata, and retrieval context
+        response, thought_process, llm_metadata, retrieval_context = get_agent_response(
             chat_message.message, 
             chat_history=chat_history,
             chat_id=chat_id
         )
 
-        # Save assistant message with thought process and LLM metadata
+        # Save assistant message with thought process, LLM metadata, and retrieval context
         assistant_message = Message(
             role="assistant",
             content=response,
             thought_process=thought_process,
             metadata={
                 "thought_process": thought_process,
-                "llm_metadata": llm_metadata
-            } if thought_process or llm_metadata else None
+                "llm_metadata": llm_metadata,
+                "retrieval_context": retrieval_context
+            } if thought_process or llm_metadata or retrieval_context else None
         )
         await add_message(chat_id, assistant_message)
 
@@ -214,7 +219,8 @@ async def chat(chat_message: ChatMessage):
             chat_id=chat_id,
             error=None,
             thought_process=thought_process,
-            llm_metadata=llm_metadata
+            llm_metadata=llm_metadata,
+            retrieval_context=retrieval_context
         )
 
     except HTTPException:
@@ -227,7 +233,9 @@ async def chat(chat_message: ChatMessage):
         return ChatResponse(
             response="I apologize, but I encountered an error while processing your request. Please try again.",
             chat_id="",
-            error=error_msg
+            error=error_msg,
+            llm_metadata=None,
+            retrieval_context=None
         )
 
 
@@ -278,8 +286,8 @@ async def chat_stream(chat_message: ChatMessage):
                 for msg in chat_history_messages[:-1]
             ]
 
-            # Get response from agent with LLM metadata
-            response, thought_process, llm_metadata = get_agent_response(
+            # Get response from agent with LLM metadata and retrieval context
+            response, thought_process, llm_metadata, retrieval_context = get_agent_response(
                 chat_message.message, 
                 chat_history=chat_history,
                 chat_id=chat_id
@@ -288,6 +296,10 @@ async def chat_stream(chat_message: ChatMessage):
             # Send LLM metadata first
             if llm_metadata:
                 yield f"data: {json.dumps({'type': 'llm_metadata', 'metadata': llm_metadata})}\n\n"
+
+            # Send retrieval context
+            if retrieval_context and retrieval_context.get('total_chunks', 0) > 0:
+                yield f"data: {json.dumps({'type': 'retrieval_context', 'context': retrieval_context})}\n\n"
 
             # Send thought process
             if thought_process:
@@ -299,15 +311,16 @@ async def chat_stream(chat_message: ChatMessage):
                 yield f"data: {json.dumps({'type': 'token', 'content': word + (' ' if i < len(words) - 1 else '')})}\n\n"
                 await asyncio.sleep(0.05)  # Small delay between words for streaming effect
 
-            # Save assistant message with thought process and LLM metadata
+            # Save assistant message with thought process, LLM metadata, and retrieval context
             assistant_message = Message(
                 role="assistant",
                 content=response,
                 thought_process=thought_process,
                 metadata={
                     "thought_process": thought_process,
-                    "llm_metadata": llm_metadata
-                } if thought_process or llm_metadata else None
+                    "llm_metadata": llm_metadata,
+                    "retrieval_context": retrieval_context
+                } if thought_process or llm_metadata or retrieval_context else None
             )
             await add_message(chat_id, assistant_message)
 
@@ -596,21 +609,22 @@ async def regenerate_message(chat_id: str, message_id: str):
             for msg in chat_history_messages[:-1]  # Exclude the last message (user message to regenerate)
         ]
 
-        # Generate new response with conversation history, thought process, and LLM metadata
-        response, thought_process, llm_metadata = get_agent_response(
+        # Generate new response with conversation history, thought process, LLM metadata, and retrieval context
+        response, thought_process, llm_metadata, retrieval_context = get_agent_response(
             last_message.content, 
             chat_history=chat_history,
             chat_id=chat_id
         )
 
-        # Save assistant message with thought process and LLM metadata
+        # Save assistant message with thought process, LLM metadata, and retrieval context
         assistant_message = Message(
             role="assistant",
             content=response,
             metadata={
                 "thought_process": thought_process,
-                "llm_metadata": llm_metadata
-            } if thought_process or llm_metadata else None
+                "llm_metadata": llm_metadata,
+                "retrieval_context": retrieval_context
+            } if thought_process or llm_metadata or retrieval_context else None
         )
         await add_message(chat_id, assistant_message)
 
@@ -1236,6 +1250,402 @@ async def get_scoped_memory_stats(
         raise HTTPException(
             status_code=500,
             detail=f"Error getting memory stats: {str(e)}"
+        )
+
+
+# Memory CRUD Request/Response Models
+class CreateMemoryRequest(BaseModel):
+    """Request model for creating a memory"""
+    content: str = Field(..., min_length=1, max_length=10000)
+    collection: str = Field("global_memory", description="Collection to save to")
+    metadata: Optional[dict] = Field(default_factory=dict, description="Additional metadata")
+    tags: Optional[List[str]] = Field(default_factory=list, description="Tags for the memory")
+
+
+class UpdateMemoryRequest(BaseModel):
+    """Request model for updating a memory"""
+    content: Optional[str] = Field(None, min_length=1, max_length=10000)
+    metadata: Optional[dict] = Field(None, description="Metadata to merge")
+    tags: Optional[List[str]] = Field(None, description="Tags to update")
+
+
+class BulkDeleteRequest(BaseModel):
+    """Request model for bulk deleting memories"""
+    memory_ids: List[str] = Field(..., description="List of memory IDs to delete")
+
+
+class MemoryResponse(BaseModel):
+    """Response model for a single memory"""
+    memory_id: str
+    content: str
+    metadata: dict
+    created_at: Optional[str] = None
+    updated_at: Optional[str] = None
+    tags: Optional[List[str]] = None
+
+
+class MemoryListResponse(BaseModel):
+    """Response model for memory list"""
+    status: str
+    collection: str
+    total: int
+    limit: int
+    offset: int
+    memories: List[MemoryResponse]
+
+
+def parse_tags(tags_value) -> List[str]:
+    """Parse tags from metadata (handles both string and list formats)"""
+    if not tags_value:
+        return []
+    if isinstance(tags_value, list):
+        return tags_value
+    if isinstance(tags_value, str):
+        return [t.strip() for t in tags_value.split(',') if t.strip()]
+    return []
+
+
+@app.post("/api/memory/create", tags=["Memory"])
+async def create_memory(request: CreateMemoryRequest):
+    """
+    Create a new memory entry.
+
+    Args:
+        request: CreateMemoryRequest with content, collection, metadata, tags
+
+    Returns:
+        Created memory with generated ID
+    """
+    try:
+        from database.vector_store import VectorStoreManager
+        from utils.memory_utils import generate_memory_id, validate_memory_content, extract_tags_from_content
+        from datetime import datetime
+
+        # Validate content
+        is_valid, error = validate_memory_content(request.content)
+        if not is_valid:
+            raise HTTPException(status_code=400, detail=error)
+
+        # Generate memory ID
+        memory_id = generate_memory_id(request.content)
+
+        # Prepare metadata
+        metadata = {
+            "memory_id": memory_id,
+            "created_at": datetime.now().isoformat(),
+            "source": "user_created",
+            **(request.metadata or {})
+        }
+
+        # Extract and merge tags
+        auto_tags = extract_tags_from_content(request.content)
+        all_tags = list(set((request.tags or []) + auto_tags))
+        if all_tags:
+            # ChromaDB doesn't support lists - convert to comma-separated string
+            metadata["tags"] = ",".join(all_tags)
+
+        # Save to vector store
+        vs = VectorStoreManager(collection_name=request.collection)
+        from langchain_core.documents import Document
+        doc = Document(page_content=request.content, metadata=metadata)
+        vs.add_documents([doc])
+
+        return {
+            "status": "success",
+            "memory_id": memory_id,
+            "collection": request.collection,
+            "content": request.content,
+            "metadata": metadata,
+            "tags": all_tags
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Error creating memory: {str(e)}"
+        )
+
+
+@app.get("/api/memory/list/{collection}", tags=["Memory"])
+async def list_memories(
+    collection: str,
+    limit: int = 50,
+    offset: int = 0,
+    tag: Optional[str] = None
+):
+    """
+    List memories with pagination and filtering.
+
+    Args:
+        collection: Collection name
+        limit: Maximum results per page (default 50)
+        offset: Results to skip (default 0)
+        tag: Optional tag filter
+
+    Returns:
+        Paginated list of memories
+    """
+    try:
+        from database.vector_store import VectorStoreManager
+
+        vs = VectorStoreManager(collection_name=collection)
+
+        # Build where filter if tag specified
+        where = {"tags": {"$contains": tag}} if tag else None
+
+        # Get total count
+        total = vs.count_documents(where=where)
+
+        # Get paginated documents
+        documents = vs.list_documents(limit=limit, offset=offset, where=where)
+
+        # Format response
+        memories = []
+        for doc in documents:
+            metadata = doc.get("metadata", {})
+            memories.append({
+                "memory_id": metadata.get("memory_id", doc["id"]),
+                "content": doc["content"],
+                "metadata": metadata,
+                "created_at": metadata.get("created_at"),
+                "updated_at": metadata.get("updated_at"),
+                "tags": parse_tags(metadata.get("tags"))
+            })
+
+        return {
+            "status": "success",
+            "collection": collection,
+            "total": total,
+            "limit": limit,
+            "offset": offset,
+            "memories": memories
+        }
+
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Error listing memories: {str(e)}"
+        )
+
+
+@app.get("/api/memory/{collection}/{memory_id}", tags=["Memory"])
+async def get_memory(collection: str, memory_id: str):
+    """
+    Get a specific memory by ID.
+
+    Args:
+        collection: Collection name
+        memory_id: Unique memory ID
+
+    Returns:
+        Memory details
+    """
+    try:
+        from database.vector_store import VectorStoreManager
+
+        vs = VectorStoreManager(collection_name=collection)
+        document = vs.get_document_by_id(memory_id)
+
+        if not document:
+            raise HTTPException(status_code=404, detail="Memory not found")
+
+        metadata = document.get("metadata", {})
+        return {
+            "status": "success",
+            "memory_id": memory_id,
+            "content": document["content"],
+            "metadata": metadata,
+            "created_at": metadata.get("created_at"),
+            "updated_at": metadata.get("updated_at"),
+            "tags": parse_tags(metadata.get("tags"))
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Error getting memory: {str(e)}"
+        )
+
+
+@app.put("/api/memory/{collection}/{memory_id}", tags=["Memory"])
+async def update_memory(
+    collection: str,
+    memory_id: str,
+    request: UpdateMemoryRequest
+):
+    """
+    Update an existing memory.
+
+    Args:
+        collection: Collection name
+        memory_id: Unique memory ID
+        request: UpdateMemoryRequest with optional content, metadata, tags
+
+    Returns:
+        Updated memory
+    """
+    try:
+        from database.vector_store import VectorStoreManager
+        from utils.memory_utils import validate_memory_content, extract_tags_from_content
+
+        # Validate content if provided
+        if request.content:
+            is_valid, error = validate_memory_content(request.content)
+            if not is_valid:
+                raise HTTPException(status_code=400, detail=error)
+
+        # Prepare metadata update
+        metadata_update = request.metadata or {}
+
+        # Handle tags
+        if request.tags is not None:
+            # ChromaDB doesn't support lists - convert to comma-separated string
+            metadata_update["tags"] = ",".join(request.tags)
+        elif request.content:
+            # Auto-extract tags from new content
+            auto_tags = extract_tags_from_content(request.content)
+            if auto_tags:
+                metadata_update["tags"] = ",".join(auto_tags)
+
+        # Update document
+        vs = VectorStoreManager(collection_name=collection)
+        success = vs.update_document(
+            memory_id=memory_id,
+            content=request.content,
+            metadata=metadata_update
+        )
+
+        if not success:
+            raise HTTPException(status_code=404, detail="Memory not found")
+
+        # Fetch updated document
+        updated = vs.get_document_by_id(memory_id)
+        if not updated:
+            raise HTTPException(status_code=500, detail="Failed to retrieve updated memory")
+        
+        metadata = updated.get("metadata", {})
+
+        return {
+            "status": "success",
+            "memory_id": memory_id,
+            "content": updated["content"],
+            "metadata": metadata,
+            "updated_at": metadata.get("updated_at"),
+            "tags": parse_tags(metadata.get("tags"))
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Error updating memory: {str(e)}"
+        )
+
+
+@app.delete("/api/memory/{collection}/{memory_id}", tags=["Memory"])
+async def delete_memory(collection: str, memory_id: str):
+    """
+    Delete a specific memory.
+
+    Args:
+        collection: Collection name
+        memory_id: Unique memory ID
+
+    Returns:
+        Deletion status
+    """
+    try:
+        from database.vector_store import VectorStoreManager
+
+        vs = VectorStoreManager(collection_name=collection)
+        success = vs.delete_document(memory_id)
+
+        if not success:
+            raise HTTPException(status_code=404, detail="Memory not found")
+
+        return {
+            "status": "success",
+            "message": f"Memory {memory_id} deleted",
+            "memory_id": memory_id
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Error deleting memory: {str(e)}"
+        )
+
+
+@app.post("/api/memory/bulk-delete", tags=["Memory"])
+async def bulk_delete_memories(
+    collection: str,
+    request: BulkDeleteRequest
+):
+    """
+    Delete multiple memories at once.
+
+    Args:
+        collection: Collection name
+        request: BulkDeleteRequest with memory IDs
+
+    Returns:
+        Deletion status with count
+    """
+    try:
+        from database.vector_store import VectorStoreManager
+
+        vs = VectorStoreManager(collection_name=collection)
+        deleted_count = vs.bulk_delete_documents(request.memory_ids)
+
+        return {
+            "status": "success",
+            "message": f"Deleted {deleted_count} memories",
+            "deleted_count": deleted_count,
+            "requested_count": len(request.memory_ids)
+        }
+
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Error in bulk delete: {str(e)}"
+        )
+
+
+@app.get("/api/memory/tags/{collection}", tags=["Memory"])
+async def get_all_tags(collection: str):
+    """
+    Get all unique tags in a collection.
+
+    Args:
+        collection: Collection name
+
+    Returns:
+        List of unique tags
+    """
+    try:
+        from database.vector_store import VectorStoreManager
+
+        vs = VectorStoreManager(collection_name=collection)
+        tags = vs.get_all_tags()
+
+        return {
+            "status": "success",
+            "collection": collection,
+            "tags": tags,
+            "count": len(tags)
+        }
+
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Error getting tags: {str(e)}"
         )
 
 

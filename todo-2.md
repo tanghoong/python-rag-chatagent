@@ -171,15 +171,62 @@ This document contains future enhancements and pending features for the RAG Chat
   - ✅ Collection statistics display
   - ✅ Responsive design
 
-### Phase 2.6: Retrieval Quality & Transparency ⭐⭐
-- [ ] Show retrieved chunks in chat (expandable view)
-- [ ] Display relevance scores for retrieved content
-- [ ] Add source citations in responses
-- [ ] Implement retrieval quality metrics
-- [ ] Allow users to mark helpful/unhelpful retrievals
-- [ ] Add retrieval feedback loop for improvement
+### Phase 2.6: Retrieval Quality & Transparency ⭐⭐ ✅
+- [x] Show retrieved chunks in chat (expandable view)
+- [x] Display relevance scores for retrieved content
+- [x] Add source citations in responses
+- [x] Implement retrieval quality metrics (UI ready, analytics pending)
+- [x] Allow users to mark helpful/unhelpful retrievals (UI ready, API pending)
+- [ ] Add retrieval feedback loop for improvement (backend implementation pending)
 
 **Commit**: "Add retrieval transparency and quality feedback"
+
+**Status**: ✅ **CORE FEATURES COMPLETE** - See `PHASE_2.6_SUMMARY.md` for details
+
+### Phase 2.7: Memory CRUD Interface ⭐⭐⭐
+- [ ] **Backend API Enhancement**
+  - [ ] POST /api/memory/create - Create individual memory
+  - [ ] GET /api/memory/list/{collection} - List with pagination and filters
+  - [ ] GET /api/memory/{collection}/{id} - Get specific memory details
+  - [ ] PUT /api/memory/{collection}/{id} - Update memory content/metadata
+  - [ ] DELETE /api/memory/{collection}/{id} - Delete individual memory
+  - [ ] POST /api/memory/bulk-delete - Bulk delete operations
+  - [ ] Vector store methods (get_by_id, update, delete, list, count)
+
+- [ ] **Frontend Components**
+  - [ ] MemoryEditor.tsx - Create/edit modal with rich text editor
+  - [ ] MemoryList.tsx - Display memories with actions
+  - [ ] MemoryDetail.tsx - Full memory detail view
+  - [ ] MemoryFilters.tsx - Advanced filtering (date, tags, source, sort)
+  - [ ] BulkActionsToolbar.tsx - Bulk operations UI
+  - [ ] TagSelector.tsx - Tag management component
+  - [ ] MetadataEditor.tsx - Key-value metadata editor
+
+- [ ] **Enhanced MemoryManager**
+  - [ ] Integrate all new components
+  - [ ] Add pagination controls
+  - [ ] Implement multi-select and bulk operations
+  - [ ] Add create/edit/delete functionality
+  - [ ] Improve search with filters
+  - [ ] Add export/import enhancements
+
+- [ ] **Features**
+  - [ ] Create memories manually from UI
+  - [ ] Edit memory content and metadata
+  - [ ] Delete individual memories (not just collections)
+  - [ ] Bulk selection and operations
+  - [ ] Tag management (add, remove, filter by tags)
+  - [ ] Advanced filters (date range, source, tags, sort)
+  - [ ] Pagination for large memory sets
+  - [ ] Memory detail view with full metadata
+  - [ ] Duplicate detection
+  - [ ] Memory ID generation and tracking
+
+**Commit**: "Implement comprehensive memory CRUD interface"
+
+**Status**: 📋 **PLANNED** - See `PHASE_2.7_PLAN.md` for detailed implementation plan
+
+**Estimated Timeline**: 2-3 weeks
 
 ---
 

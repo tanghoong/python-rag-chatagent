@@ -25,9 +25,25 @@ interface Message {
   content: string;
   thought_process?: ThoughtStep[];
   llm_metadata?: LLMMetadata;
+  retrieval_context?: {
+    chunks: Array<{
+      content: string;
+      relevance_score: number;
+      source: string;
+      metadata?: Record<string, any>;
+      chunk_id?: string;
+    }>;
+    search_queries: string[];
+    search_strategies: string[];
+    total_searches: number;
+    unique_sources: string[];
+    total_chunks: number;
+    timestamp?: string;
+  };
   metadata?: {
     llm_metadata?: LLMMetadata;
     thought_process?: ThoughtStep[];
+    retrieval_context?: any;
     [key: string]: unknown;
   };
   created_at?: string;
@@ -82,10 +98,11 @@ export function useChatSession() {
 
       if (response.ok) {
         const data: ChatDetail = await response.json();
-        // Extract llm_metadata from message metadata if available
+        // Extract llm_metadata and retrieval_context from message metadata if available
         const messagesWithMetadata = data.messages.map(msg => ({
           ...msg,
-          llm_metadata: msg.metadata?.llm_metadata as LLMMetadata | undefined,
+          llm_metadata: msg.metadata?.llm_metadata,
+          retrieval_context: msg.metadata?.retrieval_context,
         }));
         setMessages(messagesWithMetadata);
       } else {
@@ -190,6 +207,7 @@ export function useChatSession() {
       let accumulatedContent = "";
       let currentThoughtProcess: ThoughtStep[] = [];
       let currentLlmMetadata: LLMMetadata | undefined = undefined;
+      let currentRetrievalContext: any = undefined;
       let streamingMessageIndex = -1;
 
       if (reader) {
@@ -226,6 +244,12 @@ export function useChatSession() {
                       }
                       break;
 
+                    case "retrieval_context":
+                      if (event.context) {
+                        currentRetrievalContext = event.context;
+                      }
+                      break;
+
                     case "thought_process":
                       if (event.steps) {
                         currentThoughtProcess = event.steps;
@@ -254,6 +278,7 @@ export function useChatSession() {
                               content: accumulatedContent,
                               thought_process: currentThoughtProcess,
                               llm_metadata: currentLlmMetadata,
+                              retrieval_context: currentRetrievalContext,
                             };
                             return updated;
                           });
@@ -271,6 +296,7 @@ export function useChatSession() {
                             content: accumulatedContent,
                             thought_process: currentThoughtProcess,
                             llm_metadata: currentLlmMetadata,
+                            retrieval_context: currentRetrievalContext,
                           };
                           return updated;
                         });

@@ -296,12 +296,17 @@ export default function Chat() {
                   chatId={activeChatId || undefined}
                   thoughtProcess={message.thought_process}
                   llmMetadata={message.llm_metadata}
+                  retrievalContext={message.retrieval_context}
                   isLastMessage={isLastMessage}
                   isLastUserMessage={isLastUserMessage}
                   timestamp={message.created_at || message.timestamp}
                   onEdit={editMessage}
                   onRegenerate={handleRegenerate}
                   onDelete={deleteMessage}
+                  onRetrievalFeedback={(chunkId, helpful) => {
+                    console.log(`Chunk ${chunkId} marked as ${helpful ? 'helpful' : 'not helpful'}`);
+                    // TODO: Implement feedback API call
+                  }}
                 />
               );
             })}

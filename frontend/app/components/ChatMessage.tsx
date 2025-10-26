@@ -3,6 +3,7 @@ import { ChatControls } from "./ChatControls";
 import ThoughtProcess from "./ThoughtProcess";
 import { LLMBadge } from "./LLMBadge";
 import { QuickActions } from "./QuickActions";
+import { RetrievalContext } from "./RetrievalContext";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import CodeBlock from "./CodeBlock";
@@ -76,6 +77,22 @@ interface LLMMetadata {
   word_count?: number;
 }
 
+interface RetrievalContextData {
+  chunks: Array<{
+    content: string;
+    relevance_score: number;
+    source: string;
+    metadata?: Record<string, any>;
+    chunk_id?: string;
+  }>;
+  search_queries: string[];
+  search_strategies: string[];
+  total_searches: number;
+  unique_sources: string[];
+  total_chunks: number;
+  timestamp?: string;
+}
+
 interface ChatMessageProps {
   role: "user" | "bot";
   content: string;
@@ -83,12 +100,14 @@ interface ChatMessageProps {
   chatId?: string;
   thoughtProcess?: ThoughtStep[];
   llmMetadata?: LLMMetadata;
+  retrievalContext?: RetrievalContextData;
   isLastMessage?: boolean;
   isLastUserMessage?: boolean;
   timestamp?: string;
   onEdit?: (messageId: string, newContent: string) => Promise<void>;
   onRegenerate?: (messageId: string) => Promise<void>;
   onDelete?: (messageId: string) => Promise<void>;
+  onRetrievalFeedback?: (chunkId: string, helpful: boolean) => void;
 }
 
 export function ChatMessage({ 
@@ -98,12 +117,14 @@ export function ChatMessage({
   chatId,
   thoughtProcess,
   llmMetadata,
+  retrievalContext,
   isLastMessage = false,
   isLastUserMessage = false,
   timestamp,
   onEdit,
   onRegenerate,
-  onDelete 
+  onDelete,
+  onRetrievalFeedback
 }: Readonly<ChatMessageProps>) {
   const isUser = role === "user";
   const normalizedRole = role === "bot" ? "assistant" : role;
@@ -149,6 +170,15 @@ export function ChatMessage({
         {/* Thought Process - Only for bot messages */}
         {!isUser && thoughtProcess && thoughtProcess.length > 0 && (
           <ThoughtProcess steps={thoughtProcess} />
+        )}
+        
+        {/* Retrieval Context - Only for bot messages */}
+        {!isUser && retrievalContext && retrievalContext.total_chunks > 0 && (
+          <RetrievalContext 
+            context={retrievalContext} 
+            messageId={messageId}
+            onFeedback={onRetrievalFeedback}
+          />
         )}
         
         {/* LLM Metadata Badge - Only for bot messages */}

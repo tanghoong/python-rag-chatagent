@@ -12,6 +12,7 @@ from contextvars import ContextVar
 from langchain_core.tools import tool
 from database.vector_store import VectorStoreManager, get_global_vector_store
 from utils.document_processor import DocumentProcessor
+from utils.retrieval_context import get_retrieval_context
 
 
 # Context variable to store current chat_id for smart_search_memory
@@ -288,6 +289,10 @@ def smart_search_memory(
     # Get chat_id from context variable
     chat_id = current_chat_id.get()
     
+    # Get retrieval context to track chunks
+    retrieval_ctx = get_retrieval_context()
+    retrieval_ctx.add_search(query, "smart_memory")
+    
     # Search global memory
     try:
         global_vs = VectorStoreManager(collection_name="global_memory")
@@ -296,8 +301,17 @@ def smart_search_memory(
             all_results.append({
                 "doc": doc,
                 "score": score,
-                "source": "🌐 Global Memory"
+                "source": "🌐 Global Memory",
+                "source_id": "global_memory"
             })
+            # Track in retrieval context
+            retrieval_ctx.add_chunk(
+                content=doc.page_content,
+                relevance_score=score,
+                source="global_memory",
+                metadata=doc.metadata,
+                chunk_id=doc.metadata.get('chunk_id')
+            )
     except Exception as e:
         print(f"Warning: Could not search global memory: {e}")
     
@@ -310,8 +324,17 @@ def smart_search_memory(
                 all_results.append({
                     "doc": doc,
                     "score": score,
-                    "source": "💬 Chat Memory"
+                    "source": "💬 Chat Memory",
+                    "source_id": f"chat_{chat_id}"
                 })
+                # Track in retrieval context
+                retrieval_ctx.add_chunk(
+                    content=doc.page_content,
+                    relevance_score=score,
+                    source=f"chat_{chat_id}",
+                    metadata=doc.metadata,
+                    chunk_id=doc.metadata.get('chunk_id')
+                )
         except Exception as e:
             print(f"Warning: Could not search chat memory: {e}")
     
@@ -377,85 +400,123 @@ def vector_search(
     try:
         vs = VectorStoreManager(collection_name=collection_name)
         
+        # Get retrieval context to track chunks
+        retrieval_ctx = get_retrieval_context()
+        retrieval_ctx.add_search(query, strategy)
+        
         # Execute search based on strategy
-        if strategy == "semantic":
-            results = vs.search_with_score(query, k=num_results)
-            strategy_name = "🔍 Semantic Search"
-            
-        elif strategy == "keyword":
-            results = vs._keyword_search(query, k=num_results)
-            strategy_name = "📝 Keyword Search"
-            
-        elif strategy == "mmr":
-            # MMR returns documents without scores
-            docs = vs.mmr_search(
-                query,
-                k=num_results,
-                fetch_k=num_results * 4,
-                lambda_mult=diversity
-            )
-            results = [(doc, 0.0) for doc in docs]
-            strategy_name = f"🎯 MMR Search (diversity={diversity})"
-            
-        else:  # hybrid (default)
-            results = vs.hybrid_search(query, k=num_results)
-            strategy_name = "⚡ Hybrid Search (semantic + keyword)"
+        results, strategy_name = _execute_search_strategy(
+            vs, query, strategy, num_results, diversity
+        )
 
         if not results:
             return f"No relevant documents found for: {query}"
 
-        # Build output with optimized context
-        output = f"{strategy_name}\n"
-        output += f"Query: {query}\n"
-        output += f"Collection: {collection_name}\n"
-        output += f"Found {len(results)} results:\n\n"
-
-        total_chars = 0
-        max_context_chars = 4000  # Context window optimization
-
-        for i, (doc, score) in enumerate(results, 1):
-            # Format score display
-            if strategy == "mmr":
-                score_display = "Diverse"
-            else:
-                score_display = f"{score:.3f}"
-            
-            output += f"{i}. [Relevance: {score_display}]\n"
-            
-            # Optimize content length for context window
-            content = doc.page_content
-            remaining_chars = max_context_chars - total_chars
-            
-            if remaining_chars < 100:
-                output += "   ... (context limit reached)\n\n"
-                break
-                
-            if len(content) > remaining_chars:
-                content = content[:remaining_chars] + "..."
-            
-            output += f"   Content: {content}\n"
-            total_chars += len(content)
-
-            # Show metadata
-            if doc.metadata:
-                relevant_metadata = {
-                    k: v for k, v in doc.metadata.items()
-                    if k in ['source', 'filename', 'page', 'topic', 'author', 'date']
-                }
-                if relevant_metadata:
-                    output += f"   Metadata: {relevant_metadata}\n"
-            output += "\n"
-
-        # Add search statistics
-        output += f"📊 Statistics:\n"
-        output += f"   Total results: {len(results)}\n"
-        output += f"   Strategy: {strategy}\n"
-        output += f"   Context chars used: {total_chars}/{max_context_chars}\n"
+        # Build output with optimized context and track chunks
+        output = _build_search_output(
+            results, 
+            strategy, 
+            strategy_name, 
+            query, 
+            collection_name,
+            retrieval_ctx
+        )
 
         return output
 
     except Exception as e:
         return f"❌ Error in vector search: {str(e)}"
+
+
+def _execute_search_strategy(vs, query, strategy, num_results, diversity):
+    """Execute the appropriate search strategy"""
+    if strategy == "semantic":
+        results = vs.search_with_score(query, k=num_results)
+        strategy_name = "🔍 Semantic Search"
+        
+    elif strategy == "keyword":
+        results = vs._keyword_search(query, k=num_results)
+        strategy_name = "📝 Keyword Search"
+        
+    elif strategy == "mmr":
+        # MMR returns documents without scores
+        docs = vs.mmr_search(
+            query,
+            k=num_results,
+            fetch_k=num_results * 4,
+            lambda_mult=diversity
+        )
+        results = [(doc, 0.0) for doc in docs]
+        strategy_name = f"🎯 MMR Search (diversity={diversity})"
+        
+    else:  # hybrid (default)
+        results = vs.hybrid_search(query, k=num_results)
+        strategy_name = "⚡ Hybrid Search (semantic + keyword)"
+    
+    return results, strategy_name
+
+
+def _build_search_output(results, strategy, strategy_name, query, collection_name, retrieval_ctx):
+    """Build the search output and track chunks in retrieval context"""
+    output = f"{strategy_name}\n"
+    output += f"Query: {query}\n"
+    output += f"Collection: {collection_name}\n"
+    output += f"Found {len(results)} results:\n\n"
+
+    total_chars = 0
+    max_context_chars = 4000  # Context window optimization
+
+    for i, (doc, score) in enumerate(results, 1):
+        # Format score display
+        if strategy == "mmr":
+            score_display = "Diverse"
+            actual_score = 0.0
+        else:
+            score_display = f"{score:.3f}"
+            actual_score = score
+        
+        # Track in retrieval context
+        retrieval_ctx.add_chunk(
+            content=doc.page_content,
+            relevance_score=actual_score,
+            source=collection_name,
+            metadata=doc.metadata,
+            chunk_id=doc.metadata.get('chunk_id') if doc.metadata else None
+        )
+        
+        output += f"{i}. [Relevance: {score_display}]\n"
+        
+        # Optimize content length for context window
+        content = doc.page_content
+        remaining_chars = max_context_chars - total_chars
+        
+        if remaining_chars < 100:
+            output += "   ... (context limit reached)\n\n"
+            break
+            
+        if len(content) > remaining_chars:
+            content = content[:remaining_chars] + "..."
+        
+        output += f"   Content: {content}\n"
+        total_chars += len(content)
+
+        # Show metadata
+        if doc.metadata:
+            relevant_metadata = {
+                k: v for k, v in doc.metadata.items()
+                if k in ['source', 'filename', 'page', 'topic', 'author', 'date']
+            }
+            if relevant_metadata:
+                output += f"   Metadata: {relevant_metadata}\n"
+        output += "\n"
+
+    # Add search statistics
+    output += "📊 Statistics:\n"
+    output += f"   Total results: {len(results)}\n"
+    output += f"   Strategy: {strategy}\n"
+    output += f"   Context chars used: {total_chars}/{max_context_chars}\n"
+
+    return output
 
 
 @tool

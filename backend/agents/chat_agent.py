@@ -136,7 +136,7 @@ def get_agent_response(
     user_message: str,
     chat_history: List[Dict[str, str]] | None = None,
     chat_id: str | None = None
-) -> Tuple[str, List[Dict[str, str]], Dict]:
+) -> Tuple[str, List[Dict[str, str]], Dict, Dict]:
     """
     Get response from the agent for a user message with conversation history.
     Uses smart LLM selection based on message complexity.
@@ -147,14 +147,19 @@ def get_agent_response(
         chat_id: Optional chat ID for chat-specific memory access
 
     Returns:
-        Tuple[str, List[Dict[str, str]], Dict]: (response, thought_process, llm_metadata)
+        Tuple[str, List[Dict[str, str]], Dict, Dict]: (response, thought_process, llm_metadata, retrieval_context)
             - response: The agent's final answer
             - thought_process: List of reasoning steps [{"step": "Thought|Action|Observation", "content": "..."}]
             - llm_metadata: Metadata about LLM selection (model, complexity, etc.)
+            - retrieval_context: Metadata about retrieved chunks and sources
     """
     try:
         from utils.llm import get_smart_llm
         from utils.rag_tools import current_chat_id
+        from utils.retrieval_context import get_retrieval_context, clear_retrieval_context
+
+        # Clear any previous retrieval context
+        clear_retrieval_context()
 
         # Use smart LLM selection based on message complexity
         llm, llm_metadata = get_smart_llm(user_message, temperature=0.2)
@@ -206,7 +211,11 @@ def get_agent_response(
                     "content": str(msg.content)[:500]  # Limit observation length
                 })
 
-        return response, thought_process, llm_metadata
+        # Get retrieval context
+        retrieval_ctx = get_retrieval_context()
+        retrieval_context = retrieval_ctx.to_dict()
+
+        return response, thought_process, llm_metadata, retrieval_context
 
     except Exception as e:
         error_msg = f"An error occurred while processing your request: {str(e)}"
@@ -227,7 +236,16 @@ def get_agent_response(
             "complexity": "error"
         }
 
-        return error_response, [{"step": "Error", "content": error_msg}], error_metadata
+        empty_retrieval_context = {
+            "chunks": [],
+            "search_queries": [],
+            "search_strategies": [],
+            "total_searches": 0,
+            "unique_sources": [],
+            "total_chunks": 0
+        }
+
+        return error_response, [{"step": "Error", "content": error_msg}], error_metadata, empty_retrieval_context
 
 
 # For testing
@@ -236,14 +254,16 @@ if __name__ == "__main__":
 
     # Test 1: General question (no tool usage)
     print("\n--- Test 1: General Question ---")
-    response1, steps1, metadata1 = get_agent_response("What is Python?")
+    response1, steps1, metadata1, retrieval1 = get_agent_response("What is Python?")
     print(f"Response: {response1}")
     print(f"Thought Process: {steps1}")
-    print(f"LLM Metadata: {metadata1}\n")
+    print(f"LLM Metadata: {metadata1}")
+    print(f"Retrieval Context: {retrieval1}\n")
 
     # Test 2: Database query (tool usage)
     print("\n--- Test 2: Database Query ---")
-    response2, steps2, metadata2 = get_agent_response("Show me my posts about programming")
+    response2, steps2, metadata2, retrieval2 = get_agent_response("Show me my posts about programming")
     print(f"Response: {response2}")
     print(f"Thought Process: {steps2}")
-    print(f"LLM Metadata: {metadata2}\n")
+    print(f"LLM Metadata: {metadata2}")
+    print(f"Retrieval Context: {retrieval2}\n")
