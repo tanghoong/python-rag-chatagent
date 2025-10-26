@@ -191,7 +191,11 @@ async def chat(chat_message: ChatMessage):
         ]
 
         # Get response from agent with conversation history, thought process, and LLM metadata
-        response, thought_process, llm_metadata = get_agent_response(chat_message.message, chat_history=chat_history)
+        response, thought_process, llm_metadata = get_agent_response(
+            chat_message.message, 
+            chat_history=chat_history,
+            chat_id=chat_id
+        )
 
         # Save assistant message with thought process and LLM metadata
         assistant_message = Message(
@@ -275,7 +279,11 @@ async def chat_stream(chat_message: ChatMessage):
             ]
 
             # Get response from agent with LLM metadata
-            response, thought_process, llm_metadata = get_agent_response(chat_message.message, chat_history=chat_history)
+            response, thought_process, llm_metadata = get_agent_response(
+                chat_message.message, 
+                chat_history=chat_history,
+                chat_id=chat_id
+            )
 
             # Send LLM metadata first
             if llm_metadata:
@@ -589,7 +597,11 @@ async def regenerate_message(chat_id: str, message_id: str):
         ]
 
         # Generate new response with conversation history, thought process, and LLM metadata
-        response, thought_process, llm_metadata = get_agent_response(last_message.content, chat_history=chat_history)
+        response, thought_process, llm_metadata = get_agent_response(
+            last_message.content, 
+            chat_history=chat_history,
+            chat_id=chat_id
+        )
 
         # Save assistant message with thought process and LLM metadata
         assistant_message = Message(

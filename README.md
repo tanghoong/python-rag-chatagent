@@ -16,14 +16,17 @@ A modern full-stack AI chatbot with **dark glassmorphism UI** featuring poetic r
 - ✅ **Milestone 7**: Enhanced UX Features (Streaming, voice, shortcuts)
 - ✅ **Milestone 8**: Code Rendering & Markdown ✨
 - ✅ **Milestone 9**: Polish & Optimization ✨
-- ✅ **Milestone 10**: Production Deployment ✨ **NEW!**
+- ✅ **Milestone 10**: Production Deployment ✨
+- ✅ **Milestone 11**: Phase 1.3 - Frontend Memory Management (CRUD) ✨
+- ✅ **Milestone 12**: Phase 1.4 - Document Context Switching ✨
+- ✅ **Milestone 13**: Smart Memory Search (Auto scope selection) ✨ **NEW!**
 
 ### 🚀 Production Ready
 The application is now fully containerized, optimized, and ready for deployment to any cloud platform!
 
 ## 🚀 Features
 
-### Complete Feature Set (All 10 Milestones)
+### Complete Feature Set (All Milestones)
 - 🤖 **AI-Powered Chatbot** - Poetic responses powered by Google Gemini 2.0 Flash
 - 🧠 **Intelligent Tool Usage** - RAG-enabled agent that queries database when relevant
 - 💬 **RESTful API** - FastAPI backend with automatic documentation
@@ -41,14 +44,21 @@ The application is now fully containerized, optimized, and ready for deployment 
 - ⌨️ **Keyboard Shortcuts** - Productivity shortcuts for power users
 - 💻 **Code Rendering** - Syntax highlighting with Prism.js
 - 📝 **Full Markdown Support** - Render rich formatted content
-- � **Thought Process Viewer** - See agent reasoning steps
+- 🔍 **Thought Process Viewer** - See agent reasoning steps
 - 💬 **Toast Notifications** - User feedback for all actions
 - ⏱️ **Message Timestamps** - Relative time display with tooltips
 - 🎨 **Loading Skeletons** - Smooth loading states
 - 📱 **Responsive Design** - Optimized for mobile and desktop
-- � **Docker Deployment** - Production-ready containerization
+- 🐳 **Docker Deployment** - Production-ready containerization
 - ⚙️ **Environment Configuration** - Multi-environment setup
 - 🚀 **Build Optimization** - Code splitting and tree shaking
+- 🧠 **Autonomous Memory Management** - AI creates databases, ingests documents automatically
+- 📚 **Global & Chat Memory** - Dual-layer memory system (shared + chat-specific)
+- 🔍 **Smart Memory Search** - AI autonomously decides best memory scope ✨ **NEW!**
+- 📄 **Multi-Format Document Upload** - PDF, DOCX, TXT, MD support
+- 🎯 **Document Context Switching** - Select active documents per chat (Ctrl+K)
+- 📊 **Memory CRUD Interface** - Search, upload, timeline, export, delete memories
+- 🏷️ **Source Indicators** - See where information came from (🌐 Global / 💬 Chat)
 
 ## 📁 Project Structure
 

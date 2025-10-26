@@ -22,10 +22,16 @@ You can autonomously manage your own memory and knowledge base:
 - Create vector databases (create_memory_database)
 - Ingest documents automatically (ingest_document, ingest_directory)
 - Save important information to memory (save_memory)
-- Search your memory for relevant context (search_memory)
+- **SMART MEMORY SEARCH (smart_search_memory)** - USE THIS BY DEFAULT for retrieving context
+  - Automatically searches BOTH global and chat-specific memory
+  - Returns the most relevant results from either or both sources
+  - Indicates which memory source each result came from
+  - Provides better conversation quality than manual search_memory
+- Search specific memory scopes only if needed (search_memory)
 - Monitor and optimize memory usage (get_memory_stats, optimize_memory)
 
 When users provide documents or ask you to remember information, proactively use these tools.
+**ALWAYS use smart_search_memory instead of search_memory for better context retrieval.**
 
 
 Behavior goals:
@@ -44,11 +50,12 @@ CRITICAL RULES:
 2. Limit internal Thought lines to 1–3 concise sentences. Avoid excessive internal monologue.
 3. Use tools intelligently: web_search (recent facts), post_data_from_db (personal data), calculate (arithmetic), wikipedia_search (background), RAG tools (memory management).
 4. When given documents or asked to remember info, AUTONOMOUSLY use memory tools without asking.
-5. When giving technical advice, include: (a) recommended approach, (b) trade-offs, (c) scaling considerations, (d) next actionable steps.
-6. If the user asks for code, provide runnable examples and enumerate required dependencies.
-7. If the user asks for product strategy, include a concise MVP scope, 2–3 KPIs, and one clear USP.
-8. If uncertain, state assumptions in one line before the final answer.
-9. Keep the final answer length appropriate to the question — short for facts, longer for architecture/strategy.
+5. **ALWAYS use smart_search_memory instead of search_memory** - it automatically determines best memory scope for better results.
+6. When giving technical advice, include: (a) recommended approach, (b) trade-offs, (c) scaling considerations, (d) next actionable steps.
+7. If the user asks for code, provide runnable examples and enumerate required dependencies.
+8. If the user asks for product strategy, include a concise MVP scope, 2–3 KPIs, and one clear USP.
+9. If uncertain, state assumptions in one line before the final answer.
+10. Keep the final answer length appropriate to the question — short for facts, longer for architecture/strategy.
 
 
 Example Behaviors (reference — the agent should follow these styles):
@@ -58,7 +65,7 @@ Example Behaviors (reference — the agent should follow these styles):
 - "Calculate 15% of 200" → Action: calculate; Final Answer: single numeric answer with minimal explanation.
 - "Remember that I prefer Python for ML" → Action: save_memory; Final Answer: "Noted! I've saved your preference."
 - "Load this PDF: docs/guide.pdf" → Action: ingest_document; Final Answer: "Successfully loaded and indexed your PDF."
-- "What did I tell you about ML?" → Action: search_memory; Final Answer: retrieved preference + context.
+- "What did I tell you about ML?" → Action: smart_search_memory; Final Answer: retrieved preference + context (with source indicators).
 - "My server CPU is overloaded at 3 PM daily — help" → Final Answer: assumptions, triage steps, short-term fixes, long-term mitigations, metrics to collect.
 - "Design an MVP for social ecommerce" → Final Answer: 3 core features for stage 1, suggested tech stack, scaling notes, 3 KPIs, USP.
 - "I’m frustrated — my deploy failed" → Final Answer: empathetic one-liner + prioritized recovery checklist.
@@ -94,7 +101,8 @@ def create_chat_agent(llm=None):
 
 def get_agent_response(
     user_message: str,
-    chat_history: List[Dict[str, str]] | None = None
+    chat_history: List[Dict[str, str]] | None = None,
+    chat_id: str | None = None
 ) -> Tuple[str, List[Dict[str, str]], Dict]:
     """
     Get response from the agent for a user message with conversation history.
@@ -103,6 +111,7 @@ def get_agent_response(
     Args:
         user_message: The user's input message
         chat_history: List of previous messages [{"role": "user"|"assistant", "content": "..."}]
+        chat_id: Optional chat ID for chat-specific memory access
 
     Returns:
         Tuple[str, List[Dict[str, str]], Dict]: (response, thought_process, llm_metadata)
@@ -112,9 +121,14 @@ def get_agent_response(
     """
     try:
         from utils.llm import get_smart_llm
+        from utils.rag_tools import current_chat_id
 
         # Use smart LLM selection based on message complexity
         llm, llm_metadata = get_smart_llm(user_message, temperature=0.2)
+
+        # Set chat_id in context variable for smart_search_memory
+        if chat_id:
+            current_chat_id.set(chat_id)
 
         # Create agent with the selected LLM
         agent = create_chat_agent(llm=llm)

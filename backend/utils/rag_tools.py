@@ -8,9 +8,14 @@ Enables the agent to create vector databases, ingest documents, and manage memor
 import os
 from typing import List, Optional
 from pathlib import Path
+from contextvars import ContextVar
 from langchain_core.tools import tool
 from database.vector_store import VectorStoreManager, get_global_vector_store
 from utils.document_processor import DocumentProcessor
+
+
+# Context variable to store current chat_id for smart_search_memory
+current_chat_id: ContextVar[Optional[str]] = ContextVar('current_chat_id', default=None)
 
 
 @tool
@@ -253,6 +258,87 @@ def search_memory(
 
     except Exception as e:
         return f"❌ Error searching memory: {str(e)}"
+
+
+@tool
+def smart_search_memory(
+    query: str,
+    num_results: int = 5
+) -> str:
+    """
+    AI Agent intelligently searches across BOTH global and chat-specific memory.
+    
+    This tool AUTOMATICALLY determines the best memory scope to use:
+    - Searches BOTH global memory (shared knowledge) AND chat-specific memory
+    - Returns the most relevant results from either or both sources
+    - Indicates which memory source each result came from
+    
+    Use this tool instead of search_memory for better conversation quality.
+    The AI will automatically get context from the right memory scope.
+
+    Args:
+        query: Search query for retrieving relevant context
+        num_results: Total number of results to return (default: 5)
+
+    Returns:
+        Retrieved memories from both global and chat scopes with source indicators
+    """
+    all_results = []
+    
+    # Get chat_id from context variable
+    chat_id = current_chat_id.get()
+    
+    # Search global memory
+    try:
+        global_vs = VectorStoreManager(collection_name="global_memory")
+        global_results = global_vs.search_with_score(query, k=num_results)
+        for doc, score in global_results:
+            all_results.append({
+                "doc": doc,
+                "score": score,
+                "source": "🌐 Global Memory"
+            })
+    except Exception as e:
+        print(f"Warning: Could not search global memory: {e}")
+    
+    # Search chat-specific memory if chat_id available
+    if chat_id:
+        try:
+            chat_vs = VectorStoreManager(collection_name=f"chat_{chat_id}")
+            chat_results = chat_vs.search_with_score(query, k=num_results)
+            for doc, score in chat_results:
+                all_results.append({
+                    "doc": doc,
+                    "score": score,
+                    "source": "💬 Chat Memory"
+                })
+        except Exception as e:
+            print(f"Warning: Could not search chat memory: {e}")
+    
+    if not all_results:
+        return f"No relevant memories found for: {query}"
+    
+    # Sort by relevance score (lower is better for distance metrics)
+    all_results.sort(key=lambda x: x["score"])
+    
+    # Take top results
+    top_results = all_results[:num_results]
+    
+    output = f"🧠 Smart Search: Found {len(top_results)} relevant memories:\n\n"
+    
+    for i, result in enumerate(top_results, 1):
+        doc = result["doc"]
+        score = result["score"]
+        source = result["source"]
+        
+        output += f"{i}. {source} [Relevance: {score:.3f}]\n"
+        output += f"   Content: {doc.page_content[:200]}...\n"
+        
+        if doc.metadata:
+            output += f"   Metadata: {doc.metadata}\n"
+        output += "\n"
+    
+    return output
 
 
 @tool
