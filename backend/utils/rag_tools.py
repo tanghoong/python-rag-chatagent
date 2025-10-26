@@ -342,6 +342,123 @@ def smart_search_memory(
 
 
 @tool
+def vector_search(
+    query: str,
+    collection_name: str = "global_memory",
+    strategy: str = "hybrid",
+    num_results: int = 5,
+    diversity: float = 0.5
+) -> str:
+    """
+    Advanced RAG retrieval tool with multiple search strategies.
+
+    This tool provides sophisticated document retrieval with:
+    - Multiple search strategies (semantic, keyword, hybrid, mmr)
+    - Relevance scoring and re-ranking
+    - Diversity control via MMR
+    - Context window optimization
+
+    Search Strategies:
+    - "semantic": Pure vector similarity search (best for conceptual matches)
+    - "keyword": Term-based search (best for exact term matches)
+    - "hybrid": Combines semantic + keyword (balanced, recommended)
+    - "mmr": Maximal Marginal Relevance (diverse, non-redundant results)
+
+    Args:
+        query: Search query for document retrieval
+        collection_name: Target collection (default: "global_memory")
+        strategy: Search strategy - "semantic", "keyword", "hybrid", or "mmr"
+        num_results: Number of results to return (default: 5)
+        diversity: For MMR strategy, controls diversity (0=max diversity, 1=max relevance)
+
+    Returns:
+        Retrieved documents with relevance scores and metadata
+    """
+    try:
+        vs = VectorStoreManager(collection_name=collection_name)
+        
+        # Execute search based on strategy
+        if strategy == "semantic":
+            results = vs.search_with_score(query, k=num_results)
+            strategy_name = "🔍 Semantic Search"
+            
+        elif strategy == "keyword":
+            results = vs._keyword_search(query, k=num_results)
+            strategy_name = "📝 Keyword Search"
+            
+        elif strategy == "mmr":
+            # MMR returns documents without scores
+            docs = vs.mmr_search(
+                query,
+                k=num_results,
+                fetch_k=num_results * 4,
+                lambda_mult=diversity
+            )
+            results = [(doc, 0.0) for doc in docs]
+            strategy_name = f"🎯 MMR Search (diversity={diversity})"
+            
+        else:  # hybrid (default)
+            results = vs.hybrid_search(query, k=num_results)
+            strategy_name = "⚡ Hybrid Search (semantic + keyword)"
+
+        if not results:
+            return f"No relevant documents found for: {query}"
+
+        # Build output with optimized context
+        output = f"{strategy_name}\n"
+        output += f"Query: {query}\n"
+        output += f"Collection: {collection_name}\n"
+        output += f"Found {len(results)} results:\n\n"
+
+        total_chars = 0
+        max_context_chars = 4000  # Context window optimization
+
+        for i, (doc, score) in enumerate(results, 1):
+            # Format score display
+            if strategy == "mmr":
+                score_display = "Diverse"
+            else:
+                score_display = f"{score:.3f}"
+            
+            output += f"{i}. [Relevance: {score_display}]\n"
+            
+            # Optimize content length for context window
+            content = doc.page_content
+            remaining_chars = max_context_chars - total_chars
+            
+            if remaining_chars < 100:
+                output += "   ... (context limit reached)\n\n"
+                break
+                
+            if len(content) > remaining_chars:
+                content = content[:remaining_chars] + "..."
+            
+            output += f"   Content: {content}\n"
+            total_chars += len(content)
+
+            # Show metadata
+            if doc.metadata:
+                relevant_metadata = {
+                    k: v for k, v in doc.metadata.items()
+                    if k in ['source', 'filename', 'page', 'topic', 'author', 'date']
+                }
+                if relevant_metadata:
+                    output += f"   Metadata: {relevant_metadata}\n"
+            output += "\n"
+
+        # Add search statistics
+        output += f"📊 Statistics:\n"
+        output += f"   Total results: {len(results)}\n"
+        output += f"   Strategy: {strategy}\n"
+        output += f"   Context chars used: {total_chars}/{max_context_chars}\n"
+
+        return output
+
+    except Exception as e:
+        return f"❌ Error in vector search: {str(e)}"
+
+
+@tool
 def get_memory_stats(collection_name: str = "global_memory") -> str:
     """
     AI Agent can check memory database statistics.
@@ -467,6 +584,8 @@ def get_rag_tools() -> List:
         ingest_directory,
         save_memory,
         search_memory,
+        smart_search_memory,
+        vector_search,  # Advanced RAG retrieval tool
         get_memory_stats,
         delete_memory,
         optimize_memory

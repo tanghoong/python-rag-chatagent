@@ -208,6 +208,163 @@ class VectorStoreManager:
             print(f"❌ Error searching with scores: {str(e)}")
             return []
 
+    def hybrid_search(
+        self,
+        query: str,
+        k: int = 5,
+        semantic_weight: float = 0.7,
+        keyword_weight: float = 0.3
+    ) -> List[tuple[Document, float]]:
+        """
+        Perform hybrid search combining semantic and keyword search.
+
+        Args:
+            query: Search query
+            k: Number of results to return
+            semantic_weight: Weight for semantic search (0-1)
+            keyword_weight: Weight for keyword search (0-1)
+
+        Returns:
+            List of (Document, score) tuples with combined scores
+        """
+        try:
+            # Normalize weights
+            total_weight = semantic_weight + keyword_weight
+            semantic_weight = semantic_weight / total_weight
+            keyword_weight = keyword_weight / total_weight
+
+            # Perform semantic search
+            semantic_results = self.vector_store.similarity_search_with_score(query, k=k * 2)
+
+            # Perform keyword search (simple BM25-like approach)
+            keyword_results = self._keyword_search(query, k=k * 2)
+
+            # Combine and re-rank results
+            combined_scores = {}
+            
+            # Add semantic scores
+            for doc, score in semantic_results:
+                doc_id = self._get_doc_id(doc)
+                # Normalize score (lower is better for distance, convert to similarity)
+                similarity = 1 / (1 + score)
+                combined_scores[doc_id] = {
+                    'doc': doc,
+                    'score': similarity * semantic_weight
+                }
+
+            # Add keyword scores
+            for doc, score in keyword_results:
+                doc_id = self._get_doc_id(doc)
+                if doc_id in combined_scores:
+                    combined_scores[doc_id]['score'] += score * keyword_weight
+                else:
+                    combined_scores[doc_id] = {
+                        'doc': doc,
+                        'score': score * keyword_weight
+                    }
+
+            # Sort by combined score (higher is better)
+            sorted_results = sorted(
+                combined_scores.values(),
+                key=lambda x: x['score'],
+                reverse=True
+            )
+
+            # Return top k results with inverted scores for consistency
+            return [(item['doc'], 1 - item['score']) for item in sorted_results[:k]]
+
+        except Exception as e:
+            print(f"❌ Error in hybrid search: {str(e)}")
+            return []
+
+    def _keyword_search(self, query: str, k: int = 5) -> List[tuple[Document, float]]:
+        """
+        Simple keyword-based search using term matching.
+
+        Args:
+            query: Search query
+            k: Number of results
+
+        Returns:
+            List of (Document, score) tuples
+        """
+        try:
+            query_terms = set(query.lower().split())
+            all_docs = self.get_all_documents(limit=1000)
+            
+            scored_docs = []
+            for doc_data in all_docs:
+                content = doc_data['content'].lower()
+                
+                # Calculate simple term frequency score
+                score = 0.0
+                for term in query_terms:
+                    if term in content:
+                        # Simple TF scoring
+                        score += content.count(term) / len(content.split())
+                
+                if score > 0:
+                    doc = Document(
+                        page_content=doc_data['content'],
+                        metadata=doc_data.get('metadata', {})
+                    )
+                    scored_docs.append((doc, score))
+            
+            # Sort by score (higher is better)
+            scored_docs.sort(key=lambda x: x[1], reverse=True)
+            
+            return scored_docs[:k]
+
+        except Exception as e:
+            print(f"❌ Error in keyword search: {str(e)}")
+            return []
+
+    def mmr_search(
+        self,
+        query: str,
+        k: int = 5,
+        fetch_k: int = 20,
+        lambda_mult: float = 0.5
+    ) -> List[Document]:
+        """
+        Maximal Marginal Relevance (MMR) search for diverse results.
+
+        Args:
+            query: Search query
+            k: Number of results to return
+            fetch_k: Number of initial candidates to fetch
+            lambda_mult: Diversity parameter (0=max diversity, 1=max relevance)
+
+        Returns:
+            List of diverse, relevant documents
+        """
+        try:
+            results = self.vector_store.max_marginal_relevance_search(
+                query,
+                k=k,
+                fetch_k=fetch_k,
+                lambda_mult=lambda_mult
+            )
+            return results
+
+        except Exception as e:
+            print(f"❌ Error in MMR search: {str(e)}")
+            return []
+
+    def _get_doc_id(self, doc: Document) -> str:
+        """
+        Generate a unique ID for a document based on its content and metadata.
+
+        Args:
+            doc: Document object
+
+        Returns:
+            Unique identifier string
+        """
+        import hashlib
+        content_hash = hashlib.md5(doc.page_content.encode()).hexdigest()
+        return content_hash
+
     def delete_documents(self, ids: List[str]) -> bool:
         """
         Delete documents by IDs.
