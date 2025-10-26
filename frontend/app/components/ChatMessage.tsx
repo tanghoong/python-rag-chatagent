@@ -9,9 +9,10 @@ import remarkGfm from "remark-gfm";
 import CodeBlock from "./CodeBlock";
 import type { Components } from "react-markdown";
 import { formatRelativeTime, formatFullDateTime } from "../utils/dateUtils";
+import { useMemo } from "react";
 
-// Markdown component overrides
-const markdownComponents: Components = {
+// Markdown component overrides factory function
+const createMarkdownComponents = (): Components => ({
   code({ inline, className, children, ...props }: any) {
     const match = /language-(\w+)/.exec(className || '');
     // Safely convert children to string
@@ -60,7 +61,7 @@ const markdownComponents: Components = {
   td: ({ children }) => (
     <td className="border border-gray-700 px-3 py-2">{children}</td>
   ),
-};
+});
 
 interface ThoughtStep {
   step: string;
@@ -129,6 +130,17 @@ export function ChatMessage({
   const isUser = role === "user";
   const normalizedRole = role === "bot" ? "assistant" : role;
 
+  // Memoize markdown components to prevent unnecessary re-renders
+  const markdownComponents = useMemo(() => createMarkdownComponents(), []);
+
+  // Only force re-render when content actually changes significantly
+  // Use a hash of first/last 50 chars instead of length for better stability
+  const contentKey = useMemo(() => {
+    const start = content.slice(0, 50);
+    const end = content.slice(-50);
+    return `${start}-${content.length}-${end}`;
+  }, [content]);
+
   return (
     <div className={`group flex items-start gap-2 sm:gap-3 animate-fade-in px-2 sm:px-0 ${isUser ? "flex-row-reverse" : ""}`}>
       {/* Avatar with timestamp */}
@@ -154,12 +166,13 @@ export function ChatMessage({
 
       {/* Message bubble */}
       <div 
-        className={`glass-card flex-1 max-w-3xl py-2 px-2 sm:px-3 ${
+        className={`glass-card flex-1 max-w-3xl py-2 px-2 sm:px-3 transition-all duration-200 ${
           isUser ? "bg-white/10" : ""
         }`}
       >
         <div className="prose prose-invert max-w-none text-gray-100 leading-relaxed text-sm prose-pre:p-0 prose-pre:m-0 prose-pre:bg-transparent">
           <ReactMarkdown
+            key={contentKey}
             remarkPlugins={[remarkGfm]}
             components={markdownComponents}
           >

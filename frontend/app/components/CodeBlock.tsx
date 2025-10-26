@@ -12,12 +12,37 @@ interface CodeBlockProps {
 export default function CodeBlock({ language, children, inline }: CodeBlockProps) {
   const [copied, setCopied] = useState(false);
   const codeRef = useRef<HTMLElement>(null);
+  const highlightTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
     if (codeRef.current && !inline) {
-      hljs.highlightElement(codeRef.current);
+      // Clear any pending highlight timeout
+      if (highlightTimeoutRef.current) {
+        clearTimeout(highlightTimeoutRef.current);
+      }
+
+      // Debounce highlighting for smoother streaming
+      highlightTimeoutRef.current = setTimeout(() => {
+        if (codeRef.current) {
+          // Remove existing highlighting classes
+          codeRef.current.removeAttribute('data-highlighted');
+          codeRef.current.className = '';
+          
+          // Apply syntax highlighting
+          if (language) {
+            codeRef.current.className = `language-${language}`;
+          }
+          hljs.highlightElement(codeRef.current);
+        }
+      }, 100); // 100ms debounce for smooth streaming
     }
-  }, [children, inline]);
+
+    return () => {
+      if (highlightTimeoutRef.current) {
+        clearTimeout(highlightTimeoutRef.current);
+      }
+    };
+  }, [children, inline, language]);
 
   const handleCopy = async () => {
     await navigator.clipboard.writeText(children);
@@ -59,7 +84,7 @@ export default function CodeBlock({ language, children, inline }: CodeBlockProps
           )}
         </button>
       </div>
-      <pre className="m-0! rounded-t-none! rounded-b-lg! overflow-x-auto code-scroll">
+      <pre className="m-0! rounded-t-none! rounded-b-lg! overflow-x-auto code-scroll transition-opacity duration-150">
         <code
           ref={codeRef}
           className={language ? `language-${language}` : 'language-text'}

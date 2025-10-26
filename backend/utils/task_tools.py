@@ -148,15 +148,15 @@ def create_task_from_chat(task_description: str) -> str:
         task = run_async(task_repository.create, task_data)
         
         # Build response
-        response = "✅ Task created successfully!\n\n"
-        response += f"**Title:** {task.title}\n"
-        response += f"**ID:** {task.id}\n"
-        response += f"**Status:** {task.status.value}\n"
-        response += f"**Priority:** {task.priority.value}\n"
+        response = "✅ **Task created successfully!**\n\n"
+        response += f"- **Title:** {task.title}\n"
+        response += f"- **ID:** `{task.id}`\n"
+        response += f"- **Status:** {task.status.value}\n"
+        response += f"- **Priority:** {task.priority.value}\n"
         if task.tags:
-            response += f"**Tags:** {', '.join(task.tags)}\n"
+            response += f"- **Tags:** {', '.join(task.tags)}\n"
         if task.description:
-            response += f"\n**Description:**\n{task.description}\n"
+            response += f"\n**Description:**\n\n{task.description}\n"
         
         return response
         
@@ -223,7 +223,7 @@ def list_tasks_from_chat(
             return "📋 No tasks found matching your criteria."
         
         # Format response
-        response = f"📋 **Your Tasks** ({len(tasks)}/{total} shown)\n\n"
+        response = f"📋 **Your Tasks** ({len(tasks)} of {total})\n\n"
         
         for i, task in enumerate(tasks, 1):
             status_emoji = {
@@ -240,12 +240,14 @@ def list_tasks_from_chat(
                 "low": "🔽"
             }.get(task.priority.value, "📌")
             
-            response += f"{i}. {status_emoji} {priority_emoji} **{task.title}**\n"
-            response += f"   ID: `{task.id}` | Status: {task.status.value} | Priority: {task.priority.value}\n"
+            response += f"### {i}. {status_emoji} {priority_emoji} {task.title}\n\n"
+            response += f"- **ID:** `{task.id}`\n"
+            response += f"- **Status:** {task.status.value}\n"
+            response += f"- **Priority:** {task.priority.value}\n"
             if task.tags:
-                response += f"   Tags: {', '.join(task.tags)}\n"
+                response += f"- **Tags:** {', '.join(task.tags)}\n"
             if task.description and len(task.description) <= 100:
-                response += f"   {task.description}\n"
+                response += f"- **Description:** {task.description}\n"
             response += "\n"
         
         return response
@@ -292,7 +294,7 @@ def update_task_status_from_chat(task_id: str, new_status: str) -> str:
             "cancelled": "❌"
         }.get(task.status.value, "📌")
         
-        return f"{status_emoji} Task status updated!\n\n**{task.title}**\nStatus: {task.status.value}"
+        return f"{status_emoji} **Task status updated!**\n\n**{task.title}**\n\n- **New Status:** {task.status.value}"
         
     except Exception as e:
         return f"❌ Error updating task status: {str(e)}"
@@ -353,7 +355,7 @@ def update_task_from_chat(
         if not task:
             return f"❌ Task not found: {task_id}"
         
-        return f"✅ Task updated successfully!\n\n**{task.title}**\nPriority: {task.priority.value}\nTags: {', '.join(task.tags) if task.tags else 'None'}"
+        return f"✅ **Task updated successfully!**\n\n**{task.title}**\n\n- **Priority:** {task.priority.value}\n- **Tags:** {', '.join(task.tags) if task.tags else 'None'}"
         
     except Exception as e:
         return f"❌ Error updating task: {str(e)}"

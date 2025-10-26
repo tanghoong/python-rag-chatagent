@@ -317,11 +317,18 @@ async def chat_stream(chat_message: ChatMessage):
             if thought_process:
                 yield f"data: {json.dumps({'type': 'thought_process', 'steps': thought_process})}\n\n"
 
-            # Stream response word by word
-            words = response.split()
-            for i, word in enumerate(words):
-                yield f"data: {json.dumps({'type': 'token', 'content': word + (' ' if i < len(words) - 1 else '')})}\n\n"
-                await asyncio.sleep(0.05)  # Small delay between words for streaming effect
+            # Stream response while preserving newlines
+            # Split by spaces but keep track of newlines
+            lines = response.split('\n')
+            for line_idx, line in enumerate(lines):
+                words = line.split()
+                for i, word in enumerate(words):
+                    yield f"data: {json.dumps({'type': 'token', 'content': word + (' ' if i < len(words) - 1 else '')})}\n\n"
+                    await asyncio.sleep(0.05)  # Small delay between words for streaming effect
+                
+                # Add newline after each line except the last one
+                if line_idx < len(lines) - 1:
+                    yield f"data: {json.dumps({'type': 'token', 'content': '\n'})}\n\n"
 
             # Save assistant message with thought process, LLM metadata, and retrieval context
             assistant_message = Message(
