@@ -1,43 +1,64 @@
 @echo off
-REM Quick Start Script for RAG Chatbot Backend
+REM Quick Start Script for RAG Chatbot Backend (Windows)
 
 echo ============================================
 echo RAG Chatbot Backend - Quick Start
 echo ============================================
 echo.
 
+REM Check if Python is installed
+where python >nul 2>nul
+if %ERRORLEVEL% NEQ 0 (
+    echo [ERROR] Python is not installed!
+    echo Please install Python from https://python.org
+    exit /b 1
+)
+
 REM Check if virtual environment exists
 if not exist "venv\" (
     echo [1/5] Creating virtual environment...
     python -m venv venv
-    echo ✓ Virtual environment created
+    if %ERRORLEVEL% NEQ 0 (
+        echo [ERROR] Failed to create virtual environment
+        exit /b 1
+    )
+    echo [OK] Virtual environment created
 ) else (
-    echo ✓ Virtual environment already exists
+    echo [OK] Virtual environment already exists
 )
 echo.
 
 REM Activate virtual environment
 echo [2/5] Activating virtual environment...
 call venv\Scripts\activate
-echo ✓ Virtual environment activated
+if %ERRORLEVEL% NEQ 0 (
+    echo [ERROR] Failed to activate virtual environment
+    exit /b 1
+)
+echo [OK] Virtual environment activated
 echo.
 
 REM Install dependencies
 echo [3/5] Installing dependencies...
 pip install -r requirements.txt --quiet
-echo ✓ Dependencies installed
+if %ERRORLEVEL% NEQ 0 (
+    echo [ERROR] Failed to install dependencies
+    exit /b 1
+)
+echo [OK] Dependencies installed
 echo.
 
 REM Check .env file
 echo [4/5] Checking environment configuration...
 if not exist ".env" (
-    echo ⚠ Warning: .env file not found!
+    echo [WARNING] .env file not found!
     echo Please create .env file from .env.example
     echo and configure your GOOGLE_API_KEY and MONGODB_URI
+    echo.
     pause
-    exit /b 1
+    REM Continue anyway - don't exit
 ) else (
-    echo ✓ .env file found
+    echo [OK] .env file found
 )
 echo.
 
