@@ -1,0 +1,5 @@
+# Development and linting tools
+flake8>=7.0.0
+autopep8>=2.0.0
+pylint>=3.0.0
+black>=24.0.0

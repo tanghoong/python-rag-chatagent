@@ -64,7 +64,7 @@ def test_streaming_endpoint():
 
                             elif event.get('type') == 'thought_process':
                                 thought_steps = event.get('steps', [])
-                                print(f"\n🧠 Thought Process:")
+                                print("\n🧠 Thought Process:")
                                 for step in thought_steps:
                                     print(f"   {step['step']}: {step['content'][:50]}...")
                                 print()
@@ -75,7 +75,7 @@ def test_streaming_endpoint():
                                 print(token, end='', flush=True)
 
                             elif event.get('type') == 'done':
-                                print(f"\n\n✅ Stream completed!")
+                                print("\n\n✅ Stream completed!")
                                 print(f"   Total length: {len(content)} characters")
                                 return True
 
