@@ -977,6 +977,51 @@ async def get_scoped_memory_stats(
         )
 
 
+@app.get("/api/memory/list/{collection_name}", tags=["Memory"])
+async def list_collection_memories(
+    collection_name: str,
+    limit: int = 100
+):
+    """
+    List all memories in a specific collection.
+
+    Args:
+        collection_name: Name of the collection (e.g., 'global_memory', 'chat_123')
+        limit: Maximum number of memories to return (default 100)
+
+    Returns:
+        List of all memories in the collection
+    """
+    try:
+        from database.vector_store import VectorStoreManager
+
+        # Get vector store for collection
+        vs = VectorStoreManager(collection_name=collection_name)
+
+        # Get all documents
+        documents = vs.get_all_documents(limit=limit)
+
+        # Add source indicator
+        for doc in documents:
+            if collection_name == "global_memory":
+                doc["source_indicator"] = "🌐 Global Memory"
+            else:
+                doc["source_indicator"] = f"💬 {collection_name}"
+
+        return {
+            "status": "success",
+            "collection_name": collection_name,
+            "total_count": len(documents),
+            "memories": documents
+        }
+
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Error listing memories: {str(e)}"
+        )
+
+
 # Startup and shutdown events
 @app.on_event("startup")
 async def startup_event():

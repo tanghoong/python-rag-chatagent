@@ -227,6 +227,39 @@ class VectorStoreManager:
             print(f"❌ Error deleting documents: {str(e)}")
             return False
 
+    def get_all_documents(self, limit: int = 100) -> List[Dict[str, Any]]:
+        """
+        Get all documents from the collection.
+
+        Args:
+            limit: Maximum number of documents to return
+
+        Returns:
+            List of documents with metadata and content
+        """
+        try:
+            collection = self.vector_store._collection
+            result = collection.get(
+                limit=limit,
+                include=["documents", "metadatas"]
+            )
+
+            documents = []
+            if result and result.get("documents"):
+                for i, doc in enumerate(result["documents"]):
+                    metadata = result["metadatas"][i] if i < len(result.get("metadatas", [])) else {}
+                    documents.append({
+                        "content": doc,
+                        "metadata": metadata,
+                        "source": self.collection_name
+                    })
+
+            return documents
+
+        except Exception as e:
+            print(f"❌ Error getting all documents: {str(e)}")
+            return []
+
     def get_collection_stats(self) -> Dict[str, Any]:
         """
         Get statistics about the collection.

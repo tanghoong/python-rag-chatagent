@@ -105,6 +105,27 @@ export default function MemoryManager() {
     }
   };
 
+  const browseAllMemories = async (collectionName: string) => {
+    setLoading(true);
+    setMessage(null);
+
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/memory/list/${collectionName}?limit=100`);
+      const data = await response.json();
+
+      if (data.status === "success") {
+        setMemories(data.memories);
+        setMessage({ type: "success", text: `Loaded ${data.total_count} memories from ${collectionName}` });
+      } else {
+        setMessage({ type: "error", text: "Failed to load memories" });
+      }
+    } catch (error) {
+      setMessage({ type: "error", text: `Error: ${error}` });
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const deleteCollection = async (collectionName: string) => {
     if (!confirm(`Are you sure you want to delete collection "${collectionName}"? This cannot be undone.`)) {
       return;
@@ -303,12 +324,21 @@ export default function MemoryManager() {
                   <h3 className="text-lg font-semibold text-gray-800">
                     {scopeName === "global_memory" ? "🌐 Global" : `💬 ${scopeName}`}
                   </h3>
-                  <button
-                    onClick={() => deleteCollection(scopeStats.collection_name)}
-                    className="text-red-600 hover:text-red-800 text-sm"
-                  >
-                    🗑️ Delete
-                  </button>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => browseAllMemories(scopeStats.collection_name)}
+                      className="text-indigo-600 hover:text-indigo-800 text-sm"
+                      title="Browse all memories"
+                    >
+                      📖 Browse
+                    </button>
+                    <button
+                      onClick={() => deleteCollection(scopeStats.collection_name)}
+                      className="text-red-600 hover:text-red-800 text-sm"
+                    >
+                      🗑️ Delete
+                    </button>
+                  </div>
                 </div>
                 <div className="space-y-2 text-sm">
                   <p className="text-gray-600">
