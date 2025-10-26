@@ -183,50 +183,226 @@ This document contains future enhancements and pending features for the RAG Chat
 
 **Status**: ✅ **CORE FEATURES COMPLETE** - See `PHASE_2.6_SUMMARY.md` for details
 
-### Phase 2.7: Memory CRUD Interface ⭐⭐⭐
-- [ ] **Backend API Enhancement**
-  - [ ] POST /api/memory/create - Create individual memory
-  - [ ] GET /api/memory/list/{collection} - List with pagination and filters
-  - [ ] GET /api/memory/{collection}/{id} - Get specific memory details
-  - [ ] PUT /api/memory/{collection}/{id} - Update memory content/metadata
-  - [ ] DELETE /api/memory/{collection}/{id} - Delete individual memory
-  - [ ] POST /api/memory/bulk-delete - Bulk delete operations
-  - [ ] Vector store methods (get_by_id, update, delete, list, count)
+### Phase 2.7: Memory CRUD Interface ⭐⭐⭐ ✅
+- [x] **Backend API Enhancement**
+  - [x] POST /api/memory/create - Create individual memory
+  - [x] GET /api/memory/list - List with pagination and filters
+  - [x] GET /api/memory/{id} - Get specific memory details
+  - [x] PUT /api/memory/{id} - Update memory content/metadata
+  - [x] DELETE /api/memory/{id} - Delete individual memory
+  - [x] POST /api/memory/bulk-delete - Bulk delete operations
+  - [x] GET /api/memory/tags - Get all available tags
+  - [x] Vector store methods (get_by_id, update, delete, list, count, get_all_tags)
 
-- [ ] **Frontend Components**
-  - [ ] MemoryEditor.tsx - Create/edit modal with rich text editor
-  - [ ] MemoryList.tsx - Display memories with actions
-  - [ ] MemoryDetail.tsx - Full memory detail view
-  - [ ] MemoryFilters.tsx - Advanced filtering (date, tags, source, sort)
-  - [ ] BulkActionsToolbar.tsx - Bulk operations UI
-  - [ ] TagSelector.tsx - Tag management component
-  - [ ] MetadataEditor.tsx - Key-value metadata editor
+- [x] **Backend Utilities**
+  - [x] memory_utils.py - ID generation, validation, tag extraction
+  - [x] Backwards compatibility with legacy ChromaDB UUIDs
+  - [x] Tag storage as comma-separated strings (ChromaDB compatibility)
 
-- [ ] **Enhanced MemoryManager**
-  - [ ] Integrate all new components
-  - [ ] Add pagination controls
-  - [ ] Implement multi-select and bulk operations
-  - [ ] Add create/edit/delete functionality
-  - [ ] Improve search with filters
-  - [ ] Add export/import enhancements
+- [x] **Frontend Components**
+  - [x] MemoryEditor.tsx - Create/edit form with tag management
+  - [x] MemoryList.tsx - Display memories with actions and pagination
+  - [x] Tag chips UI with add/remove functionality
+  - [x] Validation (10-10,000 characters)
+  - [x] Search and filter by tags
 
-- [ ] **Features**
-  - [ ] Create memories manually from UI
-  - [ ] Edit memory content and metadata
-  - [ ] Delete individual memories (not just collections)
-  - [ ] Bulk selection and operations
-  - [ ] Tag management (add, remove, filter by tags)
-  - [ ] Advanced filters (date range, source, tags, sort)
-  - [ ] Pagination for large memory sets
-  - [ ] Memory detail view with full metadata
-  - [ ] Duplicate detection
-  - [ ] Memory ID generation and tracking
+- [x] **Enhanced MemoryManager**
+  - [x] Integrated new "Browse & Edit" tab
+  - [x] Pagination controls
+  - [x] Multi-select and bulk delete operations
+  - [x] Create/edit/delete functionality
+  - [x] Search and tag filtering
+  - [x] useMemoryCRUD custom hook for API calls
+
+- [x] **Features**
+  - [x] Create memories manually from UI
+  - [x] Edit memory content and metadata
+  - [x] Delete individual memories
+  - [x] Bulk selection and delete operations
+  - [x] Tag management (add, remove, filter by tags)
+  - [x] Tag filtering UI
+  - [x] Pagination for large memory sets
+  - [x] Memory ID generation and tracking (mem_<hash> format)
+  - [x] Dual ID format support (new mem_<hash> + legacy UUID)
 
 **Commit**: "Implement comprehensive memory CRUD interface"
 
-**Status**: 📋 **PLANNED** - See `PHASE_2.7_PLAN.md` for detailed implementation plan
+**Status**: ✅ **COMPLETE** - See `PHASE_2.7_SUMMARY.md` for full documentation
+
+### Phase 2.8: Global Task Management System ⭐⭐⭐
+- [ ] **Backend MongoDB Integration**
+  - [ ] Install MongoDB client (`motor` for async Python)
+  - [ ] Create MongoDB connection manager
+  - [ ] Design Task schema (id, title, description, status, priority, created_at, updated_at, tags, user_id)
+  - [ ] Implement TaskRepository with CRUD methods
+  - [ ] Add task indexing for performance
+
+- [ ] **Backend API Endpoints**
+  - [ ] POST /api/tasks/create - Create new task
+  - [ ] GET /api/tasks/list - List tasks with pagination and filters
+  - [ ] GET /api/tasks/{id} - Get specific task details
+  - [ ] PUT /api/tasks/{id} - Update task (content, status, priority, tags)
+  - [ ] DELETE /api/tasks/{id} - Delete individual task
+  - [ ] POST /api/tasks/bulk-delete - Bulk delete operations
+  - [ ] PATCH /api/tasks/{id}/status - Quick status update
+  - [ ] GET /api/tasks/tags - Get all task tags
+  - [ ] GET /api/tasks/stats - Get task statistics (counts by status)
+
+- [ ] **AI Agent Task Tool**
+  - [ ] Create `task_manager` tool for LangChain agent
+  - [ ] Enable agent to create tasks from user instructions
+  - [ ] Enable agent to update task status (todo → in-progress → completed)
+  - [ ] Enable agent to list and search tasks
+  - [ ] Add natural language task parsing
+  - [ ] Integrate with chat agent system prompt
+
+- [ ] **Frontend Components**
+  - [ ] TaskEditor.tsx - Create/edit modal with rich text support
+  - [ ] TaskList.tsx - Display tasks with status indicators
+  - [ ] TaskFilters.tsx - Filter by status, priority, tags, date
+  - [ ] TaskStats.tsx - Visual statistics dashboard
+  - [ ] BulkTaskActions.tsx - Multi-select operations
+  - [ ] TaskStatusBadge.tsx - Status visualization component
+
+- [ ] **Frontend Task Manager**
+  - [ ] TaskManager.tsx - Main task management interface
+  - [ ] useTaskCRUD.ts - Custom hook for API operations
+  - [ ] Kanban board view (optional)
+  - [ ] List view with sorting
+  - [ ] Pagination and infinite scroll
+  - [ ] Task search functionality
+
+- [ ] **Features**
+  - [ ] Create tasks manually from UI
+  - [ ] Agent-driven task creation from chat
+  - [ ] Edit task details (title, description, priority, tags)
+  - [ ] Update task status (Todo, In Progress, Completed, Cancelled)
+  - [ ] Set task priority (Low, Medium, High, Urgent)
+  - [ ] Delete individual and bulk tasks
+  - [ ] Tag-based organization
+  - [ ] Filter by status, priority, tags, date range
+  - [ ] Sort by created date, priority, status
+  - [ ] Task statistics and analytics
+  - [ ] Export tasks (JSON, CSV)
+  - [ ] Due date support (optional)
+  - [ ] Task assignments (optional for multi-user)
+
+- [ ] **MongoDB Setup**
+  - [ ] Install MongoDB locally or use MongoDB Atlas
+  - [ ] Create database and collection
+  - [ ] Set up indexes for performance
+  - [ ] Configure connection string in environment
+
+**Commit**: "Implement global task management with AI agent integration"
+
+**Status**: 📋 **PLANNED**
 
 **Estimated Timeline**: 2-3 weeks
+
+**Dependencies**: MongoDB (local or Atlas), motor Python client
+
+### Phase 2.9: Smart Reminder System ⭐⭐⭐
+- [ ] **Backend MongoDB Integration**
+  - [ ] Design Reminder schema (id, title, description, due_date, recurrence_type, recurrence_interval, status, priority, created_by, created_at, updated_at, tags, completed_at, snooze_until)
+  - [ ] Create ReminderRepository with CRUD methods
+  - [ ] Implement recurrence logic (minutely, hourly, daily, weekly, monthly)
+  - [ ] Add reminder indexing for performance (due_date, status)
+  - [ ] Background job for checking due reminders
+
+- [ ] **Backend API Endpoints**
+  - [ ] POST /api/reminders/create - Create new reminder
+  - [ ] GET /api/reminders/list - List reminders with pagination and filters
+  - [ ] GET /api/reminders/pending - Get pending/upcoming reminders
+  - [ ] GET /api/reminders/{id} - Get specific reminder details
+  - [ ] PUT /api/reminders/{id} - Update reminder
+  - [ ] DELETE /api/reminders/{id} - Delete reminder
+  - [ ] POST /api/reminders/bulk-delete - Bulk delete operations
+  - [ ] PATCH /api/reminders/{id}/complete - Mark as completed
+  - [ ] PATCH /api/reminders/{id}/snooze - Snooze reminder
+  - [ ] GET /api/reminders/stats - Get reminder statistics
+
+- [ ] **Recurrence Engine**
+  - [ ] Implement cron-like scheduler for checking reminders
+  - [ ] Calculate next occurrence based on recurrence pattern
+  - [ ] Support multiple recurrence types:
+    - [ ] Minutely (every X minutes)
+    - [ ] Hourly (every X hours)
+    - [ ] Daily (every X days)
+    - [ ] Weekly (specific days of week)
+    - [ ] Monthly (specific day of month)
+  - [ ] Handle timezone support
+  - [ ] Auto-generate next reminder instance for recurring items
+
+- [ ] **AI Agent Reminder Tool**
+  - [ ] Create `reminder_manager` tool for LangChain agent
+  - [ ] Enable agent to create reminders from user instructions
+  - [ ] Natural language date/time parsing ("tomorrow at 3pm", "every Monday")
+  - [ ] Enable agent to list upcoming reminders
+  - [ ] Agent can mark reminders as complete
+  - [ ] Agent can snooze reminders
+  - [ ] Integrate with chat agent system prompt
+
+- [ ] **Frontend Right Sidebar**
+  - [ ] ReminderSidebar.tsx - Always-visible right sidebar
+  - [ ] ReminderCard.tsx - Individual reminder display
+  - [ ] Show upcoming/pending reminders at top
+  - [ ] Grey out or strike-through completed reminders
+  - [ ] Sort by due date (nearest first)
+  - [ ] Visual indicators for overdue reminders (red)
+  - [ ] Quick actions (complete, snooze, edit)
+  - [ ] Collapsible sections (Pending, Today, Upcoming, Completed)
+  - [ ] Real-time updates when new reminders added
+
+- [ ] **Frontend Reminder Manager**
+  - [ ] ReminderManager.tsx - Full reminder management interface
+  - [ ] ReminderEditor.tsx - Create/edit modal with recurrence settings
+  - [ ] RecurrenceSelector.tsx - UI for selecting recurrence pattern
+  - [ ] ReminderList.tsx - Comprehensive list view
+  - [ ] ReminderFilters.tsx - Filter by status, priority, tags, date
+  - [ ] useReminderCRUD.ts - Custom hook for API operations
+  - [ ] Calendar view for reminders (optional)
+
+- [ ] **Notification System**
+  - [ ] Browser notification API integration
+  - [ ] Sound alerts for due reminders (optional)
+  - [ ] Desktop notifications when app is in background
+  - [ ] Notification permission handling
+  - [ ] Customizable notification settings
+
+- [ ] **Features**
+  - [ ] Create reminders manually from UI
+  - [ ] AI-driven reminder creation from chat
+  - [ ] Edit reminder details (title, description, due date, recurrence)
+  - [ ] Set recurrence patterns (minutely, hourly, daily, weekly, monthly)
+  - [ ] Update reminder status (Pending, Completed, Snoozed, Cancelled)
+  - [ ] Set reminder priority (Low, Medium, High, Urgent)
+  - [ ] Delete individual and bulk reminders
+  - [ ] Tag-based organization
+  - [ ] Snooze functionality (5min, 15min, 1hr, 1day, custom)
+  - [ ] Filter by status, priority, tags, date range
+  - [ ] Sort by due date, priority, created date
+  - [ ] Visual status indicators (pending, overdue, completed)
+  - [ ] Quick complete from sidebar
+  - [ ] Export reminders (JSON, CSV, iCal)
+  - [ ] Statistics dashboard (completed vs pending, overdue count)
+
+- [ ] **UI/UX Enhancements**
+  - [ ] Right sidebar always visible (toggle-able)
+  - [ ] Pending reminders highlighted
+  - [ ] Completed reminders greyed out with strikethrough
+  - [ ] Overdue reminders in red with warning icon
+  - [ ] Today's reminders in special section
+  - [ ] Smooth animations for state changes
+  - [ ] Responsive design for sidebar
+  - [ ] Empty state illustrations
+
+**Commit**: "Implement smart reminder system with recurrence and AI integration"
+
+**Status**: 📋 **PLANNED**
+
+**Estimated Timeline**: 3-4 weeks
+
+**Dependencies**: MongoDB, motor Python client, APScheduler (for background jobs), browser Notification API
 
 ---
 
