@@ -64,7 +64,7 @@ app.add_middleware(
 class ChatMessage(BaseModel):
     """Request model for chat messages"""
     message: str = Field(
-        ..., 
+        ...,
         description="User's message to the chatbot",
         min_length=1,
         max_length=2000
@@ -124,7 +124,7 @@ async def health_check():
     Health check endpoint to verify API and database connectivity.
     """
     db_connected = test_connection()
-    
+
     return HealthResponse(
         status="healthy" if db_connected else "degraded",
         message="API is running",
@@ -136,16 +136,16 @@ async def health_check():
 async def chat(chat_message: ChatMessage):
     """
     Chat endpoint - send a message and get an intelligent response.
-    
+
     The agent will:
     - Respond clearly and concisely
     - Use MongoDB tool only for personal post queries
     - Answer general questions directly
     - Maintain conversation history when chat_id is provided
-    
+
     Args:
         chat_message: ChatMessage with user's message and optional chat_id
-    
+
     Returns:
         ChatResponse: Bot's poetic response with chat_id
     """
@@ -156,11 +156,11 @@ async def chat(chat_message: ChatMessage):
                 status_code=400,
                 detail="Message cannot be empty"
             )
-        
+
         # Get or create chat session
         chat_id = chat_message.chat_id
         is_first_message = False
-        
+
         if not chat_id:
             # Create new chat session
             chat_id = await create_chat_session(title="New Chat")
@@ -170,29 +170,29 @@ async def chat(chat_message: ChatMessage):
             chat = await get_chat_session(chat_id)
             if chat and len(chat.messages) == 0:
                 is_first_message = True
-        
+
         # Save user message
         user_message = Message(
             role="user",
             content=chat_message.message.strip()
         )
         await add_message(chat_id, user_message)
-        
+
         # Auto-generate title from first message
         if is_first_message:
             title = await generate_chat_title(chat_message.message.strip())
             await update_chat_title(chat_id, title)
-        
+
         # Get conversation history for context (last 10 messages, excluding current one)
         chat_history_messages = await get_chat_messages(chat_id, limit=10)
         chat_history = [
             {"role": msg.role, "content": msg.content}
             for msg in chat_history_messages[:-1]  # Exclude the message we just added
         ]
-        
+
         # Get response from agent with conversation history, thought process, and LLM metadata
         response, thought_process, llm_metadata = get_agent_response(chat_message.message, chat_history=chat_history)
-        
+
         # Save assistant message with thought process and LLM metadata
         assistant_message = Message(
             role="assistant",
@@ -204,7 +204,7 @@ async def chat(chat_message: ChatMessage):
             } if thought_process or llm_metadata else None
         )
         await add_message(chat_id, assistant_message)
-        
+
         return ChatResponse(
             response=response,
             chat_id=chat_id,
@@ -212,13 +212,13 @@ async def chat(chat_message: ChatMessage):
             thought_process=thought_process,
             llm_metadata=llm_metadata
         )
-        
+
     except HTTPException:
         raise
     except Exception as e:
         error_msg = f"Error processing chat message: {str(e)}"
         print(f"❌ {error_msg}")
-        
+
         # Return error response
         return ChatResponse(
             response="I apologize, but I encountered an error while processing your request. Please try again.",
@@ -231,7 +231,7 @@ async def chat(chat_message: ChatMessage):
 async def chat_stream(chat_message: ChatMessage):
     """
     Stream chat responses word-by-word using Server-Sent Events (SSE).
-    
+
     This endpoint provides real-time streaming of the agent's response.
     """
     async def generate_stream():
@@ -240,11 +240,11 @@ async def chat_stream(chat_message: ChatMessage):
             if not chat_message.message.strip():
                 yield f"data: {json.dumps({'error': 'Message cannot be empty'})}\n\n"
                 return
-            
+
             # Get or create chat session
             chat_id = chat_message.chat_id
             is_first_message = False
-            
+
             if not chat_id:
                 chat_id = await create_chat_session(title="New Chat")
                 is_first_message = True
@@ -253,44 +253,44 @@ async def chat_stream(chat_message: ChatMessage):
                 chat = await get_chat_session(chat_id)
                 if chat and len(chat.messages) == 0:
                     is_first_message = True
-            
+
             # Save user message
             user_message = Message(
                 role="user",
                 content=chat_message.message.strip()
             )
             await add_message(chat_id, user_message)
-            
+
             # Auto-generate title from first message
             if is_first_message:
                 title = await generate_chat_title(chat_message.message.strip())
                 await update_chat_title(chat_id, title)
                 yield f"data: {json.dumps({'type': 'title', 'title': title})}\n\n"
-            
+
             # Get conversation history
             chat_history_messages = await get_chat_messages(chat_id, limit=10)
             chat_history = [
                 {"role": msg.role, "content": msg.content}
                 for msg in chat_history_messages[:-1]
             ]
-            
+
             # Get response from agent with LLM metadata
             response, thought_process, llm_metadata = get_agent_response(chat_message.message, chat_history=chat_history)
-            
+
             # Send LLM metadata first
             if llm_metadata:
                 yield f"data: {json.dumps({'type': 'llm_metadata', 'metadata': llm_metadata})}\n\n"
-            
+
             # Send thought process
             if thought_process:
                 yield f"data: {json.dumps({'type': 'thought_process', 'steps': thought_process})}\n\n"
-            
+
             # Stream response word by word
             words = response.split()
             for i, word in enumerate(words):
                 yield f"data: {json.dumps({'type': 'token', 'content': word + (' ' if i < len(words) - 1 else '')})}\n\n"
                 await asyncio.sleep(0.05)  # Small delay between words for streaming effect
-            
+
             # Save assistant message with thought process and LLM metadata
             assistant_message = Message(
                 role="assistant",
@@ -302,15 +302,15 @@ async def chat_stream(chat_message: ChatMessage):
                 } if thought_process or llm_metadata else None
             )
             await add_message(chat_id, assistant_message)
-            
+
             # Send completion signal
             yield f"data: {json.dumps({'type': 'done', 'chat_id': chat_id})}\n\n"
-            
+
         except Exception as e:
             error_msg = f"Error in streaming: {str(e)}"
             print(f"❌ {error_msg}")
             yield f"data: {json.dumps({'type': 'error', 'error': error_msg})}\n\n"
-    
+
     return StreamingResponse(
         generate_stream(),
         media_type="text/event-stream",
@@ -326,10 +326,10 @@ async def chat_stream(chat_message: ChatMessage):
 async def create_new_chat(request: CreateChatRequest):
     """
     Create a new chat session
-    
+
     Args:
         request: CreateChatRequest with optional title and metadata
-    
+
     Returns:
         dict with chat_id
     """
@@ -338,7 +338,7 @@ async def create_new_chat(request: CreateChatRequest):
             title=request.title or "New Chat",
             metadata=request.metadata
         )
-        
+
         return {
             "chat_id": chat_id,
             "message": "Chat session created successfully"
@@ -354,11 +354,11 @@ async def create_new_chat(request: CreateChatRequest):
 async def get_all_chats(limit: int = 50, skip: int = 0):
     """
     Get all chat sessions (without full message history)
-    
+
     Args:
         limit: Maximum number of sessions to return (default: 50)
         skip: Number of sessions to skip for pagination (default: 0)
-    
+
     Returns:
         List of ChatSessionResponse objects
     """
@@ -376,22 +376,22 @@ async def get_all_chats(limit: int = 50, skip: int = 0):
 async def get_chat_detail(chat_id: str):
     """
     Get a specific chat session with full message history
-    
+
     Args:
         chat_id: Chat session ID
-    
+
     Returns:
         ChatDetailResponse with full message history
     """
     try:
         chat = await get_chat_session(chat_id)
-        
+
         if not chat:
             raise HTTPException(
                 status_code=404,
                 detail="Chat session not found"
             )
-        
+
         return chat
     except HTTPException:
         raise
@@ -406,22 +406,22 @@ async def get_chat_detail(chat_id: str):
 async def delete_chat(chat_id: str):
     """
     Delete a chat session
-    
+
     Args:
         chat_id: Chat session ID
-    
+
     Returns:
         Success message
     """
     try:
         deleted = await delete_chat_session(chat_id)
-        
+
         if not deleted:
             raise HTTPException(
                 status_code=404,
                 detail="Chat session not found"
             )
-        
+
         return {
             "message": "Chat session deleted successfully",
             "chat_id": chat_id
@@ -439,23 +439,23 @@ async def delete_chat(chat_id: str):
 async def update_title(chat_id: str, request: UpdateTitleRequest):
     """
     Update chat session title
-    
+
     Args:
         chat_id: Chat session ID
         request: UpdateTitleRequest with new title
-    
+
     Returns:
         Success message
     """
     try:
         updated = await update_chat_title(chat_id, request.title)
-        
+
         if not updated:
             raise HTTPException(
                 status_code=404,
                 detail="Chat session not found"
             )
-        
+
         return {
             "message": "Chat title updated successfully",
             "chat_id": chat_id,
@@ -474,24 +474,24 @@ async def update_title(chat_id: str, request: UpdateTitleRequest):
 async def update_chat_message(chat_id: str, message_id: str, request: UpdateMessageRequest):
     """
     Update a specific message content
-    
+
     Args:
         chat_id: Chat session ID
         message_id: Message ID
         request: UpdateMessageRequest with new content
-    
+
     Returns:
         Success message
     """
     try:
         updated = await update_message(chat_id, message_id, request.content)
-        
+
         if not updated:
             raise HTTPException(
                 status_code=404,
                 detail="Message not found"
             )
-        
+
         return {
             "message": "Message updated successfully",
             "chat_id": chat_id,
@@ -510,23 +510,23 @@ async def update_chat_message(chat_id: str, message_id: str, request: UpdateMess
 async def delete_chat_message(chat_id: str, message_id: str):
     """
     Delete a specific message
-    
+
     Args:
         chat_id: Chat session ID
         message_id: Message ID
-    
+
     Returns:
         Success message
     """
     try:
         deleted = await delete_message(chat_id, message_id)
-        
+
         if not deleted:
             raise HTTPException(
                 status_code=404,
                 detail="Message not found"
             )
-        
+
         return {
             "message": "Message deleted successfully",
             "chat_id": chat_id,
@@ -545,52 +545,52 @@ async def delete_chat_message(chat_id: str, message_id: str):
 async def regenerate_message(chat_id: str, message_id: str):
     """
     Regenerate response from a specific message (removes all messages after it)
-    
+
     Args:
         chat_id: Chat session ID
         message_id: Message ID to regenerate from
-    
+
     Returns:
         Success message with new response
     """
     try:
         # Truncate messages after the specified message
         truncated = await regenerate_from_message(chat_id, message_id)
-        
+
         if not truncated:
             raise HTTPException(
                 status_code=404,
                 detail="Message not found"
             )
-        
+
         # Get the updated chat to retrieve the last message
         chat = await get_chat_session(chat_id)
-        
+
         if not chat or len(chat.messages) == 0:
             raise HTTPException(
                 status_code=400,
                 detail="No messages to regenerate from"
             )
-        
+
         # Get the last message (which should be the one we want to regenerate from)
         last_message = chat.messages[-1]
-        
+
         if last_message.role != "user":
             raise HTTPException(
                 status_code=400,
                 detail="Can only regenerate from user messages"
             )
-        
+
         # Get conversation history for context (all remaining messages after truncation)
         chat_history_messages = await get_chat_messages(chat_id, limit=10)
         chat_history = [
             {"role": msg.role, "content": msg.content}
             for msg in chat_history_messages[:-1]  # Exclude the last message (user message to regenerate)
         ]
-        
+
         # Generate new response with conversation history, thought process, and LLM metadata
         response, thought_process, llm_metadata = get_agent_response(last_message.content, chat_history=chat_history)
-        
+
         # Save assistant message with thought process and LLM metadata
         assistant_message = Message(
             role="assistant",
@@ -601,7 +601,7 @@ async def regenerate_message(chat_id: str, message_id: str):
             } if thought_process or llm_metadata else None
         )
         await add_message(chat_id, assistant_message)
-        
+
         return {
             "message": "Response regenerated successfully",
             "chat_id": chat_id,
@@ -622,21 +622,21 @@ async def regenerate_message(chat_id: str, message_id: str):
 async def get_statistics(chat_id: str):
     """
     Get usage statistics for a specific chat session.
-    
+
     Returns aggregated token usage, costs, tool usage, and performance metrics.
     """
     # Get session stats
     session_stats = await get_chat_stats(chat_id)
-    
+
     if not session_stats:
         raise HTTPException(
             status_code=404,
             detail="Chat session not found or no statistics available"
         )
-    
+
     # Get recent message stats
     recent_messages = await get_recent_message_stats(chat_id, limit=10)
-    
+
     # Create breakdown data
     breakdown = {
         "tokens_per_message_avg": (
@@ -656,7 +656,7 @@ async def get_statistics(chat_id: str):
             else None
         )
     }
-    
+
     return UsageStatsResponse(
         chat_id=chat_id,
         session_stats=session_stats,
@@ -677,18 +677,18 @@ async def upload_document(
 ):
     """
     Upload and process a document for RAG.
-    
+
     Automatically:
     - Validates file type (PDF, TXT, MD, DOCX, HTML)
     - Processes and chunks the document
     - Embeds and stores in vector database
     - Associates with global or chat-specific memory
-    
+
     Args:
         file: Uploaded document file
         collection_name: Memory collection name (default: "global_memory")
         chat_id: Optional chat ID for chat-specific memory
-    
+
     Returns:
         Upload status and document metadata
     """
@@ -697,23 +697,23 @@ async def upload_document(
         from database.vector_store import VectorStoreManager
         import tempfile
         from pathlib import Path
-        
+
         # Validate file type
         supported_extensions = ['.pdf', '.txt', '.md', '.docx', '.html', '.htm']
         file_ext = Path(file.filename).suffix.lower()
-        
+
         if file_ext not in supported_extensions:
             raise HTTPException(
                 status_code=400,
                 detail=f"Unsupported file type. Supported: {', '.join(supported_extensions)}"
             )
-        
+
         # Save uploaded file temporarily
         with tempfile.NamedTemporaryFile(delete=False, suffix=file_ext) as tmp_file:
             content = await file.read()
             tmp_file.write(content)
             tmp_path = tmp_file.name
-        
+
         try:
             # Process document
             processor = DocumentProcessor(chunk_size=1000, chunk_overlap=200)
@@ -724,16 +724,16 @@ async def upload_document(
                     "chat_id": chat_id
                 }
             )
-            
+
             # Determine collection name
             if chat_id:
                 collection_name = f"chat_{chat_id}"
-            
+
             # Store in vector database
             vs = VectorStoreManager(collection_name=collection_name)
             doc_ids = vs.add_documents(chunks)
             stats = vs.get_collection_stats()
-            
+
             return {
                 "status": "success",
                 "message": f"Document '{file.filename}' uploaded and processed successfully",
@@ -746,11 +746,11 @@ async def upload_document(
                 },
                 "collection_stats": stats
             }
-            
+
         finally:
             # Clean up temp file
             os.unlink(tmp_path)
-        
+
     except HTTPException:
         raise
     except Exception as e:
@@ -764,24 +764,24 @@ async def upload_document(
 async def get_memory_stats(collection_name: str = "global_memory"):
     """
     Get statistics about a memory collection.
-    
+
     Args:
         collection_name: Name of the collection (default: "global_memory")
-    
+
     Returns:
         Collection statistics
     """
     try:
         from database.vector_store import VectorStoreManager
-        
+
         vs = VectorStoreManager(collection_name=collection_name)
         stats = vs.get_collection_stats()
-        
+
         return {
             "status": "success",
             "stats": stats
         }
-        
+
     except Exception as e:
         raise HTTPException(
             status_code=500,
@@ -800,7 +800,7 @@ async def search_memory(
 ):
     """
     Search memory for relevant information with scope awareness.
-    
+
     Args:
         query: Search query
         collection_name: Collection to search (legacy parameter)
@@ -808,13 +808,13 @@ async def search_memory(
         chat_id: Optional chat ID for chat-specific search
         use_global: Enable global memory search
         scope: "global", "chat", or "both"
-    
+
     Returns:
         Search results with source indicators
     """
     try:
         from utils.memory_scope import MemoryManager, MemoryScope
-        
+
         # Map string to enum
         scope_map = {
             "global": MemoryScope.GLOBAL,
@@ -822,11 +822,11 @@ async def search_memory(
             "both": MemoryScope.BOTH
         }
         memory_scope = scope_map.get(scope.lower(), MemoryScope.BOTH)
-        
+
         # Use new memory manager
         manager = MemoryManager(chat_id=chat_id, use_global=use_global)
         results = manager.search(query, scope=memory_scope, k=num_results)
-        
+
         return {
             "status": "success",
             "query": query,
@@ -836,7 +836,7 @@ async def search_memory(
             "results": results,
             "total_found": len(results)
         }
-        
+
     except Exception as e:
         raise HTTPException(
             status_code=500,
@@ -848,19 +848,19 @@ async def search_memory(
 async def delete_memory_collection(collection_name: str):
     """
     Delete an entire memory collection.
-    
+
     Args:
         collection_name: Name of the collection to delete
-    
+
     Returns:
         Deletion status
     """
     try:
         from database.vector_store import VectorStoreManager
-        
+
         vs = VectorStoreManager(collection_name=collection_name)
         success = vs.clear_collection()
-        
+
         if success:
             return {
                 "status": "success",
@@ -871,7 +871,7 @@ async def delete_memory_collection(collection_name: str):
                 status_code=500,
                 detail=f"Failed to delete collection '{collection_name}'"
             )
-        
+
     except Exception as e:
         raise HTTPException(
             status_code=500,
@@ -889,24 +889,24 @@ async def save_to_memory_endpoint(
 ):
     """
     Save information to memory with scope control.
-    
+
     Args:
         content: Content to save
         chat_id: Optional chat ID for chat-specific memory
         use_global: Enable global memory
         scope: "global", "chat", or "both"
         metadata: Optional JSON metadata
-    
+
     Returns:
         Save status
     """
     try:
         from utils.memory_scope import MemoryManager, MemoryScope
         import json
-        
+
         # Parse metadata if provided
         meta = json.loads(metadata) if metadata else {}
-        
+
         # Map string to enum
         scope_map = {
             "global": MemoryScope.GLOBAL,
@@ -914,17 +914,17 @@ async def save_to_memory_endpoint(
             "both": MemoryScope.BOTH
         }
         memory_scope = scope_map.get(scope.lower(), MemoryScope.GLOBAL)
-        
+
         # Save using memory manager
         manager = MemoryManager(chat_id=chat_id, use_global=use_global)
         result = manager.save(content, metadata=meta, scope=memory_scope)
-        
+
         return {
             "status": result["status"],
             "message": result["message"],
             "saved_to": result.get("saved_to", [])
         }
-        
+
     except Exception as e:
         raise HTTPException(
             status_code=500,
@@ -940,18 +940,18 @@ async def get_scoped_memory_stats(
 ):
     """
     Get memory statistics with scope awareness.
-    
+
     Args:
         scope: "global", "chat", or "both"
         chat_id: Optional chat ID
         use_global: Enable global memory
-    
+
     Returns:
         Memory statistics
     """
     try:
         from utils.memory_scope import MemoryManager, MemoryScope
-        
+
         # Map string to enum
         scope_map = {
             "global": MemoryScope.GLOBAL,
@@ -959,17 +959,17 @@ async def get_scoped_memory_stats(
             "both": MemoryScope.BOTH
         }
         memory_scope = scope_map.get(scope.lower(), MemoryScope.BOTH)
-        
+
         manager = MemoryManager(chat_id=chat_id, use_global=use_global)
         stats = manager.get_stats(scope=memory_scope)
-        
+
         return {
             "status": "success",
             "scope": scope,
             "chat_id": chat_id,
             "stats": stats
         }
-        
+
     except Exception as e:
         raise HTTPException(
             status_code=500,
@@ -983,7 +983,7 @@ async def startup_event():
     """Run on application startup"""
     print("🚀 Starting RAG Chatbot API...")
     print(f"📡 CORS enabled for: {CORS_ORIGINS}")
-    
+
     # Test database connection
     if test_connection():
         print("✅ Database connection verified")
@@ -1000,10 +1000,10 @@ async def shutdown_event():
 # Run with uvicorn
 if __name__ == "__main__":
     import uvicorn
-    
+
     host = os.getenv("API_HOST", "0.0.0.0")
     port = int(os.getenv("API_PORT", "8000"))
-    
+
     uvicorn.run(
         "main:app",
         host=host,

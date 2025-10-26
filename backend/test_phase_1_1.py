@@ -24,12 +24,12 @@ print("=" * 60)
 print("\n[Test 1] Vector Store Initialization")
 print("-" * 60)
 try:
-    from database.vector_store import VectorStoreManager, get_global_vector_store
+    from database.vector_store import VectorStoreManager
     from langchain_core.documents import Document
-    
+
     # Create test collection
     vs = VectorStoreManager(collection_name="test_phase_1_1")
-    
+
     # Add test documents
     test_docs = [
         Document(
@@ -41,13 +41,13 @@ try:
             metadata={"topic": "RAG", "source": "test"}
         )
     ]
-    
+
     vs.add_documents(test_docs)
     stats = vs.get_collection_stats()
-    
+
     print(f"✅ Vector store created: {stats['collection_name']}")
     print(f"✅ Documents stored: {stats['document_count']}")
-    
+
 except Exception as e:
     print(f"❌ Error: {str(e)}")
     import traceback
@@ -58,7 +58,7 @@ print("\n[Test 2] Document Processing")
 print("-" * 60)
 try:
     from utils.document_processor import DocumentProcessor
-    
+
     # Create test file
     test_file = "test_doc.txt"
     with open(test_file, "w") as f:
@@ -75,18 +75,18 @@ This is a test document for the RAG chatbot system.
 
 The system can process PDF, TXT, MD, DOCX, and HTML files.
         """)
-    
+
     # Process document
     processor = DocumentProcessor(chunk_size=100, chunk_overlap=20)
     chunks = processor.process_file(test_file)
-    
+
     print(f"✅ Document processed: {test_file}")
     print(f"✅ Chunks created: {len(chunks)}")
     print(f"✅ First chunk preview: {chunks[0].page_content[:50]}...")
-    
+
     # Cleanup
     os.remove(test_file)
-    
+
 except Exception as e:
     print(f"❌ Error: {str(e)}")
     import traceback
@@ -97,7 +97,7 @@ print("\n[Test 3] RAG Tools")
 print("-" * 60)
 try:
     from utils.rag_tools import save_memory, search_memory, get_memory_stats
-    
+
     # Test save_memory
     save_result = save_memory.func(
         content="Python is preferred for ML projects",
@@ -105,7 +105,7 @@ try:
         metadata='{"category": "preference"}'
     )
     print(f"Save Memory: {save_result[:100]}...")
-    
+
     # Test search_memory
     search_result = search_memory.func(
         query="What language for ML?",
@@ -113,13 +113,13 @@ try:
         num_results=2
     )
     print(f"Search Memory: Found results - {len(search_result)} chars")
-    
+
     # Test stats
     stats_result = get_memory_stats.func(collection_name="test_phase_1_1")
     print(f"Memory Stats: {stats_result[:100]}...")
-    
+
     print("✅ All RAG tools working correctly")
-    
+
 except Exception as e:
     print(f"❌ Error: {str(e)}")
     import traceback
@@ -130,17 +130,17 @@ print("\n[Test 4] Agent Integration")
 print("-" * 60)
 try:
     from utils.tools import get_all_tools
-    
+
     tools = get_all_tools()
     tool_names = [tool.name for tool in tools]
-    
+
     print(f"✅ Total tools loaded: {len(tools)}")
     print(f"✅ Tool names: {', '.join(tool_names[:5])}...")
-    
+
     # Check for RAG tools
     rag_tools = [name for name in tool_names if 'memory' in name or 'ingest' in name]
     print(f"✅ RAG tools: {', '.join(rag_tools)}")
-    
+
 except Exception as e:
     print(f"❌ Error: {str(e)}")
     import traceback
@@ -154,7 +154,7 @@ try:
     vs = VectorStoreManager(collection_name="test_phase_1_1")
     vs.clear_collection()
     print("✅ Test collection cleaned up")
-    
+
 except Exception as e:
     print(f"❌ Error during cleanup: {str(e)}")
 

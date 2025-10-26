@@ -12,7 +12,6 @@ This script tests:
 import requests
 import json
 import time
-from typing import Iterator
 
 
 def test_streaming_endpoint():
@@ -20,76 +19,76 @@ def test_streaming_endpoint():
     print("=" * 60)
     print("Testing Streaming Endpoint (/api/chat/stream)")
     print("=" * 60)
-    
+
     url = "http://localhost:8000/api/chat/stream"
     data = {
         "message": "Tell me a short rhyme about Python programming",
         "chat_id": None
     }
-    
+
     print(f"\n📤 Sending: {data['message']}")
     print("\n📥 Streaming response:\n")
-    
+
     try:
         response = requests.post(url, json=data, stream=True, timeout=30)
-        
+
         if response.status_code != 200:
             print(f"❌ Error: Status code {response.status_code}")
             print(response.text)
             return False
-        
+
         chat_id = None
         title = None
         thought_steps = []
         content = ""
-        
+
         # Parse SSE stream
         for line in response.iter_lines():
             if line:
                 line_str = line.decode('utf-8')
-                
+
                 if line_str.startswith('data: '):
                     data_str = line_str[6:]  # Remove 'data: ' prefix
-                    
+
                     if data_str.strip():
                         try:
                             event = json.loads(data_str)
-                            
+
                             if event.get('type') == 'chat_id':
                                 chat_id = event.get('chat_id')
                                 print(f"💬 Chat ID: {chat_id}")
-                            
+
                             elif event.get('type') == 'title':
                                 title = event.get('title')
                                 print(f"📝 Title: {title}")
-                            
+
                             elif event.get('type') == 'thought_process':
                                 thought_steps = event.get('steps', [])
                                 print(f"\n🧠 Thought Process:")
                                 for step in thought_steps:
                                     print(f"   {step['step']}: {step['content'][:50]}...")
                                 print()
-                            
+
                             elif event.get('type') == 'token':
                                 token = event.get('content', '')
                                 content += token
                                 print(token, end='', flush=True)
-                            
+
                             elif event.get('type') == 'done':
                                 print(f"\n\n✅ Stream completed!")
                                 print(f"   Total length: {len(content)} characters")
                                 return True
-                            
+
                             elif event.get('type') == 'error':
                                 print(f"\n❌ Error: {event.get('error')}")
                                 return False
-                        
+
                         except json.JSONDecodeError as e:
                             print(f"\n⚠️ JSON parse error: {e}")
-        
+
         print("\n✅ Streaming test completed successfully!")
         return True
-        
+
     except requests.exceptions.RequestException as e:
         print(f"\n❌ Request error: {e}")
         return False
@@ -103,7 +102,7 @@ def test_retry_logic():
     print("\n" + "=" * 60)
     print("Testing Retry Logic")
     print("=" * 60)
-    
+
     # This would normally be tested with a mock server that fails
     # For now, we'll just verify the retry utility exists
     print("\n✅ Retry logic implemented in fetchWithRetry.ts")
@@ -118,15 +117,15 @@ def test_health_check():
     print("\n" + "=" * 60)
     print("Testing Health Check")
     print("=" * 60)
-    
+
     try:
         response = requests.get("http://localhost:8000/api/health", timeout=5)
         data = response.json()
-        
+
         print(f"\n✅ Status: {data.get('status')}")
         print(f"✅ Database: {'Connected' if data.get('database_connected') else 'Disconnected'}")
         return response.status_code == 200
-        
+
     except Exception as e:
         print(f"\n❌ Health check failed: {e}")
         return False
@@ -137,7 +136,7 @@ def manual_tests_checklist():
     print("\n" + "=" * 60)
     print("Manual Testing Checklist")
     print("=" * 60)
-    
+
     tests = [
         ("Voice Input", [
             "Click microphone button in chat input",
@@ -170,12 +169,12 @@ def manual_tests_checklist():
             "Verify no flickering or jumps"
         ])
     ]
-    
+
     for i, (feature, steps) in enumerate(tests, 1):
         print(f"\n{i}. {feature}:")
         for step in steps:
             print(f"   [ ] {step}")
-    
+
     print("\n" + "=" * 60)
 
 
@@ -183,12 +182,13 @@ def main():
     """Run all tests"""
     print("\n🚀 Milestone 7 Feature Tests")
     print("=" * 60)
-    
+
     # Check if server is running
     try:
         requests.get("http://localhost:8000", timeout=2)
-    except:
+    except requests.exceptions.RequestException as e:
         print("\n❌ Server not running!")
+        print(f"Error: {e}")
         print("Please start the backend server first:")
         print("   cd backend")
         print("   start.bat")
@@ -196,35 +196,35 @@ def main():
         print("   cd backend\\api")
         print("   python main.py")
         return
-    
+
     results = []
-    
+
     # Run automated tests
     results.append(("Health Check", test_health_check()))
     time.sleep(1)
     results.append(("Streaming Endpoint", test_streaming_endpoint()))
     time.sleep(1)
     results.append(("Retry Logic", test_retry_logic()))
-    
+
     # Print manual test checklist
     manual_tests_checklist()
-    
+
     # Print summary
     print("\n" + "=" * 60)
     print("Test Summary")
     print("=" * 60)
-    
+
     passed = sum(1 for _, result in results if result)
     total = len(results)
-    
+
     print(f"\nAutomated Tests: {passed}/{total} passed")
     for name, result in results:
         status = "✅" if result else "❌"
         print(f"  {status} {name}")
-    
+
     print("\n⚠️  Please complete manual UI tests in the browser!")
     print("Open: http://localhost:5173/chat")
-    
+
     if passed == total:
         print("\n🎉 All automated tests passed!")
     else:
