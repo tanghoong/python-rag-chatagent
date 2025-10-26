@@ -82,7 +82,7 @@ export default function App() {
         onToggleSidebar={isChat ? handleToggleSidebar : undefined}
         isSidebarOpen={sidebarOpen}
       />
-      <main className="pt-16">
+      <main className="pt-14">
         <Outlet />
       </main>
     </>

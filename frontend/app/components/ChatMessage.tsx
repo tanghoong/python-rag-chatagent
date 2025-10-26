@@ -142,8 +142,8 @@ export function ChatMessage({
   }, [content]);
 
   return (
-    <div className={`group flex items-start gap-2 sm:gap-3 animate-fade-in px-2 sm:px-0 ${isUser ? "flex-row-reverse" : ""}`}>
-      {/* Avatar with timestamp */}
+    <div className={`group flex items-start gap-2 sm:gap-3 animate-fade-in px-2 sm:px-0`}>
+      {/* Avatar */}
       <div className="flex flex-col items-center gap-1 shrink-0">
         <div 
           className={`w-7 h-7 sm:w-8 sm:h-8 rounded-full flex items-center justify-center ${
@@ -154,22 +154,39 @@ export function ChatMessage({
         >
           {isUser ? <User className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-white" /> : <Bot className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-white" />}
         </div>
-        {timestamp && (
-          <span 
-            className="text-[10px] sm:text-xs text-gray-500 hover:text-gray-400 cursor-help transition-colors hidden sm:block"
-            title={formatFullDateTime(timestamp)}
-          >
-            {formatRelativeTime(timestamp)}
-          </span>
-        )}
       </div>
 
       {/* Message bubble */}
       <div 
-        className={`glass-card flex-1 max-w-3xl py-2 px-2 sm:px-3 transition-all duration-200 ${
-          isUser ? "bg-white/10" : ""
+        className={`flex-1 max-w-3xl transition-all duration-200 ${
+          isUser 
+            ? "bg-linear-to-br from-cyan-500/10 to-blue-500/10 border border-cyan-500/20 rounded-2xl py-2 px-3 sm:px-4" 
+            : "bg-white/5 border border-white/10 rounded-2xl py-2 px-3 sm:px-4"
         }`}
       >
+        {/* Header Row - Role, Timestamp, LLM Badge */}
+        <div className="flex items-center justify-between gap-2 mb-2 flex-wrap">
+          <div className="flex items-center gap-2">
+            <span className={`text-xs font-semibold ${isUser ? 'text-cyan-400' : 'text-purple-400'}`}>
+              {isUser ? 'You' : 'Assistant'}
+            </span>
+            {timestamp && (
+              <span 
+                className="text-[10px] sm:text-xs text-gray-500 hover:text-gray-400 cursor-help transition-colors"
+                title={formatFullDateTime(timestamp)}
+              >
+                {formatRelativeTime(timestamp)}
+              </span>
+            )}
+          </div>
+          
+          {/* LLM Metadata Badge - inline on header */}
+          {!isUser && llmMetadata && (
+            <LLMBadge metadata={llmMetadata} />
+          )}
+        </div>
+
+        {/* Message Content */}
         <div className="prose prose-invert max-w-none text-gray-100 leading-relaxed text-sm prose-pre:p-0 prose-pre:m-0 prose-pre:bg-transparent">
           <ReactMarkdown
             key={contentKey}
@@ -194,27 +211,29 @@ export function ChatMessage({
           />
         )}
         
-        {/* LLM Metadata Badge - Only for bot messages */}
-        {!isUser && llmMetadata && (
-          <LLMBadge metadata={llmMetadata} />
-        )}
-        
-        {/* Quick Actions - Only for bot messages */}
-        {!isUser && <QuickActions content={content} messageId={messageId} />}
-        
-        {/* Chat Controls */}
-        {messageId && chatId && onEdit && onRegenerate && onDelete && (
-          <ChatControls
-            messageId={messageId}
-            chatId={chatId}
-            role={normalizedRole}
-            content={content}
-            isLastMessage={isLastMessage}
-            isLastUserMessage={isLastUserMessage}
-            onEdit={onEdit}
-            onRegenerate={onRegenerate}
-            onDelete={onDelete}
-          />
+        {/* Actions Row - Quick Actions + Chat Controls in one row */}
+        {messageId && chatId && (
+          <div className="flex items-center justify-between gap-2 mt-2 opacity-0 group-hover:opacity-100 transition-opacity">
+            {/* Left: Quick Actions (for bot) or Empty (for user) */}
+            <div className="flex items-center gap-1">
+              {!isUser && <QuickActions content={content} messageId={messageId} />}
+            </div>
+            
+            {/* Right: Chat Controls */}
+            {onEdit && onRegenerate && onDelete && (
+              <ChatControls
+                messageId={messageId}
+                chatId={chatId}
+                role={normalizedRole}
+                content={content}
+                isLastMessage={isLastMessage}
+                isLastUserMessage={isLastUserMessage}
+                onEdit={onEdit}
+                onRegenerate={onRegenerate}
+                onDelete={onDelete}
+              />
+            )}
+          </div>
         )}
       </div>
     </div>

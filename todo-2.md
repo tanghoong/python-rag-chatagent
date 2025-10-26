@@ -456,6 +456,38 @@ This document contains future enhancements and pending features for the RAG Chat
 
 **Commit**: "Redesign for compact and clean interface"
 
+### Phase 3.5: Quick Start Templates ⭐⭐
+- [ ] **Replace empty chat placeholder with quick start buttons**
+- [ ] Create template library for common queries
+- [ ] Add quick action buttons for:
+    - [ ] "Summarize documents in my collection"
+    - [ ] "Search my knowledge base"
+    - [ ] "Help me with a task"
+    - [ ] "Explain a concept"
+    - [ ] "Review my recent memories"
+- [ ] Implement click-to-populate textarea functionality
+- [ ] Add customizable template system
+- [ ] Allow users to save their own quick templates
+- [ ] Show context-aware suggestions based on available documents
+- [ ] Add template categories (Research, Coding, Writing, etc.)
+
+**Commit**: "Add quick start templates for new chats"
+
+### Phase 3.6: Chat Management Controls ⭐⭐
+- [ ] **Add edit title button to each chat block**
+- [ ] **Add pin chat button to each chat block**
+- [ ] Implement inline title editing functionality
+- [ ] Add pin/unpin toggle for chats
+- [ ] Show pinned chats at the top of chat list
+- [ ] Add visual indicator for pinned chats (pin icon)
+- [ ] Persist pin status in database
+- [ ] Add keyboard shortcut for quick rename (F2)
+- [ ] Implement title validation (length limits, special characters)
+- [ ] Add confirmation for empty titles
+- [ ] Sort unpinned chats by most recent
+
+**Commit**: "Add chat title editing and pinning functionality"
+
 ---
 
 ## 🎯 **PRIORITY 4: Advanced AI Capabilities**

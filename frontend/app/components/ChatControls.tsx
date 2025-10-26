@@ -28,7 +28,6 @@ export function ChatControls({
   const [isEditing, setIsEditing] = useState(false);
   const [editedContent, setEditedContent] = useState(content);
   const [loading, setLoading] = useState(false);
-  const [isRegenerating, setIsRegenerating] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
 
   const handleSave = async () => {
@@ -112,7 +111,7 @@ export function ChatControls({
   }
 
   return (
-    <div className="flex items-center space-x-1 mt-2 opacity-0 group-hover:opacity-100 transition-opacity">
+    <div className="flex items-center gap-1">
       {/* Edit button (last user message only) */}
       {role === "user" && isLastUserMessage && (
         <button

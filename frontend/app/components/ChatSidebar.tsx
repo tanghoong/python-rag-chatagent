@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { useLocation } from "react-router";
-import { MessageSquare, Trash2 } from "lucide-react";
+import { MessageSquare, Trash2, Search, Plus } from "lucide-react";
 import { ConfirmModal } from "./ConfirmModal";
 import { ChatListSkeleton } from "./SkeletonLoader";
 import { API_ENDPOINTS } from "../config";
@@ -22,6 +22,25 @@ interface ChatSidebarProps {
   onToggle?: () => void;
 }
 
+function EmptyState({ searchQuery }: Readonly<{ searchQuery: string }>) {
+  if (searchQuery) {
+    return (
+      <div className="text-center text-gray-500 py-8 px-4 text-sm">
+        <Search className="w-8 h-8 mx-auto mb-2 opacity-50" />
+        <p>No chats found</p>
+      </div>
+    );
+  }
+  
+  return (
+    <div className="text-center text-gray-500 py-8 px-4 text-sm">
+      <MessageSquare className="w-8 h-8 mx-auto mb-2 opacity-50" />
+      <p>No conversations yet</p>
+      <p className="text-xs mt-1 opacity-75">Start chatting to see your history</p>
+    </div>
+  );
+}
+
 export function ChatSidebar({ 
   activeChatId, 
   onChatSelect, 
@@ -31,7 +50,7 @@ export function ChatSidebar({
   onToggle 
 }: Readonly<ChatSidebarProps>) {
   const [internalIsOpen, setInternalIsOpen] = useState(true);
-  const isOpen = controlledIsOpen !== undefined ? controlledIsOpen : internalIsOpen;
+  const isOpen = controlledIsOpen ?? internalIsOpen;
   const [chats, setChats] = useState<ChatSession[]>([]);
   const [loading, setLoading] = useState(true);
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
@@ -140,84 +159,87 @@ export function ChatSidebar({
     <>
       {/* Sidebar */}
       <aside
-        className={`fixed top-0 left-0 h-screen w-64 sm:w-56 glass-card transition-transform duration-300 z-50 flex flex-col ${
+        className={`fixed top-14 left-0 h-[calc(100vh-3.5rem)] w-64 bg-black/40 backdrop-blur-xl transition-transform duration-300 z-40 flex flex-col ${
           isOpen ? "translate-x-0" : "-translate-x-full"
-        } md:translate-x-0`}
-        style={{ padding: 0, borderRadius: 0 }}
+        } lg:translate-x-0`}
       >
-        {/* Search Input */}
-        <div className="p-3 pt-14 border-b border-white/10">
-          <input
-            ref={searchInputRef}
-            type="text"
-            placeholder="Search chats (Ctrl + K)"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full px-3 py-1.5 text-sm bg-white/5 border border-white/10 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500/50 text-white placeholder-gray-400"
-          />
-        </div>
-
-        {/* New Chat Button */}
-        <div className="p-3 border-b border-white/10">
+        {/* Header with New Chat */}
+        <div className="p-4 space-y-3">
           <button
             onClick={handleNewChat}
-            className="w-full gradient-button flex items-center justify-center space-x-2 py-2 text-sm"
+            className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-linear-to-r from-purple-500 to-cyan-500 hover:from-purple-600 hover:to-cyan-600 rounded-lg transition-all font-medium text-sm"
           >
-            <MessageSquare className="w-3.5 h-3.5" />
+            <Plus className="w-4 h-4" />
             <span>New Chat</span>
           </button>
+
+          {/* Search */}
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+            <input
+              ref={searchInputRef}
+              type="text"
+              placeholder="Search chats..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-full pl-9 pr-3 py-2 text-sm bg-white/5 hover:bg-white/10 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500/50 text-white placeholder-gray-500 transition-colors"
+            />
+          </div>
         </div>
 
         {/* Chat List */}
-        <div className="flex-1 overflow-y-auto custom-scrollbar p-2 space-y-1">
-          {loading ? (
-            <ChatListSkeleton />
-          ) : filteredChats.length === 0 ? (
-            <div className="text-center text-gray-400 py-6 text-xs">
-              {searchQuery ? 'No chats found.' : 'No chats yet.'}<br />
-              {!searchQuery && 'Start a new conversation!'}
-            </div>
-          ) : (
-            filteredChats.map((chat) => (
-              <div
-                key={chat.id}
-                onClick={() => onChatSelect(chat.id)}
-                className={`group relative p-2 rounded-md cursor-pointer transition-all ${
-                  activeChatId === chat.id
-                    ? "bg-white/20 border border-white/20"
-                    : "bg-white/5 hover:bg-white/10 border border-transparent"
-                }`}
-              >
-                <div className="flex items-start justify-between">
-                  <div className="flex-1 min-w-0">
-                    <h3 className="text-xs font-medium text-white truncate">
-                      {chat.title}
-                    </h3>
-                    <p className="text-[10px] text-gray-400 mt-0.5">
-                      {chat.message_count} msgs
-                    </p>
+        <div className="flex-1 overflow-y-auto scrollbar-hover px-2 pb-4">
+          {loading && <ChatListSkeleton />}
+          
+          {!loading && filteredChats.length === 0 && (
+            <EmptyState searchQuery={searchQuery} />
+          )}
+          
+          {!loading && filteredChats.length > 0 && (
+            <div className="space-y-1">
+              {filteredChats.map((chat) => (
+                <button
+                  key={chat.id}
+                  onClick={() => onChatSelect(chat.id)}
+                  className={`w-full group relative px-3 py-2.5 rounded-lg cursor-pointer transition-all text-left ${
+                    activeChatId === chat.id
+                      ? "bg-white/15"
+                      : "hover:bg-white/5"
+                  }`}
+                >
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="flex-1 min-w-0">
+                      <h3 className="text-sm font-medium text-white truncate">
+                        {chat.title}
+                      </h3>
+                      <p className="text-xs text-gray-400 mt-0.5">
+                        {chat.message_count} {chat.message_count === 1 ? 'message' : 'messages'}
+                      </p>
+                    </div>
+                    
+                    {/* Delete button */}
+                    <button
+                      onClick={(e) => handleDeleteChat(chat.id, e)}
+                      className="opacity-0 group-hover:opacity-100 transition-opacity p-1.5 hover:bg-red-500/20 rounded-md shrink-0"
+                      title="Delete chat"
+                    >
+                      <Trash2 className="w-4 h-4 text-red-400" />
+                    </button>
                   </div>
-                  
-                  {/* Delete button - show on hover */}
-                  <button
-                    onClick={(e) => handleDeleteChat(chat.id, e)}
-                    className="opacity-0 group-hover:opacity-100 transition-opacity p-0.5 hover:bg-red-500/20 rounded"
-                    title="Delete chat"
-                  >
-                    <Trash2 className="w-3.5 h-3.5 text-red-400" />
-                  </button>
-                </div>
-              </div>
-            ))
+                </button>
+              ))}
+            </div>
           )}
         </div>
       </aside>
 
       {/* Backdrop for mobile */}
       {isOpen && (
-        <div
+        <button
           onClick={handleToggle}
-          className="md:hidden fixed inset-0 bg-black/50 z-30"
+          className="lg:hidden fixed inset-0 bg-black/60 backdrop-blur-sm z-30 top-14"
+          aria-label="Close sidebar"
+          type="button"
         />
       )}
 

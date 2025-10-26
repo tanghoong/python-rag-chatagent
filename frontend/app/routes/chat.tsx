@@ -33,6 +33,7 @@ export default function Chat() {
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement | null>(null);
+  const messagesContainerRef = useRef<HTMLDivElement>(null);
   const sidebarRefreshRef = useRef<(() => void) | null>(null);
   const [showShortcuts, setShowShortcuts] = useState(false);
   const [showSearch, setShowSearch] = useState(false);
@@ -45,10 +46,29 @@ export default function Chat() {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, loading]);
 
+  // Auto-scroll to bottom when switching chats - wait for code blocks to render
+  useEffect(() => {
+    if (activeChatId) {
+      // Wait for DOM updates and code block rendering
+      const scrollTimer = setTimeout(() => {
+        messagesEndRef.current?.scrollIntoView({ behavior: "instant" });
+        
+        // Focus input after scrolling completes
+        setTimeout(() => {
+          inputRef.current?.focus();
+        }, 200);
+      }, 300);
+
+      return () => clearTimeout(scrollTimer);
+    }
+  }, [activeChatId]);
+
   // Auto-focus input after bot responds
   useEffect(() => {
     if (!loading && messages.length > 0) {
-      inputRef.current?.focus();
+      setTimeout(() => {
+        inputRef.current?.focus();
+      }, 150);
     }
   }, [loading]);
 
@@ -238,7 +258,7 @@ export default function Chat() {
     <div className="relative h-screen flex overflow-hidden">
       <AnimatedBackground />
 
-      {/* Chat Sidebar */}
+      {/* Left Sidebar - Chat History */}
       <ChatSidebar
         activeChatId={activeChatId}
         onChatSelect={handleChatSelect}
@@ -247,13 +267,16 @@ export default function Chat() {
         onToggle={() => setSidebarOpen(!sidebarOpen)}
       />
 
-      {/* Main Chat Area */}
-      <div className="relative z-10 flex-1 flex flex-col md:ml-64 overflow-hidden">
-        <div className="flex-1 flex flex-col max-w-4xl mx-auto w-full overflow-hidden">
+      {/* Main Chat Area - Center Column */}
+      <div className="relative z-10 flex-1 flex flex-col lg:ml-64 lg:mr-64 overflow-hidden">
+        <div className="flex-1 flex flex-col w-full overflow-hidden">
           {/* Messages Container with bottom padding for fixed input */}
-          <div className="flex-1 overflow-y-auto custom-scrollbar space-y-2 sm:space-y-3 px-2 sm:px-4 py-2 sm:py-4 pb-24 sm:pb-28 min-h-0">
+          <div 
+            ref={messagesContainerRef}
+            className="flex-1 overflow-y-auto scrollbar-hover space-y-2 sm:space-y-3 px-3 sm:px-6 lg:px-8 py-2 sm:py-4 pb-24 sm:pb-28 min-h-0"
+          >
             {messages.length === 0 && (
-              <div className="flex items-center justify-center h-full px-4">
+              <div className="flex items-center justify-center h-full mt-20">
                 <div className="text-center text-gray-500">
                   <p className="text-base sm:text-lg mb-2">No messages yet</p>
                   <p className="text-xs sm:text-sm">Start a conversation by typing a message below</p>
@@ -316,8 +339,8 @@ export default function Chat() {
           />
 
           {/* Input - Fixed at bottom */}
-          <div className="fixed bottom-0 left-0 right-0 md:left-64 z-20 px-2 sm:px-4 pb-3 sm:pb-4 pt-2 bg-linear-to-t from-black/80 via-black/50 to-transparent backdrop-blur-sm">
-            <div className="max-w-4xl mx-auto">
+          <div className="fixed bottom-0 left-0 right-0 lg:left-64 lg:right-64 z-20 px-3 sm:px-6 lg:px-8 pb-3 sm:pb-4 pt-2 bg-linear-to-t from-black/80 via-black/50 to-transparent backdrop-blur-sm">
+            <div className="w-full mx-auto">
               <ChatInput 
                 onSend={handleSendMessage} 
                 onCancel={cancelMessage}
@@ -329,6 +352,13 @@ export default function Chat() {
           </div>
         </div>
       </div>
+
+      {/* Right Sidebar - Reserved for future features */}
+      <aside className="hidden lg:block fixed top-14 right-0 h-[calc(100vh-3.5rem)] w-64 bg-black/40 backdrop-blur-xl z-40">
+        <div className="p-4 h-full flex items-center justify-center">
+          <p className="text-gray-500 text-sm text-center">Additional features<br />coming soon</p>
+        </div>
+      </aside>
 
       {/* Keyboard Shortcuts Help Modal */}
       <ShortcutsHelp isOpen={showShortcuts} onClose={() => setShowShortcuts(false)} />

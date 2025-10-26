@@ -56,42 +56,39 @@ export function LLMBadge({ metadata }: Readonly<LLMBadgeProps>) {
   };
 
   return (
-    <div className="mt-2 flex flex-wrap items-center gap-2 text-xs">
+    <div className="flex flex-wrap items-center gap-1.5 text-[10px]">
       {/* Model Badge */}
       <div
-        className={`inline-flex items-center gap-1.5 px-2 py-1 rounded-md bg-linear-to-r ${getModelColor()} border backdrop-blur-sm`}
+        className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-linear-to-r ${getModelColor()} border backdrop-blur-sm`}
         title={`Model: ${metadata.model}\nProvider: ${metadata.provider}\nComplexity: ${metadata.complexity}${
           metadata.complexity_score ? `\nScore: ${metadata.complexity_score}` : ""
         }${metadata.auto_switched ? "\nAuto-switched based on query complexity" : ""}`}
       >
         {getComplexityIcon()}
-        <span className="font-medium">{formatModelName(metadata.model)}</span>
-        <span className="opacity-60">{getCostIndicator()}</span>
+        <span className="font-medium text-[10px]">{formatModelName(metadata.model)}</span>
+        <span className="opacity-60 text-[10px]">{getCostIndicator()}</span>
       </div>
-
-      {/* Complexity Badge */}
-      {metadata.complexity && (
-        <div
-          className="inline-flex items-center gap-1 px-2 py-1 rounded-md bg-gray-800/50 border border-gray-700/50 text-gray-400"
-          title={`Complexity: ${metadata.complexity}${
-            metadata.complexity_score ? ` (score: ${metadata.complexity_score})` : ""
-          }${metadata.indicators && metadata.indicators.length > 0 ? `\n\nIndicators:\n${metadata.indicators.join("\n")}` : ""}`}
-        >
-          <span className="capitalize">{metadata.complexity}</span>
-          {metadata.complexity_score !== undefined && (
-            <span className="opacity-60">({metadata.complexity_score})</span>
-          )}
-        </div>
-      )}
 
       {/* Auto-switched indicator */}
       {metadata.auto_switched && (
         <div
-          className="inline-flex items-center gap-1 px-2 py-1 rounded-md bg-cyan-500/10 border border-cyan-500/20 text-cyan-400"
+          className="inline-flex items-center px-1.5 py-0.5 rounded-md bg-cyan-500/10 border border-cyan-500/20 text-cyan-400"
           title="This model was automatically selected based on query complexity"
         >
-          <span className="text-[10px]">AUTO</span>
+          <span className="text-[9px] font-semibold">AUTO</span>
         </div>
+      )}
+
+      {/* Complexity indicator (compact) */}
+      {metadata.complexity && (
+        <span 
+          className="text-gray-500 capitalize text-[10px]"
+          title={`Complexity: ${metadata.complexity}${
+            metadata.complexity_score ? ` (score: ${metadata.complexity_score})` : ""
+          }${metadata.indicators && metadata.indicators.length > 0 ? "\n\nIndicators:\n" + metadata.indicators.join("\n") : ""}`}
+        >
+          {metadata.complexity}
+        </span>
       )}
     </div>
   );
