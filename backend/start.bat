@@ -40,7 +40,7 @@ echo.
 
 REM Install dependencies
 echo [3/5] Installing dependencies...
-pip install -r requirements.txt --quiet
+pip install -r requirements.txt
 if %ERRORLEVEL% NEQ 0 (
     echo [ERROR] Failed to install dependencies
     exit /b 1

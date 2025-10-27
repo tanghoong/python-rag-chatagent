@@ -80,7 +80,8 @@ export const ReminderManager: React.FC<ReminderManagerProps> = ({ className = ''
     };
     
     loadData();
-  }, [refreshReminders, getReminderTags, getReminderStats]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // Only run once on mount
 
   // Apply filters when reminders or filters change
   useEffect(() => {

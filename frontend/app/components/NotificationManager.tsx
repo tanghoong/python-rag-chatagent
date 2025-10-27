@@ -17,6 +17,12 @@ export const NotificationManager: React.FC<NotificationManagerProps> = ({ childr
   const { reminders, refreshReminders } = useReminderCRUD();
   const notifiedReminders = useRef<Set<string>>(new Set());
   const checkInterval = useRef<NodeJS.Timeout | null>(null);
+  const refreshRemindersRef = useRef(refreshReminders);
+  
+  // Keep the ref updated with the latest function
+  useEffect(() => {
+    refreshRemindersRef.current = refreshReminders;
+  }, [refreshReminders]);
 
   // Monitor reminders and send notifications
   const checkReminders = React.useCallback(() => {
@@ -106,18 +112,18 @@ export const NotificationManager: React.FC<NotificationManagerProps> = ({ childr
   // Refresh reminders periodically
   useEffect(() => {
     const refreshInterval = setInterval(() => {
-      refreshReminders();
+      refreshRemindersRef.current();
     }, 5 * 60 * 1000); // Refresh every 5 minutes
 
     return () => clearInterval(refreshInterval);
-  }, [refreshReminders]);
+  }, []); // Empty dependency array - only set up once
 
   // Listen for visibility changes to handle background notifications
   useEffect(() => {
     const handleVisibilityChange = () => {
       if (!document.hidden && canSendNotifications) {
         // App became visible, refresh reminders and check for notifications
-        refreshReminders().then(() => {
+        refreshRemindersRef.current().then(() => {
           checkReminders();
         });
       }
@@ -125,7 +131,7 @@ export const NotificationManager: React.FC<NotificationManagerProps> = ({ childr
 
     document.addEventListener('visibilitychange', handleVisibilityChange);
     return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
-  }, [refreshReminders, checkReminders, canSendNotifications]);
+  }, [checkReminders, canSendNotifications]); // Removed refreshReminders from deps
 
   // Listen for custom notification click events
   useEffect(() => {
@@ -140,12 +146,12 @@ export const NotificationManager: React.FC<NotificationManagerProps> = ({ childr
       window.focus();
       
       // Refresh reminders to get latest state
-      refreshReminders();
+      refreshRemindersRef.current();
     };
 
     window.addEventListener('reminder-notification-click', handleNotificationClick as EventListener);
     return () => window.removeEventListener('reminder-notification-click', handleNotificationClick as EventListener);
-  }, [refreshReminders]);
+  }, []); // Empty dependency array - only set up once
 
   // Handle page unload - clear intervals
   useEffect(() => {

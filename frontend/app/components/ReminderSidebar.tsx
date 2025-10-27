@@ -82,31 +82,23 @@ export const ReminderSidebar: React.FC<ReminderSidebarProps> = ({
     refreshReminders,
   } = useReminderCRUD();
 
-  const [refreshInterval, setRefreshInterval] = useState<NodeJS.Timeout | null>(null);
+  // Initial load
+  useEffect(() => {
+    refreshReminders();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // Only run once on mount
 
   // Auto-refresh every minute to keep reminders up to date
   useEffect(() => {
-    if (refreshInterval) {
-      clearInterval(refreshInterval);
-    }
-
     const interval = setInterval(() => {
       refreshReminders();
     }, 60000); // Refresh every minute
 
-    setRefreshInterval(interval);
-
     return () => {
-      if (interval) {
-        clearInterval(interval);
-      }
+      clearInterval(interval);
     };
-  }, [refreshReminders]);
-
-  // Initial load
-  useEffect(() => {
-    refreshReminders();
-  }, [refreshReminders]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // Only set up once on mount
 
   // Categorize reminders
   const categorizeReminders = (reminders: Reminder[]) => {
