@@ -9,6 +9,7 @@ interface ReminderSidebarProps {
   onCreateReminder?: () => void;
   onEditReminder?: (reminder: Reminder) => void;
   isVisible?: boolean;
+  refreshRef?: { current: (() => void) | null };
 }
 
 interface CollapsibleSectionProps {
@@ -72,6 +73,7 @@ export const ReminderSidebar: React.FC<ReminderSidebarProps> = ({
   onCreateReminder,
   onEditReminder,
   isVisible = true,
+  refreshRef,
 }) => {
   const {
     reminders,
@@ -81,6 +83,15 @@ export const ReminderSidebar: React.FC<ReminderSidebarProps> = ({
     deleteReminder,
     refreshReminders,
   } = useReminderCRUD();
+
+  // Expose refresh function via ref
+  useEffect(() => {
+    if (refreshRef) {
+      refreshRef.current = () => {
+        refreshReminders();
+      };
+    }
+  }, [refreshRef, refreshReminders]);
 
   // Initial load
   useEffect(() => {

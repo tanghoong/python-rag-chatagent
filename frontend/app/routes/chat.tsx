@@ -36,6 +36,7 @@ export default function Chat() {
   const inputRef = useRef<HTMLTextAreaElement | null>(null);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
   const sidebarRefreshRef = useRef<(() => void) | null>(null);
+  const reminderSidebarRefreshRef = useRef<(() => void) | null>(null);
   const [showShortcuts, setShowShortcuts] = useState(false);
   const [showSearch, setShowSearch] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(true);
@@ -71,8 +72,31 @@ export default function Chat() {
       setTimeout(() => {
         inputRef.current?.focus();
       }, 150);
+      
+      // Check if the last message contains reminder operations and trigger refresh
+      const lastMessage = messages[messages.length - 1];
+      if (lastMessage?.role === 'assistant') {
+        const reminderKeywords = [
+          'Reminder created successfully',
+          'Reminder updated successfully',
+          'Reminder deleted successfully',
+          'Reminder completed successfully',
+          'Reminder snoozed successfully'
+        ];
+        
+        const containsReminderOp = reminderKeywords.some(keyword => 
+          lastMessage.content.includes(keyword)
+        );
+        
+        if (containsReminderOp && reminderSidebarRefreshRef.current) {
+          // Small delay to ensure backend operation is complete
+          setTimeout(() => {
+            reminderSidebarRefreshRef.current?.();
+          }, 500);
+        }
+      }
     }
-  }, [loading]);
+  }, [loading, messages]);
 
   const handleSendMessage = async (content: string) => {
     try {
@@ -385,6 +409,7 @@ export default function Chat() {
               window.location.href = `/reminders?edit=${reminder.id}`;
             }}
             isVisible={true}
+            refreshRef={reminderSidebarRefreshRef}
           />
         </aside>
       )}

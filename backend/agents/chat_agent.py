@@ -137,7 +137,11 @@ You can help users manage their reminders and notifications autonomously:
   - Auto-parses due dates/times ("tomorrow at 3pm", "in 2 hours", "next week")
   - Auto-parses priority (urgent, high, medium, low)
   - Extracts tags from #hashtags or "tags: tag1, tag2"
-  - Supports recurrence patterns ("every day", "weekly", "monthly")
+  - Supports recurrence patterns ("every day", "weekly", "monthly", "hourly")
+  - **IMPORTANT: For multi-line reminder requests, pass ALL lines to the tool**
+    - First line becomes the reminder title
+    - Subsequent lines become the description/details
+    - Example: "Remind me to call John tomorrow\nDetails about the contract discussion"
   - Examples: "Remind me to call mom tomorrow at 5pm #family"
 - **list_reminders_from_chat** - List and filter reminders
   - Filter by status (pending, completed, snoozed, cancelled, overdue)
@@ -146,21 +150,73 @@ You can help users manage their reminders and notifications autonomously:
 - **complete_reminder_from_chat** - Mark reminders as done
 - **snooze_reminder_from_chat** - Postpone reminders
   - Natural language snooze durations ("1 hour", "tomorrow", "next week")
-- **update_reminder_from_chat** - Edit reminder details
-  - Update title, description, due date, priority, or tags
+- **update_last_reminder_from_chat** - **DEFAULT tool for editing reminders in the same conversation**
+  - **ALWAYS use this when user wants to modify ANY aspect of a reminder they just discussed**
+  - **USE THIS even if user doesn't say "this reminder" or "that reminder"**
+  - In the SAME conversation, ANY modification request refers to the last reminder
+  - Can update: time, priority, description, tags, **recurrence** (daily/weekly/monthly/hourly)
+  - Modification triggers (use this tool if user says ANY of these):
+    * Time changes: "make it Friday", "change to 2pm", "move to next week"
+    * Priority: "make it urgent", "high priority", "change priority to low"
+    * Details: "add details", "include", "add description", "add notes"
+    * Tags: "add tag #work", "tag it as important"
+    * **Recurrence: "make it daily", "every week", "repeat monthly", "every day at 8am"**
+  - Examples:
+    * User: "Remind me to call John tomorrow at 3pm"
+      You: Create reminder
+      User: "Make it Friday at 2pm" → **Use update_last_reminder_from_chat** (no "this" needed)
+    * User: "Change the priority to urgent" → **Use update_last_reminder_from_chat**
+    * User: "Make it a daily reminder" → **Use update_last_reminder_from_chat** (sets recurrence)
+    * User: "Every Monday at 9am" → **Use update_last_reminder_from_chat** (sets weekly recurrence)
+- **update_reminder_from_chat** - Edit a specific reminder by ID
+  - **CRITICAL: Use when user provides a SPECIFIC reminder ID (e.g., "rem_12345abc")**
+  - **CRITICAL: When you see an ID in the conversation or chat history, use THIS tool, not update_last_reminder_from_chat**
+  - ID patterns: "rem_", "reminder ID:", "ID: rem_", or explicit "update reminder rem_12345"
+  - Update title, description, due date, priority, tags, or recurrence
+  - Examples:
+    * "Update reminder rem_12345abc to Friday" → **Use update_reminder_from_chat with ID**
+    * "Change the time of reminder rem_abc123" → **Use update_reminder_from_chat with ID**
+    * "Modify rem_xyz789 to high priority" → **Use update_reminder_from_chat with ID**
 - **delete_reminder_from_chat** - Remove reminders
 - **get_reminder_stats_from_chat** - View reminder statistics and overdue count
 
+**CRITICAL DECISION LOGIC FOR UPDATES:**
+1. **IF user mentions a specific reminder ID (rem_xxxxx)** → Use update_reminder_from_chat
+2. **IF in same conversation flow without ID** → Use update_last_reminder_from_chat
+3. **IF user says "list reminders" then wants to update** → Ask for ID or use the one they reference
+
 When users mention reminders, appointments, deadlines, or time-based tasks, proactively use these tools.
 Parse natural language to extract due dates, priority, tags, and recurrence automatically.
+**CRITICAL: When user provides reminder details across multiple lines, pass the complete multi-line text to create_reminder_from_chat.**
+**CRITICAL: In the SAME conversation, ANY modification/update request (change time, priority, details, tags, recurrence) should use update_last_reminder_from_chat - even without explicit reference to "the reminder".**
+**CRITICAL: When you see a reminder ID in the conversation, ALWAYS use update_reminder_from_chat with that ID.**
+**CRITICAL: Recurrence can be set during creation OR added/modified later using update_last_reminder_from_chat.**
 
 Reminder Management Examples:
 - "Remind me to submit the report tomorrow at 2pm #work urgent" → Action: create_reminder_from_chat
+- "Remind me to call John tomorrow\nDiscuss the merger details" → Action: create_reminder_from_chat with full multi-line text
+- "Make it Friday at 3pm" → Action: update_last_reminder_from_chat (same conversation)
+- "Change priority to high" → Action: update_last_reminder_from_chat (same conversation)
+- "Add details: bring contract documents" → Action: update_last_reminder_from_chat (same conversation)
+- "Make it a daily reminder" → Action: update_last_reminder_from_chat (adds daily recurrence)
+- "Every Monday and Friday" → Action: update_last_reminder_from_chat (sets weekly recurrence on specific days)
+- "Repeat every hour" → Action: update_last_reminder_from_chat (sets hourly recurrence)
+- "Update reminder rem_abc123 to Friday" → Action: update_reminder_from_chat with reminder_id="rem_abc123"
+- "Change rem_xyz789 to high priority" → Action: update_reminder_from_chat with reminder_id="rem_xyz789"
 - "Show me my overdue reminders" → Action: list_reminders_from_chat with status="overdue"
 - "Snooze reminder rem_abc123 for 1 hour" → Action: snooze_reminder_from_chat
 - "Set up a daily reminder to take vitamins at 8am" → Action: create_reminder_from_chat (with recurrence)
 - "What reminders are due today?" → Action: list_reminders_from_chat
 - "Complete reminder rem_abc123" → Action: complete_reminder_from_chat
+
+**STOP CONDITIONS - CRITICAL FOR PREVENTING INFINITE LOOPS:**
+After using ANY tool, you MUST provide a Final Answer to the user. Do NOT loop or call tools repeatedly without returning a result.
+- After creating a reminder → Return the confirmation message from the tool
+- After updating a reminder → Return the update confirmation
+- After listing reminders → Return the formatted list
+- After any error → Return a clear error message to the user
+- **NEVER continue the loop without providing a Final Answer**
+- **IF a tool returns a success message, that IS your Final Answer - return it to the user immediately**
 
 
 """
@@ -244,7 +300,12 @@ def get_agent_response(
         messages.append(HumanMessage(content=user_message))
 
         # Invoke the agent with messages
-        result = agent.invoke({"messages": messages})
+        # Set recursion_limit to prevent errors with complex tool chains
+        # Default is 25, we increase to 50 for multi-step reminder operations
+        result = agent.invoke(
+            {"messages": messages},
+            config={"recursion_limit": 50}
+        )
 
         # Extract the response from the result
         # LangGraph returns a dict with 'messages' key containing all messages including the response

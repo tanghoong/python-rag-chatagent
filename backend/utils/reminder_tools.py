@@ -6,7 +6,9 @@ LangChain tools for natural language reminder management.
 
 import asyncio
 from datetime import datetime, timedelta
-from typing import List, Optional, Dict, Any
+from typing import List, Optional, Dict, Any, Callable
+from concurrent.futures import ThreadPoolExecutor
+from contextvars import ContextVar
 from langchain_core.tools import tool
 from database.reminder_repository import reminder_repository
 from models.reminder_models import (
@@ -16,16 +18,50 @@ from models.reminder_models import (
 from utils.recurrence_engine import parse_natural_language_time
 import re
 
+# Thread pool for running async code
+_executor = ThreadPoolExecutor(max_workers=1)
 
-def run_async(coro):
-    """Helper to run async functions in sync context"""
-    try:
-        loop = asyncio.get_event_loop()
-    except RuntimeError:
+# Context variable to track the last reminder ID in the conversation
+last_reminder_id: ContextVar[Optional[str]] = ContextVar('last_reminder_id', default=None)
+
+
+def run_async(async_func: Callable, *args, **kwargs) -> Any:
+    """Helper to run async code in sync context using a separate thread"""
+    def _run_in_thread():
+        # Create new event loop for this thread
         loop = asyncio.new_event_loop()
         asyncio.set_event_loop(loop)
-    
-    return loop.run_until_complete(coro)
+        try:
+            # Create a new reminder repository instance for this event loop
+            from database.reminder_repository import ReminderRepository
+            repo = ReminderRepository()
+
+            # If the async_func is a method of reminder_repository, call it on the new instance
+            func_name = getattr(async_func, '__name__', None)
+            if func_name and hasattr(repo, func_name):
+                actual_func = getattr(repo, func_name)
+                coro = actual_func(*args, **kwargs)
+            else:
+                coro = async_func(*args, **kwargs)
+
+            # Ensure we're running the coroutine, not a task
+            if asyncio.iscoroutine(coro):
+                result = loop.run_until_complete(coro)
+            else:
+                # If it's already a result (shouldn't happen), return it
+                result = coro
+            
+            return result
+        except Exception as e:
+            print(f"❌ Error in run_async: {e}")
+            import traceback
+            traceback.print_exc()
+            raise
+        finally:
+            loop.close()
+
+    future = _executor.submit(_run_in_thread)
+    return future.result()
 
 
 def parse_priority_from_text(text: str) -> ReminderPriority:
@@ -72,7 +108,7 @@ def parse_due_date_from_text(text: str) -> Optional[datetime]:
 
 
 def parse_recurrence_from_text(text: str) -> Dict[str, Any]:
-    """Extract recurrence settings from text"""
+    """Extract recurrence settings from text - enhanced with more patterns"""
     text_lower = text.lower()
     
     recurrence_data = {
@@ -82,32 +118,49 @@ def parse_recurrence_from_text(text: str) -> Dict[str, Any]:
         "recurrence_day_of_month": None
     }
     
-    # Check for recurrence patterns
-    if any(word in text_lower for word in ["every day", "daily"]):
+    # Check for recurrence patterns - enhanced detection
+    daily_patterns = ["every day", "daily", "each day", "every single day"]
+    weekly_patterns = ["every week", "weekly", "each week"]
+    monthly_patterns = ["every month", "monthly", "each month"]
+    hourly_patterns = ["every hour", "hourly", "each hour"]
+    minutely_patterns = ["every minute", "minutely", "each minute"]
+    
+    if any(pattern in text_lower for pattern in daily_patterns):
         recurrence_data["recurrence_type"] = RecurrenceType.DAILY
-    elif any(word in text_lower for word in ["every week", "weekly"]):
+    elif any(pattern in text_lower for pattern in weekly_patterns):
         recurrence_data["recurrence_type"] = RecurrenceType.WEEKLY
-    elif any(word in text_lower for word in ["every month", "monthly"]):
+    elif any(pattern in text_lower for pattern in monthly_patterns):
         recurrence_data["recurrence_type"] = RecurrenceType.MONTHLY
-    elif any(word in text_lower for word in ["every hour", "hourly"]):
+    elif any(pattern in text_lower for pattern in hourly_patterns):
         recurrence_data["recurrence_type"] = RecurrenceType.HOURLY
-    elif "every" in text_lower and "minute" in text_lower:
+    elif any(pattern in text_lower for pattern in minutely_patterns):
         recurrence_data["recurrence_type"] = RecurrenceType.MINUTELY
     
-    # Parse specific days for weekly recurrence
-    if recurrence_data["recurrence_type"] == RecurrenceType.WEEKLY:
-        days_map = {
-            "monday": 0, "tuesday": 1, "wednesday": 2, "thursday": 3,
-            "friday": 4, "saturday": 5, "sunday": 6
-        }
-        
-        days_of_week = []
-        for day_name, day_num in days_map.items():
-            if day_name in text_lower:
-                days_of_week.append(day_num)
-        
-        if days_of_week:
-            recurrence_data["recurrence_days_of_week"] = days_of_week
+    # Detect weekly recurrence from specific day mentions
+    days_map = {
+        "monday": 0, "mon": 0,
+        "tuesday": 1, "tue": 1, "tues": 1,
+        "wednesday": 2, "wed": 2,
+        "thursday": 3, "thu": 3, "thur": 3, "thurs": 3,
+        "friday": 4, "fri": 4,
+        "saturday": 5, "sat": 5,
+        "sunday": 6, "sun": 6
+    }
+    
+    # Check if specific days are mentioned
+    mentioned_days = []
+    for day_name, day_num in days_map.items():
+        if day_name in text_lower:
+            if day_num not in mentioned_days:
+                mentioned_days.append(day_num)
+    
+    # If days are mentioned with "every" or "each", it's weekly recurrence
+    if mentioned_days and any(word in text_lower for word in ["every", "each", "repeat"]):
+        recurrence_data["recurrence_type"] = RecurrenceType.WEEKLY
+        recurrence_data["recurrence_days_of_week"] = sorted(mentioned_days)
+    elif recurrence_data["recurrence_type"] == RecurrenceType.WEEKLY and mentioned_days:
+        # Already set to weekly, just add the days
+        recurrence_data["recurrence_days_of_week"] = sorted(mentioned_days)
     
     return recurrence_data
 
@@ -128,22 +181,70 @@ def create_reminder_from_chat(reminder_text: str) -> str:
     - Priority levels (urgent, high, medium, low)
     - Tags using #hashtags or "tags: work, personal"
     - Recurrence patterns ("every day", "weekly", "monthly")
+    - Multi-line input: First line becomes the title, subsequent lines become the description
+    
+    Examples:
+    - "Remind me to call John tomorrow at 3pm #work"
+    - "Set a reminder for the meeting in 2 hours\nBring the presentation slides and notes"
+    - "Reminder: Submit report next Friday #urgent\nIncludes Q3 analysis and projections"
     
     Args:
-        reminder_text: Natural language description of the reminder
+        reminder_text: Natural language description of the reminder (can be multi-line)
         
     Returns:
         Confirmation message with reminder details
     """
     try:
-        # Parse the reminder text
-        title = reminder_text[:100]  # Use first part as title
-        description = reminder_text if len(reminder_text) > 100 else None
+        # Parse the reminder text - handle multi-line input
+        lines = reminder_text.strip().split('\n')
         
-        # Extract components
+        # First line is the main reminder, rest is description/details
+        first_line = lines[0].strip()
+        
+        # Extract a clean title from the first line (remove time/date phrases for cleaner title)
+        title_line = first_line
+        # Remove common time phrases to get cleaner title
+        time_patterns = [
+            r'\s+tomorrow(\s+at\s+\d+[:\d]*\s*(?:am|pm)?)?',
+            r'\s+today(\s+at\s+\d+[:\d]*\s*(?:am|pm)?)?',
+            r'\s+at\s+\d+[:\d]*\s*(?:am|pm)?',
+            r'\s+in\s+\d+\s+(?:hour|minute|day|week)s?',
+            r'\s+next\s+(?:week|month|monday|tuesday|wednesday|thursday|friday|saturday|sunday)',
+        ]
+        for pattern in time_patterns:
+            title_line = re.sub(pattern, '', title_line, flags=re.IGNORECASE)
+        
+        # Remove common action words at the start for cleaner title
+        title_line = re.sub(r'^(?:remind me to|reminder to|remind|set a reminder to|create a reminder to)\s+', '', 
+                           title_line, flags=re.IGNORECASE)
+        
+        # Remove hashtags from title (they'll be parsed separately)
+        title_clean = re.sub(r'\s*#\w+\s*', ' ', title_line).strip()
+        
+        # Use the cleaned title, limit to 100 chars
+        title = title_clean[:100] if title_clean else first_line[:100]
+        
+        # If there are additional lines, use them as description
+        description = None
+        if len(lines) > 1:
+            # Join remaining lines as description
+            description_lines = [line.strip() for line in lines[1:] if line.strip()]
+            if description_lines:
+                description = '\n'.join(description_lines)
+        
+        # If no description from multiple lines but text is very long, use full text as description
+        if not description and len(reminder_text) > 150:
+            description = reminder_text
+        
+        # Extract components from the full text
         priority = parse_priority_from_text(reminder_text)
         tags = parse_tags_from_text(reminder_text)
         due_date = parse_due_date_from_text(reminder_text)
+        
+        # Ensure due_date is never None
+        if due_date is None:
+            due_date = datetime.utcnow() + timedelta(hours=1)
+        
         recurrence_data = parse_recurrence_from_text(reminder_text)
         
         # Create reminder data
@@ -156,8 +257,14 @@ def create_reminder_from_chat(reminder_text: str) -> str:
             **recurrence_data
         )
         
+        # Ensure indexes first
+        run_async(reminder_repository.ensure_indexes)
+        
         # Create reminder
-        reminder = run_async(reminder_repository.create(reminder_data))
+        reminder = run_async(reminder_repository.create, reminder_data)
+        
+        # Store the reminder ID in context for potential updates
+        last_reminder_id.set(reminder.id)
         
         # Format response
         priority_emoji = {"low": "🔽", "medium": "📌", "high": "⚠️", "urgent": "🔥"}
@@ -167,15 +274,24 @@ def create_reminder_from_chat(reminder_text: str) -> str:
         
         tags_text = f"\n**Tags:** {', '.join(tags)}" if tags else ""
         
+        description_text = ""
+        if reminder.description:
+            # Truncate long descriptions in response
+            desc_preview = reminder.description[:200] + "..." if len(reminder.description) > 200 else reminder.description
+            description_text = f"\n**Details:** {desc_preview}"
+        
         return f"""⏰ **Reminder created successfully!**
 
 **Title:** {reminder.title}
 **Due:** {reminder.due_date.strftime('%Y-%m-%d %H:%M UTC')}
-**Priority:** {priority_emoji.get(priority, '📌')} {priority}{recurrence_text}{tags_text}
+**Priority:** {priority_emoji.get(priority, '📌')} {priority}{recurrence_text}{tags_text}{description_text}
 
 **ID:** {reminder.id}"""
         
     except Exception as e:
+        print(f"❌ Error creating reminder: {e}")
+        import traceback
+        traceback.print_exc()
         return f"❌ Error creating reminder: {str(e)}"
 
 
@@ -218,7 +334,8 @@ def list_reminders_from_chat(
         pending_only = status.lower() == "pending"
         
         # Get reminders
-        result = run_async(reminder_repository.list(
+        result = run_async(
+            reminder_repository.list,
             page=1,
             page_size=limit,
             status=status_filter,
@@ -226,13 +343,17 @@ def list_reminders_from_chat(
             search=search if search else None,
             overdue_only=overdue_only,
             pending_only=pending_only
-        ))
+        )
         
         reminders = result["reminders"]
         total = result["total"]
         
         if not reminders:
-            return f"📭 No reminders found matching your criteria."
+            return "📭 No reminders found matching your criteria."
+        
+        # Store the first reminder ID in context (useful if user wants to reference it)
+        if reminders:
+            last_reminder_id.set(reminders[0].id)
         
         # Format response
         response = f"📋 **Your Reminders** (Showing {len(reminders)} of {total})\n\n"
@@ -289,7 +410,7 @@ def complete_reminder_from_chat(reminder_id: str) -> str:
         Confirmation message
     """
     try:
-        updated = run_async(reminder_repository.update_status(reminder_id, ReminderStatus.COMPLETED))
+        updated = run_async(reminder_repository.update_status, reminder_id, ReminderStatus.COMPLETED)
         
         if not updated:
             return f"❌ Reminder not found: {reminder_id}"
@@ -324,7 +445,7 @@ def snooze_reminder_from_chat(reminder_id: str, snooze_duration: str = "1 hour")
             # Default to 1 hour
             snooze_until = datetime.utcnow() + timedelta(hours=1)
         
-        snoozed = run_async(reminder_repository.snooze(reminder_id, snooze_until))
+        snoozed = run_async(reminder_repository.snooze, reminder_id, snooze_until)
         
         if not snoozed:
             return f"❌ Reminder not found: {reminder_id}"
@@ -391,7 +512,7 @@ def update_reminder_from_chat(reminder_id: str, updates: str) -> str:
         reminder_update = ReminderUpdate(**update_data)
         
         # Update reminder
-        updated_reminder = run_async(reminder_repository.update(reminder_id, reminder_update))
+        updated_reminder = run_async(reminder_repository.update, reminder_id, reminder_update)
         
         if not updated_reminder:
             return f"❌ Reminder not found: {reminder_id}"
@@ -413,6 +534,158 @@ def update_reminder_from_chat(reminder_id: str, updates: str) -> str:
 {chr(10).join(['- ' + update for update in updates_text])}"""
         
     except Exception as e:
+        print(f"❌ Error updating reminder: {e}")
+        import traceback
+        traceback.print_exc()
+        return f"❌ Error updating reminder: {str(e)}"
+
+
+@tool
+def update_last_reminder_from_chat(updates: str) -> str:
+    """
+    Update the most recently created or mentioned reminder in this conversation.
+    
+    Use this tool when the user wants to modify ANY aspect of a reminder in the same conversation.
+    
+    THIS IS THE DEFAULT TOOL for updates - use even WITHOUT explicit "this/that reminder" references.
+    
+    Use this tool when the user says:
+    - Time/Date changes: "make it Friday", "change to 2pm", "tomorrow at 5pm"
+    - Priority: "make it urgent", "high priority", "change priority"
+    - Description: "add details", "include notes", "add: bring documents"
+    - Tags: "add tag #work", "tag as important", "#urgent #critical"
+    - Recurrence: "make it daily", "every week", "repeat every Monday", "every day at 8am"
+    - ANY modification without specifying a reminder ID
+    
+    Examples triggering this tool:
+    - "Make it Friday at 2pm" (no explicit reference needed)
+    - "Change priority to urgent" (no explicit reference needed)
+    - "Add details: bring contract" (no explicit reference needed)
+    - "Make it a daily reminder" (adds recurrence)
+    - "Every Monday and Wednesday" (sets weekly recurrence with specific days)
+    - "Repeat hourly" (sets hourly recurrence)
+    
+    Args:
+        updates: Natural language description of what to update
+        
+    Returns:
+        Confirmation message with updated details
+    """
+    try:
+        # Get the last reminder ID from context
+        reminder_id = last_reminder_id.get()
+        
+        if not reminder_id:
+            return "❌ No recent reminder found in this conversation. Please specify the reminder ID or create a reminder first."
+        
+        # Parse updates (same logic as update_reminder_from_chat)
+        update_data = {}
+        
+        # Extract new title if mentioned
+        if "title:" in updates.lower():
+            title_match = re.search(r'title:\s*([^\n,]+)', updates, re.IGNORECASE)
+            if title_match:
+                update_data["title"] = title_match.group(1).strip()
+        
+        # Extract new description if mentioned
+        if "description:" in updates.lower() or "details:" in updates.lower():
+            desc_match = re.search(r'(?:description|details):\s*([^\n]+)', updates, re.IGNORECASE)
+            if desc_match:
+                update_data["description"] = desc_match.group(1).strip()
+        elif any(word in updates.lower() for word in ["add details", "add more details", "include", "details about"]):
+            # Extract the details part
+            details_match = re.search(r'(?:add details|details about|include|add more details)[\s:]*(.+)', updates, re.IGNORECASE)
+            if details_match:
+                update_data["description"] = details_match.group(1).strip()
+        
+        # Extract new due date if mentioned
+        if any(word in updates.lower() for word in ["due", "when", "time", "date", "tomorrow", "today", "next", "change to", "make it"]):
+            new_due_date = parse_due_date_from_text(updates)
+            if new_due_date:
+                update_data["due_date"] = new_due_date
+        
+        # Extract new priority if mentioned
+        if any(word in updates.lower() for word in ["priority", "urgent", "high", "medium", "low"]):
+            new_priority = parse_priority_from_text(updates)
+            update_data["priority"] = new_priority
+        
+        # Extract new tags if mentioned
+        new_tags = parse_tags_from_text(updates)
+        if new_tags:
+            update_data["tags"] = new_tags
+        
+        # Parse recurrence updates - enhanced to catch more patterns
+        recurrence_keywords = [
+            "every", "daily", "weekly", "monthly", "hourly", "minutely",
+            "recurrence", "recurring", "repeat", "repeating",
+            "each day", "each week", "each month", "each hour"
+        ]
+        
+        if any(word in updates.lower() for word in recurrence_keywords):
+            recurrence_data = parse_recurrence_from_text(updates)
+            if recurrence_data["recurrence_type"] != RecurrenceType.NONE:
+                update_data["recurrence_type"] = recurrence_data["recurrence_type"]
+                update_data["recurrence_interval"] = recurrence_data["recurrence_interval"]
+                if recurrence_data["recurrence_days_of_week"]:
+                    update_data["recurrence_days_of_week"] = recurrence_data["recurrence_days_of_week"]
+                if recurrence_data["recurrence_day_of_month"]:
+                    update_data["recurrence_day_of_month"] = recurrence_data["recurrence_day_of_month"]
+        
+        # Check if user wants to remove recurrence
+        if any(phrase in updates.lower() for phrase in ["remove recurrence", "stop repeating", "not recurring", "one time", "once only"]):
+            update_data["recurrence_type"] = RecurrenceType.NONE
+            update_data["recurrence_interval"] = 1
+            update_data["recurrence_days_of_week"] = []
+            update_data["recurrence_day_of_month"] = None
+        
+        if not update_data:
+            return "❌ No valid updates found in the text. Please specify what you want to update."
+        
+        # Create update object
+        reminder_update = ReminderUpdate(**update_data)
+        
+        # Update reminder
+        updated_reminder = run_async(reminder_repository.update, reminder_id, reminder_update)
+        
+        if not updated_reminder:
+            return f"❌ Reminder not found: {reminder_id}"
+        
+        # Keep this reminder as the last one
+        last_reminder_id.set(reminder_id)
+        
+        # Format response with better recurrence display
+        updates_text = []
+        for field, value in update_data.items():
+            if field == "due_date":
+                updates_text.append(f"Due date: {value.strftime('%Y-%m-%d %H:%M UTC')}")
+            elif field == "tags":
+                updates_text.append(f"Tags: {', '.join(value)}")
+            elif field == "recurrence_type":
+                if value == RecurrenceType.NONE:
+                    updates_text.append("Recurrence: Removed (one-time reminder)")
+                else:
+                    recurrence_text = f"Recurrence: {value}"
+                    # Add details about days if weekly
+                    if "recurrence_days_of_week" in update_data and update_data["recurrence_days_of_week"]:
+                        days_map = {0: "Mon", 1: "Tue", 2: "Wed", 3: "Thu", 4: "Fri", 5: "Sat", 6: "Sun"}
+                        days_str = ", ".join([days_map.get(d, str(d)) for d in update_data["recurrence_days_of_week"]])
+                        recurrence_text += f" on {days_str}"
+                    updates_text.append(recurrence_text)
+            elif field not in ["recurrence_interval", "recurrence_days_of_week", "recurrence_day_of_month"]:
+                # Skip these as they're handled with recurrence_type
+                updates_text.append(f"{field.replace('_', ' ').title()}: {value}")
+        
+        return f"""✏️ **Reminder updated successfully!**
+
+**Title:** {updated_reminder.title}
+**ID:** {reminder_id}
+**Updates:**
+{chr(10).join(['- ' + update for update in updates_text])}"""
+        
+    except Exception as e:
+        print(f"❌ Error updating last reminder: {e}")
+        import traceback
+        traceback.print_exc()
         return f"❌ Error updating reminder: {str(e)}"
 
 
@@ -433,7 +706,7 @@ def delete_reminder_from_chat(reminder_id: str) -> str:
         Confirmation message
     """
     try:
-        deleted = run_async(reminder_repository.delete(reminder_id))
+        deleted = run_async(reminder_repository.delete, reminder_id)
         
         if not deleted:
             return f"❌ Reminder not found: {reminder_id}"
@@ -441,6 +714,9 @@ def delete_reminder_from_chat(reminder_id: str) -> str:
         return f"🗑️ **Reminder deleted successfully!**\nID: {reminder_id}"
         
     except Exception as e:
+        print(f"❌ Error deleting reminder: {e}")
+        import traceback
+        traceback.print_exc()
         return f"❌ Error deleting reminder: {str(e)}"
 
 
@@ -458,7 +734,7 @@ def get_reminder_stats_from_chat() -> str:
         Formatted statistics
     """
     try:
-        stats = run_async(reminder_repository.get_stats())
+        stats = run_async(reminder_repository.get_stats)
         
         return f"""📊 **Reminder Statistics**
 
@@ -500,6 +776,7 @@ def get_reminder_tools():
         list_reminders_from_chat,
         complete_reminder_from_chat,
         snooze_reminder_from_chat,
+        update_last_reminder_from_chat,  # Add this before update_reminder_from_chat
         update_reminder_from_chat,
         delete_reminder_from_chat,
         get_reminder_stats_from_chat
