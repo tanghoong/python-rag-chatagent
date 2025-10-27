@@ -26,6 +26,14 @@ except ImportError:
     TASK_TOOLS_AVAILABLE = False
     print("⚠️ Task tools not available yet")
 
+# Import Reminder tools
+try:
+    from utils.reminder_tools import get_reminder_tools
+    REMINDER_TOOLS_AVAILABLE = True
+except ImportError:
+    REMINDER_TOOLS_AVAILABLE = False
+    print("⚠️ Reminder tools not available yet")
+
 try:
     from duckduckgo_search import DDGS
 except ImportError:
@@ -305,6 +313,15 @@ def get_all_tools() -> List:
             print(f"✅ Loaded {len(task_tools)} task management tools")
         except Exception as e:
             print(f"⚠️ Error loading task tools: {str(e)}")
+    
+    # Add Reminder tools if available
+    if REMINDER_TOOLS_AVAILABLE:
+        try:
+            reminder_tools = get_reminder_tools()
+            all_tools.extend(reminder_tools)
+            print(f"✅ Loaded {len(reminder_tools)} reminder management tools")
+        except Exception as e:
+            print(f"⚠️ Error loading reminder tools: {str(e)}")
     
     print(f"✅ Total tools loaded: {len(all_tools)}")
     return all_tools

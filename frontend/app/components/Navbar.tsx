@@ -1,5 +1,5 @@
 import { Link, useLocation } from "react-router";
-import { MessageCircle, Home, Settings, Brain, ListTodo, PanelLeft, MoreVertical, Keyboard } from "lucide-react";
+import { MessageCircle, Home, Settings, Brain, ListTodo, Bell, PanelLeft, MoreVertical, Keyboard } from "lucide-react";
 import { useState, useRef, useEffect } from "react";
 
 interface NavbarProps {
@@ -60,6 +60,7 @@ export function Navbar({ onShowShortcuts, onToggleSidebar, isSidebarOpen }: Read
             <NavLink to="/chat" icon={<MessageCircle className="w-4 h-4" />} active={isActive("/chat")}>Chat</NavLink>
             <NavLink to="/memory" icon={<Brain className="w-4 h-4" />} active={isActive("/memory")}>Memory</NavLink>
             <NavLink to="/tasks" icon={<ListTodo className="w-4 h-4" />} active={isActive("/tasks")}>Tasks</NavLink>
+            <NavLink to="/reminders" icon={<Bell className="w-4 h-4" />} active={isActive("/reminders")}>Reminders</NavLink>
           </div>
 
           {/* Right: Actions Menu */}
@@ -112,6 +113,15 @@ export function Navbar({ onShowShortcuts, onToggleSidebar, isSidebarOpen }: Read
                     }}
                   >
                     Tasks
+                  </MenuItem>
+                  <MenuItem
+                    icon={<Bell className="w-4 h-4" />}
+                    onClick={() => {
+                      window.location.href = '/reminders';
+                      setIsMenuOpen(false);
+                    }}
+                  >
+                    Reminders
                   </MenuItem>
                   <div className="border-t border-white/10 my-2" />
                 </div>

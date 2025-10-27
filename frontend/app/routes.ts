@@ -6,5 +6,6 @@ export default [
   route("/memory", "routes/memory.tsx"),
   route("/documents", "routes/documents.tsx"),
   route("/tasks", "routes/tasks.tsx"),
+  route("/reminders", "routes/reminders.tsx"),
   route("/settings", "routes/settings.tsx"),
 ] satisfies RouteConfig;
