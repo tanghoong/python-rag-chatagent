@@ -201,7 +201,8 @@ def wikipedia_search(query: str) -> str:
     except wikipedia.exceptions.DisambiguationError as e:
         # Multiple options found
         options = e.options[:5]  # Show first 5 options
-        return f"Multiple Wikipedia articles found for '{query}'. Please be more specific. Options: {', '.join(options)}"
+        return f"Multiple Wikipedia articles found for '{query}'. Please be more specific. Options: {
+            ', '.join(options)}"
 
     except wikipedia.exceptions.PageError:
         return f"No Wikipedia article found for '{query}'. Try rephrasing your query."
@@ -296,7 +297,7 @@ def get_all_tools() -> List:
 
     # Add RAG tools if available
     all_tools = basic_tools.copy()
-    
+
     if RAG_TOOLS_AVAILABLE:
         try:
             rag_tools = get_rag_tools()
@@ -304,7 +305,7 @@ def get_all_tools() -> List:
             print(f"✅ Loaded {len(rag_tools)} RAG tools")
         except Exception as e:
             print(f"⚠️ Error loading RAG tools: {str(e)}")
-    
+
     # Add Task tools if available
     if TASK_TOOLS_AVAILABLE:
         try:

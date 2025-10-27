@@ -268,12 +268,12 @@ def smart_search_memory(
 ) -> str:
     """
     AI Agent intelligently searches across BOTH global and chat-specific memory.
-    
+
     This tool AUTOMATICALLY determines the best memory scope to use:
     - Searches BOTH global memory (shared knowledge) AND chat-specific memory
     - Returns the most relevant results from either or both sources
     - Indicates which memory source each result came from
-    
+
     Use this tool instead of search_memory for better conversation quality.
     The AI will automatically get context from the right memory scope.
 
@@ -285,14 +285,14 @@ def smart_search_memory(
         Retrieved memories from both global and chat scopes with source indicators
     """
     all_results = []
-    
+
     # Get chat_id from context variable
     chat_id = current_chat_id.get()
-    
+
     # Get retrieval context to track chunks
     retrieval_ctx = get_retrieval_context()
     retrieval_ctx.add_search(query, "smart_memory")
-    
+
     # Search global memory
     try:
         global_vs = VectorStoreManager(collection_name="global_memory")
@@ -314,7 +314,7 @@ def smart_search_memory(
             )
     except Exception as e:
         print(f"Warning: Could not search global memory: {e}")
-    
+
     # Search chat-specific memory if chat_id available
     if chat_id:
         try:
@@ -337,30 +337,30 @@ def smart_search_memory(
                 )
         except Exception as e:
             print(f"Warning: Could not search chat memory: {e}")
-    
+
     if not all_results:
         return f"No relevant memories found for: {query}"
-    
+
     # Sort by relevance score (lower is better for distance metrics)
     all_results.sort(key=lambda x: x["score"])
-    
+
     # Take top results
     top_results = all_results[:num_results]
-    
+
     output = f"🧠 Smart Search: Found {len(top_results)} relevant memories:\n\n"
-    
+
     for i, result in enumerate(top_results, 1):
         doc = result["doc"]
         score = result["score"]
         source = result["source"]
-        
+
         output += f"{i}. {source} [Relevance: {score:.3f}]\n"
         output += f"   Content: {doc.page_content[:200]}...\n"
-        
+
         if doc.metadata:
             output += f"   Metadata: {doc.metadata}\n"
         output += "\n"
-    
+
     return output
 
 
@@ -399,11 +399,11 @@ def vector_search(
     """
     try:
         vs = VectorStoreManager(collection_name=collection_name)
-        
+
         # Get retrieval context to track chunks
         retrieval_ctx = get_retrieval_context()
         retrieval_ctx.add_search(query, strategy)
-        
+
         # Execute search based on strategy
         results, strategy_name = _execute_search_strategy(
             vs, query, strategy, num_results, diversity
@@ -414,10 +414,10 @@ def vector_search(
 
         # Build output with optimized context and track chunks
         output = _build_search_output(
-            results, 
-            strategy, 
-            strategy_name, 
-            query, 
+            results,
+            strategy,
+            strategy_name,
+            query,
             collection_name,
             retrieval_ctx
         )
@@ -433,11 +433,11 @@ def _execute_search_strategy(vs, query, strategy, num_results, diversity):
     if strategy == "semantic":
         results = vs.search_with_score(query, k=num_results)
         strategy_name = "🔍 Semantic Search"
-        
+
     elif strategy == "keyword":
         results = vs._keyword_search(query, k=num_results)
         strategy_name = "📝 Keyword Search"
-        
+
     elif strategy == "mmr":
         # MMR returns documents without scores
         docs = vs.mmr_search(
@@ -448,11 +448,11 @@ def _execute_search_strategy(vs, query, strategy, num_results, diversity):
         )
         results = [(doc, 0.0) for doc in docs]
         strategy_name = f"🎯 MMR Search (diversity={diversity})"
-        
+
     else:  # hybrid (default)
         results = vs.hybrid_search(query, k=num_results)
         strategy_name = "⚡ Hybrid Search (semantic + keyword)"
-    
+
     return results, strategy_name
 
 
@@ -474,7 +474,7 @@ def _build_search_output(results, strategy, strategy_name, query, collection_nam
         else:
             score_display = f"{score:.3f}"
             actual_score = score
-        
+
         # Track in retrieval context
         retrieval_ctx.add_chunk(
             content=doc.page_content,
@@ -483,20 +483,20 @@ def _build_search_output(results, strategy, strategy_name, query, collection_nam
             metadata=doc.metadata,
             chunk_id=doc.metadata.get('chunk_id') if doc.metadata else None
         )
-        
+
         output += f"{i}. [Relevance: {score_display}]\n"
-        
+
         # Optimize content length for context window
         content = doc.page_content
         remaining_chars = max_context_chars - total_chars
-        
+
         if remaining_chars < 100:
             output += "   ... (context limit reached)\n\n"
             break
-            
+
         if len(content) > remaining_chars:
             content = content[:remaining_chars] + "..."
-        
+
         output += f"   Content: {content}\n"
         total_chars += len(content)
 

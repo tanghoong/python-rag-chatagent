@@ -146,7 +146,10 @@ def get_smart_llm(
         "word_count": analysis_metadata["word_count"]
     }
 
-    print(f"🧠 Smart LLM Selection: {recommended_model} (complexity: {complexity.value}, score: {analysis_metadata['score']})")
+    print(
+        f"🧠 Smart LLM Selection: {recommended_model} (complexity: {
+            complexity.value}, score: {
+            analysis_metadata['score']})")
 
     return llm, metadata
 

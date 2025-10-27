@@ -126,7 +126,7 @@ class MemoryManager:
                         "metadata": doc.metadata,
                         "relevance_score": float(score),
                         "source": f"chat_{self.chat_id}",
-                        "source_indicator": f"💬 Chat Memory"
+                        "source_indicator": "💬 Chat Memory"
                     })
 
             # Sort by relevance score

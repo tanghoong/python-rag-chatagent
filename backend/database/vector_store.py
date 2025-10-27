@@ -241,7 +241,7 @@ class VectorStoreManager:
 
             # Combine and re-rank results
             combined_scores = {}
-            
+
             # Add semantic scores
             for doc, score in semantic_results:
                 doc_id = self._get_doc_id(doc)
@@ -291,28 +291,28 @@ class VectorStoreManager:
         try:
             query_terms = set(query.lower().split())
             all_docs = self.get_all_documents(limit=1000)
-            
+
             scored_docs = []
             for doc_data in all_docs:
                 content = doc_data['content'].lower()
-                
+
                 # Calculate simple term frequency score
                 score = 0.0
                 for term in query_terms:
                     if term in content:
                         # Simple TF scoring
                         score += content.count(term) / len(content.split())
-                
+
                 if score > 0:
                     doc = Document(
                         page_content=doc_data['content'],
                         metadata=doc_data.get('metadata', {})
                     )
                     scored_docs.append((doc, score))
-            
+
             # Sort by score (higher is better)
             scored_docs.sort(key=lambda x: x[1], reverse=True)
-            
+
             return scored_docs[:k]
 
         except Exception as e:
@@ -454,12 +454,12 @@ class VectorStoreManager:
         """
         try:
             collection = self.vector_store._collection
-            
+
             # Get all documents and search for matching memory_id
             # Note: ChromaDB's where clause doesn't work reliably for exact string matches
             # so we fetch all and filter manually
             results = collection.get(include=["documents", "metadatas", "embeddings"])
-            
+
             if results and results['ids']:
                 # Find the document with matching memory_id or ChromaDB ID
                 for i, metadata in enumerate(results['metadatas']):
@@ -470,18 +470,20 @@ class VectorStoreManager:
                             "memory_id": memory_id,
                             "content": results['documents'][i],
                             "metadata": metadata,
-                            "embedding": results['embeddings'][i] if 'embeddings' in results and i < len(results['embeddings']) else None
-                        }
+                            "embedding": results['embeddings'][i] if 'embeddings' in results and i < len(
+                                results['embeddings']) else None}
                     # Fallback: check if ChromaDB ID matches (for old documents without memory_id)
                     elif results['ids'][i] == memory_id:
                         return {
                             "id": results['ids'][i],
-                            "memory_id": metadata.get('memory_id', memory_id),
+                            "memory_id": metadata.get(
+                                'memory_id',
+                                memory_id),
                             "content": results['documents'][i],
                             "metadata": metadata,
-                            "embedding": results['embeddings'][i] if 'embeddings' in results and i < len(results['embeddings']) else None
-                        }
-            
+                            "embedding": results['embeddings'][i] if 'embeddings' in results and i < len(
+                                results['embeddings']) else None}
+
             print(f"⚠️ Memory not found: {memory_id}")
             return None
 
@@ -514,28 +516,28 @@ class VectorStoreManager:
                 return False
 
             collection = self.vector_store._collection
-            
+
             # Prepare updates
             new_content = content if content is not None else existing['content']
             new_metadata = {**existing['metadata']}
-            
+
             if metadata:
                 new_metadata.update(metadata)
-            
+
             # Update timestamp
             from datetime import datetime
             new_metadata['updated_at'] = datetime.now().isoformat()
-            
+
             # Ensure memory_id is preserved (for old documents that might not have it)
             if 'memory_id' not in new_metadata:
                 new_metadata['memory_id'] = memory_id
-            
+
             # If content changed, we need to re-embed
             if content and content != existing['content']:
                 # Delete old and add new with same memory_id
                 print(f"🔄 Re-embedding document (content changed): {memory_id}")
                 collection.delete(ids=[existing['id']])
-                
+
                 doc = Document(
                     page_content=new_content,
                     metadata=new_metadata
@@ -548,7 +550,7 @@ class VectorStoreManager:
                     ids=[existing['id']],
                     metadatas=[new_metadata]
                 )
-            
+
             print(f"✅ Updated memory: {memory_id}")
             return True
 
@@ -579,7 +581,7 @@ class VectorStoreManager:
             chroma_id = existing['id']
             print(f"🗑️ Deleting ChromaDB document with ID: {chroma_id}")
             collection.delete(ids=[chroma_id])
-            
+
             print(f"✅ Deleted memory: {memory_id}")
             return True
 
@@ -602,7 +604,7 @@ class VectorStoreManager:
         try:
             deleted_count = 0
             collection = self.vector_store._collection
-            
+
             chroma_ids = []
             print(f"🗑️ Attempting to delete {len(memory_ids)} memories")
             for memory_id in memory_ids:
@@ -612,11 +614,11 @@ class VectorStoreManager:
                     deleted_count += 1
                 else:
                     print(f"⚠️ Memory not found for deletion: {memory_id}")
-            
+
             if chroma_ids:
                 print(f"🗑️ Deleting {len(chroma_ids)} ChromaDB documents")
                 collection.delete(ids=chroma_ids)
-            
+
             print(f"✅ Bulk deleted {deleted_count} memories")
             return deleted_count
 
@@ -645,19 +647,19 @@ class VectorStoreManager:
         """
         try:
             collection = self.vector_store._collection
-            
+
             # Get total count first for pagination
             if where:
                 all_results = collection.get(where=where, include=["documents", "metadatas"])
             else:
                 all_results = collection.get(include=["documents", "metadatas"])
-            
+
             total = len(all_results['ids'])
-            
+
             # Apply pagination
             start_idx = offset
             end_idx = min(offset + limit, total)
-            
+
             results = []
             for i in range(start_idx, end_idx):
                 results.append({
@@ -666,7 +668,7 @@ class VectorStoreManager:
                     "content": all_results['documents'][i],
                     "metadata": all_results['metadatas'][i]
                 })
-            
+
             return results
 
         except Exception as e:
@@ -685,12 +687,12 @@ class VectorStoreManager:
         """
         try:
             collection = self.vector_store._collection
-            
+
             if where:
                 results = collection.get(where=where)
             else:
                 results = collection.get()
-            
+
             return len(results['ids'])
 
         except Exception as e:
@@ -707,7 +709,7 @@ class VectorStoreManager:
         try:
             collection = self.vector_store._collection
             results = collection.get(include=["metadatas"])
-            
+
             tags = set()
             for metadata in results['metadatas']:
                 if 'tags' in metadata:
@@ -718,7 +720,7 @@ class VectorStoreManager:
                     elif isinstance(metadata['tags'], list):
                         # Legacy support for old list format
                         tags.update(metadata['tags'])
-            
+
             return sorted(tags)
 
         except Exception as e:

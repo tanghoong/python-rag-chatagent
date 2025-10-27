@@ -145,7 +145,48 @@ print("Sample posts inserted!")
 
 ## Running the Server
 
-### Development Mode (with auto-reload)
+### Quick Start Scripts
+
+**Windows:**
+```cmd
+start.bat
+```
+
+**Linux/Mac:**
+```bash
+./start.sh
+```
+
+### Development Helper Script (Linux/Mac)
+
+Use the development helper script for common tasks:
+
+```bash
+# Show available commands
+./dev.sh help
+
+# Run linter
+./dev.sh lint
+
+# Auto-format code
+./dev.sh format
+
+# Start development server
+./dev.sh start
+
+# Install dependencies
+./dev.sh install
+
+# Install dev dependencies
+./dev.sh install-dev
+
+# Clean cache files
+./dev.sh clean
+```
+
+### Manual Start
+
+**Development Mode (with auto-reload)**
 
 **IMPORTANT:** Run from the `backend` directory (not `api` directory):
 
@@ -153,16 +194,43 @@ print("Sample posts inserted!")
 py -m uvicorn api.main:app --reload --host 0.0.0.0 --port 8000
 ```
 
-OR using the quick start script:
-
-```cmd
-start.bat
-```
-
 ### Production Mode
 
 ```cmd
 uvicorn api.main:app --host 0.0.0.0 --port 8000
+```
+
+## Code Quality and Linting
+
+This project uses **flake8** for code linting. See [LINTING.md](LINTING.md) for details.
+
+### Quick Lint Check
+
+**Using the lint script:**
+```bash
+python3 lint.py
+```
+
+**Or using the dev helper:**
+```bash
+./dev.sh lint
+```
+
+### Auto-fix Formatting
+
+```bash
+./dev.sh format
+```
+
+Or manually:
+```bash
+python3 -m autopep8 --in-place --aggressive --aggressive --recursive .
+```
+
+### Install Development Tools
+
+```bash
+pip install -r requirements-dev.txt
 ```
 
 ## Testing the API

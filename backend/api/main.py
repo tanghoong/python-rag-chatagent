@@ -221,7 +221,7 @@ async def chat(chat_message: ChatMessage):
 
         # Get response from agent with conversation history, thought process, LLM metadata, and retrieval context
         response, thought_process, llm_metadata, retrieval_context = get_agent_response(
-            chat_message.message, 
+            chat_message.message,
             chat_history=chat_history,
             chat_id=chat_id
         )
@@ -313,7 +313,7 @@ async def chat_stream(chat_message: ChatMessage):
 
             # Get response from agent with LLM metadata and retrieval context
             response, thought_process, llm_metadata, retrieval_context = get_agent_response(
-                chat_message.message, 
+                chat_message.message,
                 chat_history=chat_history,
                 chat_id=chat_id
             )
@@ -336,9 +336,10 @@ async def chat_stream(chat_message: ChatMessage):
             for line_idx, line in enumerate(lines):
                 words = line.split()
                 for i, word in enumerate(words):
-                    yield f"data: {json.dumps({'type': 'token', 'content': word + (' ' if i < len(words) - 1 else '')})}\n\n"
+                    token_content = word + (' ' if i < len(words) - 1 else '')
+                    yield f"data: {json.dumps({'type': 'token', 'content': token_content})}\n\n"
                     await asyncio.sleep(0.05)  # Small delay between words for streaming effect
-                
+
                 # Add newline after each line except the last one
                 if line_idx < len(lines) - 1:
                     yield f"data: {json.dumps({'type': 'token', 'content': '\n'})}\n\n"
@@ -643,7 +644,7 @@ async def regenerate_message(chat_id: str, message_id: str):
 
         # Generate new response with conversation history, thought process, LLM metadata, and retrieval context
         response, thought_process, llm_metadata, retrieval_context = get_agent_response(
-            last_message.content, 
+            last_message.content,
             chat_history=chat_history,
             chat_id=chat_id
         )
@@ -841,8 +842,9 @@ async def list_documents(collection_name: str = "global_memory", limit: int = 10
         grouped_docs = {}
         for doc in documents:
             metadata = doc.get("metadata", {})
-            filename = metadata.get("original_filename") or metadata.get("filename") or metadata.get("source", "Unknown")
-            
+            filename = metadata.get("original_filename") or metadata.get(
+                "filename") or metadata.get("source", "Unknown")
+
             if filename not in grouped_docs:
                 grouped_docs[filename] = {
                     "filename": filename,
@@ -852,7 +854,7 @@ async def list_documents(collection_name: str = "global_memory", limit: int = 10
                     "total_chars": 0,
                     "metadata": metadata
                 }
-            
+
             grouped_docs[filename]["chunks"] += 1
             grouped_docs[filename]["total_chars"] += len(doc.get("content", ""))
 
@@ -888,18 +890,18 @@ async def delete_document(collection_name: str, filename: str):
         from database.vector_store import VectorStoreManager
 
         vs = VectorStoreManager(collection_name=collection_name)
-        
+
         # Get all documents
         all_docs = vs.get_all_documents(limit=1000)
-        
+
         # Find IDs of chunks belonging to this filename
         ids_to_delete = []
         chunks_found = 0
-        
+
         for i, doc in enumerate(all_docs):
             metadata = doc.get("metadata", {})
             doc_filename = metadata.get("original_filename") or metadata.get("filename") or metadata.get("source")
-            
+
             if doc_filename == filename:
                 # Generate ID (this is a simplified approach - in production, store actual IDs)
                 ids_to_delete.append(str(i))
@@ -969,7 +971,7 @@ async def bulk_delete_documents(
             for i, doc in enumerate(all_docs):
                 metadata = doc.get("metadata", {})
                 doc_filename = metadata.get("original_filename") or metadata.get("filename") or metadata.get("source")
-                
+
                 if doc_filename == filename:
                     ids_to_delete.append(str(i))
                     chunks_found += 1
@@ -1029,7 +1031,7 @@ async def preview_document(collection_name: str, filename: str, max_chars: int =
         for doc in all_docs:
             metadata = doc.get("metadata", {})
             doc_filename = metadata.get("original_filename") or metadata.get("filename") or metadata.get("source")
-            
+
             if doc_filename == filename:
                 file_chunks.append({
                     "content": doc.get("content", ""),
@@ -1558,7 +1560,7 @@ async def update_memory(
         updated = vs.get_document_by_id(memory_id)
         if not updated:
             raise HTTPException(status_code=500, detail="Failed to retrieve updated memory")
-        
+
         metadata = updated.get("metadata", {})
 
         return {
@@ -1734,10 +1736,10 @@ async def list_collection_memories(
 async def create_task(task_data: TaskCreate):
     """
     Create a new task
-    
+
     Args:
         task_data: Task creation data
-        
+
     Returns:
         Created task
     """
@@ -1763,7 +1765,7 @@ async def list_tasks(
 ):
     """
     List tasks with pagination and filters
-    
+
     Args:
         page: Page number (1-indexed)
         page_size: Number of tasks per page
@@ -1771,14 +1773,14 @@ async def list_tasks(
         priority: Filter by priority
         tags: Filter by tags (comma-separated)
         search: Text search in title/description
-        
+
     Returns:
         Paginated list of tasks
     """
     try:
         # Parse tags
         tag_list = [tag.strip() for tag in tags.split(",")] if tags else None
-        
+
         # Get tasks
         tasks, total = await task_repository.list(
             page=page,
@@ -1788,10 +1790,10 @@ async def list_tasks(
             tags=tag_list,
             search=search
         )
-        
+
         # Calculate total pages
         total_pages = (total + page_size - 1) // page_size
-        
+
         return TaskListResponse(
             tasks=tasks,
             total=total,
@@ -1810,10 +1812,10 @@ async def list_tasks(
 async def get_task(task_id: str):
     """
     Get specific task by ID
-    
+
     Args:
         task_id: Task identifier
-        
+
     Returns:
         Task details
     """
@@ -1838,11 +1840,11 @@ async def get_task(task_id: str):
 async def update_task(task_id: str, task_update: TaskUpdate):
     """
     Update task
-    
+
     Args:
         task_id: Task identifier
         task_update: Update data
-        
+
     Returns:
         Updated task
     """
@@ -1867,10 +1869,10 @@ async def update_task(task_id: str, task_update: TaskUpdate):
 async def delete_task(task_id: str):
     """
     Delete task
-    
+
     Args:
         task_id: Task identifier
-        
+
     Returns:
         Success status
     """
@@ -1895,10 +1897,10 @@ async def delete_task(task_id: str):
 async def bulk_delete_tasks(request: TaskBulkDeleteRequest):
     """
     Bulk delete tasks
-    
+
     Args:
         request: Bulk delete request with task IDs
-        
+
     Returns:
         Number of tasks deleted
     """
@@ -1920,11 +1922,11 @@ async def bulk_delete_tasks(request: TaskBulkDeleteRequest):
 async def update_task_status(task_id: str, status_update: TaskStatusUpdate):
     """
     Quick status update for a task
-    
+
     Args:
         task_id: Task identifier
         status_update: New status
-        
+
     Returns:
         Updated task
     """
@@ -1949,7 +1951,7 @@ async def update_task_status(task_id: str, status_update: TaskStatusUpdate):
 async def get_task_tags():
     """
     Get all unique task tags
-    
+
     Returns:
         List of unique tags
     """
@@ -1967,7 +1969,7 @@ async def get_task_tags():
 async def get_task_stats():
     """
     Get task statistics
-    
+
     Returns:
         Task statistics including counts by status and priority
     """
