@@ -6,6 +6,7 @@ import { ChatMessage } from "../components/ChatMessage";
 import { ChatInput } from "../components/ChatInput";
 import { ChatSidebar } from "../components/ChatSidebar";
 import { ShortcutsHelp } from "../components/ShortcutsHelp";
+import { ReminderSidebar } from "../components/ReminderSidebar";
 import { useChatSession } from "../hooks/useChatSession";
 import { useKeyboardShortcuts } from "../hooks/useKeyboardShortcuts";
 
@@ -38,6 +39,7 @@ export default function Chat() {
   const [showShortcuts, setShowShortcuts] = useState(false);
   const [showSearch, setShowSearch] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [reminderSidebarOpen, setReminderSidebarOpen] = useState(true);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -216,6 +218,15 @@ export default function Chat() {
         },
         description: "Set custom instructions",
       },
+      {
+        key: "r",
+        ctrlKey: true,
+        shiftKey: true,
+        handler: () => {
+          setReminderSidebarOpen((prev) => !prev);
+        },
+        description: "Toggle reminder sidebar",
+      },
     ],
   });
 
@@ -268,7 +279,11 @@ export default function Chat() {
       />
 
       {/* Main Chat Area - Center Column */}
-      <div className="relative z-10 flex-1 flex flex-col lg:ml-64 lg:mr-64 overflow-hidden">
+      <div className={`relative z-10 flex-1 flex flex-col overflow-hidden transition-all duration-300 ${
+        sidebarOpen ? 'lg:ml-64' : 'lg:ml-0'
+      } ${
+        reminderSidebarOpen ? 'lg:mr-80' : 'lg:mr-0'
+      }`}>
         <div className="flex-1 flex flex-col w-full overflow-hidden">
           {/* Messages Container with bottom padding for fixed input */}
           <div 
@@ -339,7 +354,11 @@ export default function Chat() {
           />
 
           {/* Input - Fixed at bottom */}
-          <div className="fixed bottom-0 left-0 right-0 lg:left-64 lg:right-64 z-20 px-3 sm:px-6 lg:px-8 pb-3 sm:pb-4 pt-2 bg-linear-to-t from-black/80 via-black/50 to-transparent backdrop-blur-sm">
+          <div className={`fixed bottom-0 left-0 right-0 z-20 px-3 sm:px-6 lg:px-8 pb-3 sm:pb-4 pt-2 bg-linear-to-t from-black/80 via-black/50 to-transparent backdrop-blur-sm transition-all duration-300 ${
+            sidebarOpen ? 'lg:left-64' : 'lg:left-0'
+          } ${
+            reminderSidebarOpen ? 'lg:right-80' : 'lg:right-0'
+          }`}>
             <div className="w-full mx-auto">
               <ChatInput 
                 onSend={handleSendMessage} 
@@ -353,12 +372,22 @@ export default function Chat() {
         </div>
       </div>
 
-      {/* Right Sidebar - Reserved for future features */}
-      <aside className="hidden lg:block fixed top-14 right-0 h-[calc(100vh-3.5rem)] w-64 bg-black/40 backdrop-blur-xl z-40">
-        <div className="p-4 h-full flex items-center justify-center">
-          <p className="text-gray-500 text-sm text-center">Additional features<br />coming soon</p>
-        </div>
-      </aside>
+      {/* Right Sidebar - Reminder System */}
+      {reminderSidebarOpen && (
+        <aside className="hidden lg:block fixed top-14 right-0 h-[calc(100vh-3.5rem)] w-80 bg-white border-l border-gray-200 z-40 shadow-xl animate-slide-in-right">
+          <ReminderSidebar
+            onCreateReminder={() => {
+              // Navigate to reminders page or open create modal
+              window.location.href = '/reminders';
+            }}
+            onEditReminder={(reminder) => {
+              // Navigate to reminders page with edit mode
+              window.location.href = `/reminders?edit=${reminder.id}`;
+            }}
+            isVisible={true}
+          />
+        </aside>
+      )}
 
       {/* Keyboard Shortcuts Help Modal */}
       <ShortcutsHelp isOpen={showShortcuts} onClose={() => setShowShortcuts(false)} />

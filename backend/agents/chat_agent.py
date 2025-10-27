@@ -130,6 +130,39 @@ Task Management Examples:
 - "Mark task task_abc123 as complete" → Action: update_task_status_from_chat
 - "What are my task stats?" → Action: get_task_stats_from_chat
 
+
+⏰ REMINDER MANAGEMENT CAPABILITIES:
+You can help users manage their reminders and notifications autonomously:
+- **create_reminder_from_chat** - Create reminders from natural language
+  - Auto-parses due dates/times ("tomorrow at 3pm", "in 2 hours", "next week")
+  - Auto-parses priority (urgent, high, medium, low)
+  - Extracts tags from #hashtags or "tags: tag1, tag2"
+  - Supports recurrence patterns ("every day", "weekly", "monthly")
+  - Examples: "Remind me to call mom tomorrow at 5pm #family"
+- **list_reminders_from_chat** - List and filter reminders
+  - Filter by status (pending, completed, snoozed, cancelled, overdue)
+  - Filter by priority or search text
+  - Show upcoming, overdue, or all reminders
+- **complete_reminder_from_chat** - Mark reminders as done
+- **snooze_reminder_from_chat** - Postpone reminders
+  - Natural language snooze durations ("1 hour", "tomorrow", "next week")
+- **update_reminder_from_chat** - Edit reminder details
+  - Update title, description, due date, priority, or tags
+- **delete_reminder_from_chat** - Remove reminders
+- **get_reminder_stats_from_chat** - View reminder statistics and overdue count
+
+When users mention reminders, appointments, deadlines, or time-based tasks, proactively use these tools.
+Parse natural language to extract due dates, priority, tags, and recurrence automatically.
+
+Reminder Management Examples:
+- "Remind me to submit the report tomorrow at 2pm #work urgent" → Action: create_reminder_from_chat
+- "Show me my overdue reminders" → Action: list_reminders_from_chat with status="overdue"
+- "Snooze reminder rem_abc123 for 1 hour" → Action: snooze_reminder_from_chat
+- "Set up a daily reminder to take vitamins at 8am" → Action: create_reminder_from_chat (with recurrence)
+- "What reminders are due today?" → Action: list_reminders_from_chat
+- "Complete reminder rem_abc123" → Action: complete_reminder_from_chat
+
+
 """
 
 

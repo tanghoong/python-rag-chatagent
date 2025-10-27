@@ -1,0 +1,7 @@
+- Color of text in input need to have clear contrast.
+- prepare the template of the text to show faster.
+- Improve the UIUX
+- Clean database before demostartion.
+- Improve the memory mangement.
+- Improve the Tasks management.
+- right sidebar (need update Additional features coming soon)

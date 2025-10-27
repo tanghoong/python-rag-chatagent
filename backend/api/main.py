@@ -30,6 +30,7 @@ from database.chat_repository import (
     get_recent_message_stats
 )
 from database.task_repository import task_repository
+from database.reminder_repository import reminder_repository
 from models.chat_models import (
     Message,
     CreateChatRequest,
@@ -46,6 +47,18 @@ from models.task_models import (
     BulkDeleteRequest as TaskBulkDeleteRequest,
     TaskStatus,
     TaskPriority
+)
+from models.reminder_models import (
+    Reminder,
+    ReminderCreate,
+    ReminderUpdate,
+    ReminderListResponse,
+    ReminderStatsResponse,
+    BulkDeleteRequest as ReminderBulkDeleteRequest,
+    SnoozeRequest,
+    ReminderStatus,
+    ReminderPriority,
+    RecurrenceType
 )
 from models.usage_models import UsageStatsResponse
 from utils.title_generator import generate_chat_title
@@ -1967,6 +1980,320 @@ async def get_task_stats():
         raise HTTPException(
             status_code=500,
             detail=f"Error retrieving task statistics: {str(e)}"
+        )
+
+
+# =============================================================================
+# REMINDER ENDPOINTS
+# =============================================================================
+
+@app.post("/api/reminders/create", response_model=Reminder, tags=["Reminders"])
+async def create_reminder(reminder_data: ReminderCreate):
+    """
+    Create a new reminder
+    
+    Args:
+        reminder_data: Reminder creation data
+        
+    Returns:
+        Created reminder
+    """
+    try:
+        await reminder_repository.ensure_indexes()
+        reminder = await reminder_repository.create(reminder_data)
+        return reminder
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Error creating reminder: {str(e)}"
+        )
+
+
+@app.get("/api/reminders/list", response_model=ReminderListResponse, tags=["Reminders"])
+async def list_reminders(
+    page: int = 1,
+    page_size: int = 20,
+    status: Optional[ReminderStatus] = None,
+    priority: Optional[ReminderPriority] = None,
+    tags: Optional[str] = None,
+    search: Optional[str] = None,
+    due_before: Optional[str] = None,
+    due_after: Optional[str] = None,
+    overdue_only: bool = False,
+    pending_only: bool = False
+):
+    """
+    List reminders with pagination and filters
+    
+    Args:
+        page: Page number (1-based)
+        page_size: Items per page (max 100)
+        status: Filter by status
+        priority: Filter by priority
+        tags: Comma-separated list of tags to filter by
+        search: Search in title and description
+        due_before: Filter reminders due before this ISO date
+        due_after: Filter reminders due after this ISO date
+        overdue_only: Show only overdue reminders
+        pending_only: Show only pending reminders
+        
+    Returns:
+        Paginated list of reminders
+    """
+    try:
+        # Validate page size
+        if page_size > 100:
+            page_size = 100
+        
+        # Parse tags
+        tag_list = [tag.strip() for tag in tags.split(",")] if tags else None
+        
+        # Parse dates
+        from datetime import datetime
+        due_before_dt = datetime.fromisoformat(due_before.replace('Z', '+00:00')) if due_before else None
+        due_after_dt = datetime.fromisoformat(due_after.replace('Z', '+00:00')) if due_after else None
+        
+        result = await reminder_repository.list(
+            page=page,
+            page_size=page_size,
+            status=status,
+            priority=priority,
+            tags=tag_list,
+            search=search,
+            due_before=due_before_dt,
+            due_after=due_after_dt,
+            overdue_only=overdue_only,
+            pending_only=pending_only
+        )
+        
+        return ReminderListResponse(**result)
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Error listing reminders: {str(e)}"
+        )
+
+
+@app.get("/api/reminders/pending", response_model=List[Reminder], tags=["Reminders"])
+async def get_pending_reminders(limit: int = 50):
+    """
+    Get pending/due reminders
+    
+    Args:
+        limit: Maximum number of reminders to return
+        
+    Returns:
+        List of pending reminders that should be shown/notified
+    """
+    try:
+        reminders = await reminder_repository.get_pending_reminders(limit)
+        return reminders
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Error retrieving pending reminders: {str(e)}"
+        )
+
+
+@app.get("/api/reminders/{reminder_id}", response_model=Reminder, tags=["Reminders"])
+async def get_reminder(reminder_id: str):
+    """
+    Get specific reminder by ID
+    
+    Args:
+        reminder_id: Reminder identifier
+        
+    Returns:
+        Reminder details
+    """
+    try:
+        reminder = await reminder_repository.get_by_id(reminder_id)
+        if not reminder:
+            raise HTTPException(
+                status_code=404,
+                detail="Reminder not found"
+            )
+        return reminder
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Error retrieving reminder: {str(e)}"
+        )
+
+
+@app.put("/api/reminders/{reminder_id}", response_model=Reminder, tags=["Reminders"])
+async def update_reminder(reminder_id: str, reminder_update: ReminderUpdate):
+    """
+    Update reminder
+    
+    Args:
+        reminder_id: Reminder identifier
+        reminder_update: Update data
+        
+    Returns:
+        Updated reminder
+    """
+    try:
+        reminder = await reminder_repository.update(reminder_id, reminder_update)
+        if not reminder:
+            raise HTTPException(
+                status_code=404,
+                detail="Reminder not found"
+            )
+        return reminder
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Error updating reminder: {str(e)}"
+        )
+
+
+@app.delete("/api/reminders/{reminder_id}", tags=["Reminders"])
+async def delete_reminder(reminder_id: str):
+    """
+    Delete reminder
+    
+    Args:
+        reminder_id: Reminder identifier
+        
+    Returns:
+        Success message
+    """
+    try:
+        deleted = await reminder_repository.delete(reminder_id)
+        if not deleted:
+            raise HTTPException(
+                status_code=404,
+                detail="Reminder not found"
+            )
+        return {"message": "Reminder deleted successfully"}
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Error deleting reminder: {str(e)}"
+        )
+
+
+@app.post("/api/reminders/bulk-delete", tags=["Reminders"])
+async def bulk_delete_reminders(request: ReminderBulkDeleteRequest):
+    """
+    Bulk delete reminders
+    
+    Args:
+        request: List of reminder IDs to delete
+        
+    Returns:
+        Number of reminders deleted
+    """
+    try:
+        deleted_count = await reminder_repository.bulk_delete(request.reminder_ids)
+        return {
+            "message": f"Successfully deleted {deleted_count} reminders",
+            "deleted_count": deleted_count
+        }
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Error bulk deleting reminders: {str(e)}"
+        )
+
+
+@app.patch("/api/reminders/{reminder_id}/complete", tags=["Reminders"])
+async def complete_reminder(reminder_id: str):
+    """
+    Mark reminder as completed
+    
+    Args:
+        reminder_id: Reminder identifier
+        
+    Returns:
+        Success message
+    """
+    try:
+        updated = await reminder_repository.update_status(reminder_id, ReminderStatus.COMPLETED)
+        if not updated:
+            raise HTTPException(
+                status_code=404,
+                detail="Reminder not found"
+            )
+        return {"message": "Reminder marked as completed"}
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Error completing reminder: {str(e)}"
+        )
+
+
+@app.patch("/api/reminders/{reminder_id}/snooze", tags=["Reminders"])
+async def snooze_reminder(reminder_id: str, snooze_request: SnoozeRequest):
+    """
+    Snooze reminder
+    
+    Args:
+        reminder_id: Reminder identifier
+        snooze_request: Snooze configuration
+        
+    Returns:
+        Success message
+    """
+    try:
+        snoozed = await reminder_repository.snooze(reminder_id, snooze_request.snooze_until)
+        if not snoozed:
+            raise HTTPException(
+                status_code=404,
+                detail="Reminder not found"
+            )
+        return {"message": f"Reminder snoozed until {snooze_request.snooze_until}"}
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Error snoozing reminder: {str(e)}"
+        )
+
+
+@app.get("/api/reminders/tags/list", response_model=List[str], tags=["Reminders"])
+async def get_reminder_tags():
+    """
+    Get all unique reminder tags
+    
+    Returns:
+        List of unique tags
+    """
+    try:
+        tags = await reminder_repository.get_all_tags()
+        return tags
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Error retrieving reminder tags: {str(e)}"
+        )
+
+
+@app.get("/api/reminders/stats/summary", response_model=ReminderStatsResponse, tags=["Reminders"])
+async def get_reminder_stats():
+    """
+    Get reminder statistics
+    
+    Returns:
+        Reminder statistics including counts by status and priority
+    """
+    try:
+        stats = await reminder_repository.get_stats()
+        return ReminderStatsResponse(**stats)
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Error retrieving reminder statistics: {str(e)}"
         )
 
 
