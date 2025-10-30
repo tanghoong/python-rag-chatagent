@@ -1,12 +1,15 @@
 import { useEffect, useRef, useState } from "react";
 import type { Route } from "./+types/chat";
 import { toast } from "sonner";
+import { ArrowDown, ArrowUp } from "lucide-react";
 import { AnimatedBackground } from "../components/AnimatedBackground";
 import { ChatMessage } from "../components/ChatMessage";
 import { ChatInput } from "../components/ChatInput";
 import { ChatSidebar } from "../components/ChatSidebar";
 import { ShortcutsHelp } from "../components/ShortcutsHelp";
 import { ReminderSidebar } from "../components/ReminderSidebar";
+import { TypingIndicator } from "../components/TypingIndicator";
+import { StreamingProgressIndicator } from "../components/StreamingProgressIndicator";
 import { useChatSession } from "../hooks/useChatSession";
 import { useKeyboardShortcuts } from "../hooks/useKeyboardShortcuts";
 
@@ -22,6 +25,7 @@ export default function Chat() {
     activeChatId,
     messages,
     loading,
+    processingState,
     sendMessage,
     cancelMessage,
     createNewChat,
@@ -43,24 +47,114 @@ export default function Chat() {
   const [reminderSidebarOpen, setReminderSidebarOpen] = useState(true);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [isUserScrolling, setIsUserScrolling] = useState(false);
+  const [isAtBottom, setIsAtBottom] = useState(true);
 
-  // Auto-scroll to bottom when new messages arrive
+  // Improved scroll to bottom function with retry mechanism
+  const scrollToBottom = (behavior: ScrollBehavior = "smooth") => {
+    const container = messagesContainerRef.current;
+    if (container) {
+      // Use scrollTo for more reliable scrolling
+      container.scrollTo({
+        top: container.scrollHeight,
+        behavior
+      });
+      
+      // For smooth scrolling, verify we actually scrolled and retry if needed
+      if (behavior === "smooth") {
+        setTimeout(() => {
+          const { scrollTop, scrollHeight, clientHeight } = container;
+          const distanceFromBottom = scrollHeight - scrollTop - clientHeight;
+          
+          // If still not at bottom after smooth scroll, try again with instant
+          if (distanceFromBottom > 10) {
+            container.scrollTo({
+              top: container.scrollHeight,
+              behavior: "instant"
+            });
+          }
+        }, 500); // Wait for smooth scroll to complete
+      }
+    }
+  };
+
+  // Detect if user has scrolled up with improved logic
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages, loading]);
+    const container = messagesContainerRef.current;
+    if (!container) return;
 
-  // Auto-scroll to bottom when switching chats - wait for code blocks to render
+    let scrollTimeout: NodeJS.Timeout;
+    
+    const handleScroll = () => {
+      const { scrollTop, scrollHeight, clientHeight } = container;
+      const distanceFromBottom = scrollHeight - scrollTop - clientHeight;
+
+  // Track whether we're close to the bottom
+  const atBottom = distanceFromBottom <= 80;
+  setIsAtBottom(atBottom);
+
+      // Clear any existing timeout
+      if (scrollTimeout) {
+        clearTimeout(scrollTimeout);
+      }
+
+      // Track if user is actively scrolling with debouncing
+      if (distanceFromBottom > 30) {
+        setIsUserScrolling(true);
+        // Auto-reset scrolling state after 3 seconds of no scroll
+        scrollTimeout = setTimeout(() => {
+          setIsUserScrolling(false);
+        }, 3000);
+      } else {
+        setIsUserScrolling(false);
+      }
+    };
+
+    container.addEventListener("scroll", handleScroll, { passive: true });
+    return () => {
+      container.removeEventListener("scroll", handleScroll);
+      if (scrollTimeout) {
+        clearTimeout(scrollTimeout);
+      }
+    };
+  }, []);
+
+  // Auto-scroll to bottom when new messages arrive with improved timing
+  useEffect(() => {
+    if (!isUserScrolling && messages.length > 0) {
+      // Use requestAnimationFrame for better timing
+      requestAnimationFrame(() => {
+        scrollToBottom("smooth");
+      });
+    }
+  }, [messages, loading, isUserScrolling]);
+
+  // Auto-scroll to bottom when switching chats - improved timing and reliability
   useEffect(() => {
     if (activeChatId) {
-      // Wait for DOM updates and code block rendering
+      setIsUserScrolling(false); // Reset scroll tracking on chat switch
+      
+      // Wait for DOM updates and code block rendering with multiple check points
       const scrollTimer = setTimeout(() => {
-        messagesEndRef.current?.scrollIntoView({ behavior: "instant" });
+        scrollToBottom("instant");
         
-        // Focus input after scrolling completes
+        // Double-check scroll position after a short delay
         setTimeout(() => {
+          const container = messagesContainerRef.current;
+          if (container) {
+            const { scrollTop, scrollHeight, clientHeight } = container;
+            const distanceFromBottom = scrollHeight - scrollTop - clientHeight;
+            
+            // If still not at bottom, scroll again
+            if (distanceFromBottom > 10) {
+              scrollToBottom("smooth");
+            }
+          }
+          
+          // Focus input after scrolling completes
           inputRef.current?.focus();
-        }, 200);
-      }, 300);
+        }, 150);
+      }, 200);
 
       return () => clearTimeout(scrollTimer);
     }
@@ -123,6 +217,52 @@ export default function Chat() {
 
   const handleChatSelect = (chatId: string) => {
     switchChat(chatId);
+  };
+
+  // Helper function to format date separators
+  const formatDateSeparator = (date: string | undefined) => {
+    if (!date) return null;
+    const messageDate = new Date(date);
+    const today = new Date();
+    const yesterday = new Date(today);
+    yesterday.setDate(yesterday.getDate() - 1);
+
+    // Reset time to compare dates only
+    const resetTime = (d: Date) => {
+      d.setHours(0, 0, 0, 0);
+      return d;
+    };
+
+    const messageDateOnly = resetTime(new Date(messageDate));
+    const todayOnly = resetTime(new Date(today));
+    const yesterdayOnly = resetTime(new Date(yesterday));
+
+    if (messageDateOnly.getTime() === todayOnly.getTime()) {
+      return "Today";
+    } else if (messageDateOnly.getTime() === yesterdayOnly.getTime()) {
+      return "Yesterday";
+    } else {
+      return messageDate.toLocaleDateString("en-US", {
+        month: "long",
+        day: "numeric",
+        year: messageDate.getFullYear() !== today.getFullYear() ? "numeric" : undefined,
+      });
+    }
+  };
+
+  // Check if date separator should be shown
+  const shouldShowDateSeparator = (currentIndex: number) => {
+    if (currentIndex === 0) return true;
+    
+    const currentMessage = messages[currentIndex];
+    const previousMessage = messages[currentIndex - 1];
+    
+    if (!currentMessage?.created_at || !previousMessage?.created_at) return false;
+    
+    const currentDate = new Date(currentMessage.created_at).toDateString();
+    const previousDate = new Date(previousMessage.created_at).toDateString();
+    
+    return currentDate !== previousDate;
   };
 
   // Keyboard shortcuts
@@ -309,10 +449,10 @@ export default function Chat() {
         reminderSidebarOpen ? 'lg:mr-80' : 'lg:mr-0'
       }`}>
         <div className="flex-1 flex flex-col w-full overflow-hidden">
-          {/* Messages Container with bottom padding for fixed input */}
+          {/* Messages Container with improved padding for scrolling */}
           <div 
             ref={messagesContainerRef}
-            className="flex-1 overflow-y-auto scrollbar-hover space-y-2 sm:space-y-3 px-3 sm:px-6 lg:px-8 py-2 sm:py-4 pb-24 sm:pb-28 min-h-0"
+            className="relative flex-1 overflow-y-auto scrollbar-hover space-y-2 sm:space-y-3 px-3 sm:px-6 lg:px-8 py-2 sm:py-4 pb-32 sm:pb-36 min-h-0 scroll-smooth"
           >
             {messages.length === 0 && (
               <div className="flex items-center justify-center h-full mt-20">
@@ -334,33 +474,110 @@ export default function Chat() {
                 }
               }
               const isLastUserMessage = index === lastUserMessageIndex;
+              const showDateSeparator = shouldShowDateSeparator(index);
+
+              // Determine message status for user messages
+              const getMessageStatus = () => {
+                if (message.role !== "user") return undefined;
+                if (loading && isLastUserMessage) return 'sending';
+                return 'delivered';
+              };
 
               return (
-                <ChatMessage 
-                  key={message.id || index}
-                  role={message.role === "assistant" ? "bot" : message.role} 
-                  content={message.content}
-                  messageId={message.id}
-                  chatId={activeChatId || undefined}
-                  thoughtProcess={message.thought_process}
-                  llmMetadata={message.llm_metadata}
-                  retrievalContext={message.retrieval_context}
-                  isLastMessage={isLastMessage}
-                  isLastUserMessage={isLastUserMessage}
-                  timestamp={message.created_at || message.timestamp}
-                  onEdit={editMessage}
-                  onRegenerate={handleRegenerate}
-                  onDelete={deleteMessage}
-                  onRetrievalFeedback={(chunkId, helpful) => {
-                    console.log(`Chunk ${chunkId} marked as ${helpful ? 'helpful' : 'not helpful'}`);
-                    // TODO: Implement feedback API call
-                  }}
-                />
+                <div key={message.id || index}>
+                  {/* Date Separator */}
+                  {showDateSeparator && (
+                    <div className="flex items-center justify-center my-4 sm:my-6">
+                      <div className="bg-white/10 backdrop-blur-sm rounded-full px-4 py-1.5">
+                        <span className="text-xs sm:text-sm text-white/60 font-medium">
+                          {formatDateSeparator(message.created_at || message.timestamp)}
+                        </span>
+                      </div>
+                    </div>
+                  )}
+                  
+                  <ChatMessage 
+                    role={message.role === "assistant" ? "bot" : message.role} 
+                    content={message.content}
+                    messageId={message.id}
+                    chatId={activeChatId || undefined}
+                    thoughtProcess={message.thought_process}
+                    llmMetadata={message.llm_metadata}
+                    retrievalContext={message.retrieval_context}
+                    isLastMessage={isLastMessage}
+                    isLastUserMessage={isLastUserMessage}
+                    timestamp={message.created_at || message.timestamp}
+                    messageStatus={getMessageStatus()}
+                    onEdit={editMessage}
+                    onRegenerate={handleRegenerate}
+                    onDelete={deleteMessage}
+                    onRetrievalFeedback={(chunkId, helpful) => {
+                      console.log(`Chunk ${chunkId} marked as ${helpful ? 'helpful' : 'not helpful'}`);
+                      // TODO: Implement feedback API call
+                    }}
+                  />
+                </div>
               );
             })}
 
+            {/* Typing Indicator */}
+            {loading && (
+              <TypingIndicator 
+                processingState={processingState}
+                isVisible={loading}
+              />
+            )}
+
+            {/* Streaming Progress Indicator */}
+            {loading && (
+              <StreamingProgressIndicator 
+                isStreaming={loading}
+                contentLength={messages.length > 0 ? messages.at(-1)?.content?.length || 0 : 0}
+                processingState={processingState}
+              />
+            )}
+
             <div ref={messagesEndRef} />
           </div>
+
+          {/* Fixed scroll toggle button - positioned at right edge, outside scrolling container */}
+          {messages.length > 0 && (
+            <button
+              onClick={() => {
+                const container = messagesContainerRef.current;
+                if (!container) return;
+
+                if (isAtBottom) {
+                  // Scroll to top
+                  container.scrollTo({ top: 0, behavior: 'smooth' });
+                  // update state optimistically
+                  setIsAtBottom(false);
+                } else {
+                  // Scroll to bottom
+                  scrollToBottom('smooth');
+                  setIsAtBottom(true);
+                }
+              }}
+              className={`fixed bottom-32 sm:bottom-40 z-40 bg-linear-to-r from-purple-500 to-blue-500 hover:from-purple-600 hover:to-blue-600 text-white rounded-full w-10 h-10 flex items-center justify-center shadow-lg shadow-purple-500/30 hover:shadow-purple-500/50 transition-transform duration-200 transform hover:scale-105 ${
+                (() => {
+                  if (sidebarOpen && reminderSidebarOpen) {
+                    return 'right-84 lg:right-88';
+                  } else if (reminderSidebarOpen) {
+                    return 'right-72 lg:right-84';
+                  } else {
+                    return 'right-4 lg:right-6';
+                  }
+                })()
+              }`}
+              aria-label={isAtBottom ? 'Scroll to top' : 'Jump to latest message'}
+            >
+              {isAtBottom ? (
+                <ArrowUp className="w-5 h-5" />
+              ) : (
+                <ArrowDown className="w-5 h-5" />
+              )}
+            </button>
+          )}
 
           {/* Hidden file input for Ctrl+U shortcut */}
           <input
@@ -398,7 +615,7 @@ export default function Chat() {
 
       {/* Right Sidebar - Reminder System */}
       {reminderSidebarOpen && (
-        <aside className="hidden lg:block fixed top-14 right-0 h-[calc(100vh-3.5rem)] w-80 bg-white border-l border-gray-200 z-40 shadow-xl animate-slide-in-right">
+        <aside className="hidden lg:block fixed top-14 right-0 h-[calc(100vh-3.5rem)] w-80 bg-white border-l border-gray-200 z-20 shadow-xl animate-slide-in-right">
           <ReminderSidebar
             onCreateReminder={() => {
               // Navigate to reminders page or open create modal

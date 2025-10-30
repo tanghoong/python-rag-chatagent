@@ -74,6 +74,7 @@ export function useChatSession() {
   const [activeChatId, setActiveChatId] = useLocalStorage<string | null>("activeChatId", null);
   const [messages, setMessages] = useState<Message[]>([]);
   const [loading, setLoading] = useState(false);
+  const [processingState, setProcessingState] = useState<'thinking' | 'searching' | 'generating' | 'processing' | null>(null);
   const [abortController, setAbortController] = useState<AbortController | null>(null);
 
   // Load chat session when activeChatId changes
@@ -172,6 +173,7 @@ export function useChatSession() {
 
     try {
       setLoading(true);
+      setProcessingState('thinking');
       const controller = new AbortController();
       setAbortController(controller);
 
@@ -247,16 +249,23 @@ export function useChatSession() {
                     case "retrieval_context":
                       if (event.context) {
                         currentRetrievalContext = event.context;
+                        setProcessingState('searching');
                       }
                       break;
 
                     case "thought_process":
                       if (event.steps) {
                         currentThoughtProcess = event.steps;
+                        setProcessingState('thinking');
                       }
                       break;
 
                     case "token":
+                      // Switch to generating state when we start receiving tokens
+                      if (event.content && processingState !== 'generating') {
+                        setProcessingState('generating');
+                      }
+                      
                       if (event.content) {
                         accumulatedContent += event.content;
                         
@@ -288,6 +297,7 @@ export function useChatSession() {
 
                     case "done":
                       // Final update with complete message
+                      setProcessingState(null);
                       if (streamingMessageIndex !== -1) {
                         setMessages((prev) => {
                           const updated = [...prev];
@@ -332,6 +342,7 @@ export function useChatSession() {
     } finally {
       setAbortController(null);
       setLoading(false);
+      setProcessingState(null);
     }
   };
 
@@ -450,6 +461,7 @@ export function useChatSession() {
     activeChatId,
     messages,
     loading,
+    processingState,
     sendMessage,
     cancelMessage,
     createNewChat,

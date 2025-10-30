@@ -31,6 +31,7 @@ from database.chat_repository import (
 )
 from database.task_repository import task_repository
 from database.reminder_repository import reminder_repository
+from database.prompt_template_repository import PromptTemplateRepository
 from models.chat_models import (
     Message,
     CreateChatRequest,
@@ -60,6 +61,13 @@ from models.reminder_models import (
     ReminderPriority,
     RecurrenceType
 )
+from models.prompt_template_models import (
+    PromptTemplate,
+    PromptTemplateCreate,
+    PromptTemplateUpdate,
+    PromptTemplateStats,
+    PromptTemplateUsageTrack
+)
 from models.usage_models import UsageStatsResponse
 from utils.title_generator import generate_chat_title
 
@@ -83,6 +91,11 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Initialize repositories
+from database.connection import get_async_database
+async_db = get_async_database()
+prompt_template_repository = PromptTemplateRepository(async_db)
 
 
 # Request/Response Models
@@ -2294,6 +2307,264 @@ async def get_reminder_stats():
         raise HTTPException(
             status_code=500,
             detail=f"Error retrieving reminder statistics: {str(e)}"
+        )
+
+
+# ==================== PROMPT TEMPLATE ENDPOINTS ====================
+
+@app.post("/api/prompt-templates/create", response_model=PromptTemplate, tags=["Prompt Templates"])
+async def create_prompt_template(template_data: PromptTemplateCreate):
+    """
+    Create a new custom prompt template
+    
+    Args:
+        template_data: Template creation data
+        
+    Returns:
+        Created template with usage tracking fields
+    """
+    try:
+        await prompt_template_repository.initialize()
+        template = await prompt_template_repository.create(template_data)
+        return template
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Error creating template: {str(e)}"
+        )
+
+
+@app.get("/api/prompt-templates/list", response_model=List[PromptTemplate], tags=["Prompt Templates"])
+async def list_prompt_templates(
+    category: Optional[str] = None,
+    is_system: Optional[bool] = None,
+    is_custom: Optional[bool] = None,
+    skip: int = 0,
+    limit: int = 50
+):
+    """
+    List prompt templates with optional filters
+    
+    Args:
+        category: Filter by category (rag, tasks, reminders, memory, code, research, writing, custom)
+        is_system: Filter system templates
+        is_custom: Filter custom templates
+        skip: Number of templates to skip (pagination)
+        limit: Maximum number of templates to return
+        
+    Returns:
+        List of matching templates
+    """
+    try:
+        templates = await prompt_template_repository.list(
+            category=category,
+            is_system=is_system,
+            is_custom=is_custom,
+            skip=skip,
+            limit=limit
+        )
+        return templates
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Error listing templates: {str(e)}"
+        )
+
+
+@app.get("/api/prompt-templates/popular", response_model=List[PromptTemplate], tags=["Prompt Templates"])
+async def get_popular_templates(limit: int = 6):
+    """
+    Get most popular templates sorted by ranking score
+    
+    Ranking formula: (click_count * 0.4) + (recency * 0.3) + (success_rate * 0.3)
+    
+    Args:
+        limit: Maximum number of templates to return
+        
+    Returns:
+        List of top-ranked templates
+    """
+    try:
+        templates = await prompt_template_repository.get_popular(limit=limit)
+        return templates
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Error getting popular templates: {str(e)}"
+        )
+
+
+@app.get("/api/prompt-templates/recent", response_model=List[PromptTemplate], tags=["Prompt Templates"])
+async def get_recent_templates(limit: int = 5):
+    """
+    Get recently used templates
+    
+    Args:
+        limit: Maximum number of templates to return
+        
+    Returns:
+        List of recently used templates sorted by last_used_at
+    """
+    try:
+        templates = await prompt_template_repository.get_recent(limit=limit)
+        return templates
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Error getting recent templates: {str(e)}"
+        )
+
+
+@app.get("/api/prompt-templates/{template_id}", response_model=PromptTemplate, tags=["Prompt Templates"])
+async def get_prompt_template(template_id: str):
+    """
+    Get a specific prompt template by ID
+    
+    Args:
+        template_id: Template unique identifier
+        
+    Returns:
+        Template details
+    """
+    try:
+        template = await prompt_template_repository.get_by_id(template_id)
+        if not template:
+            raise HTTPException(status_code=404, detail="Template not found")
+        return template
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Error retrieving template: {str(e)}"
+        )
+
+
+@app.put("/api/prompt-templates/{template_id}", response_model=PromptTemplate, tags=["Prompt Templates"])
+async def update_prompt_template(template_id: str, template_data: PromptTemplateUpdate):
+    """
+    Update a custom prompt template
+    
+    Only custom templates can be updated (not system templates)
+    
+    Args:
+        template_id: Template unique identifier
+        template_data: Fields to update
+        
+    Returns:
+        Updated template
+    """
+    try:
+        template = await prompt_template_repository.update(template_id, template_data)
+        if not template:
+            raise HTTPException(
+                status_code=404,
+                detail="Template not found or cannot be updated (system templates are read-only)"
+            )
+        return template
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Error updating template: {str(e)}"
+        )
+
+
+@app.delete("/api/prompt-templates/{template_id}", tags=["Prompt Templates"])
+async def delete_prompt_template(template_id: str):
+    """
+    Delete a custom prompt template
+    
+    Only custom templates can be deleted (not system templates)
+    
+    Args:
+        template_id: Template unique identifier
+        
+    Returns:
+        Success message
+    """
+    try:
+        deleted = await prompt_template_repository.delete(template_id)
+        if not deleted:
+            raise HTTPException(
+                status_code=404,
+                detail="Template not found or cannot be deleted (system templates are read-only)"
+            )
+        return {"message": "Template deleted successfully", "template_id": template_id}
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Error deleting template: {str(e)}"
+        )
+
+
+@app.post("/api/prompt-templates/{template_id}/track-usage", response_model=PromptTemplate, tags=["Prompt Templates"])
+async def track_template_usage(template_id: str, usage_data: PromptTemplateUsageTrack):
+    """
+    Track template usage and update statistics
+    
+    Increments click count, updates last_used_at, and recalculates success rate
+    
+    Args:
+        template_id: Template unique identifier
+        usage_data: Usage tracking data (success/failure)
+        
+    Returns:
+        Updated template with new usage statistics
+    """
+    try:
+        template = await prompt_template_repository.track_usage(
+            template_id,
+            success=usage_data.success
+        )
+        if not template:
+            raise HTTPException(status_code=404, detail="Template not found")
+        return template
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Error tracking template usage: {str(e)}"
+        )
+
+
+@app.get("/api/prompt-templates/categories/list", response_model=List[str], tags=["Prompt Templates"])
+async def get_template_categories():
+    """
+    Get all available template categories
+    
+    Returns:
+        List of unique categories from existing templates
+    """
+    try:
+        categories = await prompt_template_repository.get_categories()
+        return categories
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Error retrieving categories: {str(e)}"
+        )
+
+
+@app.get("/api/prompt-templates/stats/summary", response_model=PromptTemplateStats, tags=["Prompt Templates"])
+async def get_template_stats():
+    """
+    Get prompt template statistics
+    
+    Returns:
+        Statistics including total templates, clicks, categories, and most popular template
+    """
+    try:
+        stats = await prompt_template_repository.get_stats()
+        return stats
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Error retrieving template statistics: {str(e)}"
         )
 
 

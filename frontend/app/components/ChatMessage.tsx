@@ -4,6 +4,8 @@ import ThoughtProcess from "./ThoughtProcess";
 import { LLMBadge } from "./LLMBadge";
 import { QuickActions } from "./QuickActions";
 import { RetrievalContext } from "./RetrievalContext";
+import { CompactMessageStatus } from "./MessageStatusIndicator";
+import type { MessageStatus } from "./MessageStatusIndicator";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import CodeBlock from "./CodeBlock";
@@ -105,6 +107,7 @@ interface ChatMessageProps {
   isLastMessage?: boolean;
   isLastUserMessage?: boolean;
   timestamp?: string;
+  messageStatus?: MessageStatus;
   onEdit?: (messageId: string, newContent: string) => Promise<void>;
   onRegenerate?: (messageId: string) => Promise<void>;
   onDelete?: (messageId: string) => Promise<void>;
@@ -122,6 +125,7 @@ export function ChatMessage({
   isLastMessage = false,
   isLastUserMessage = false,
   timestamp,
+  messageStatus = 'sent',
   onEdit,
   onRegenerate,
   onDelete,
@@ -141,8 +145,25 @@ export function ChatMessage({
     return `${start}-${content.length}-${end}`;
   }, [content]);
 
+  // Determine animation class based on message type and state
+  const getAnimationClass = () => {
+    if (isUser) {
+      return 'animate-slide-in-right';
+    }
+    
+    // For bot messages, use different animations based on whether it's streaming
+    if (isLastMessage && content.length < 50) {
+      // Short content, likely still streaming or just started
+      return 'animate-scale-in';
+    }
+    
+    return 'animate-slide-in-left';
+  };
+
+  const animationClass = getAnimationClass();
+
   return (
-    <div className={`group flex items-start gap-2 sm:gap-3 animate-fade-in px-2 sm:px-0`}>
+    <div className={`group flex items-start gap-2 sm:gap-3 ${animationClass} px-2 sm:px-0`}>
       {/* Avatar */}
       <div className="flex flex-col items-center gap-1 shrink-0">
         <div 
@@ -150,7 +171,7 @@ export function ChatMessage({
             isUser 
               ? "bg-linear-to-br from-cyan-500 to-blue-500" 
               : "bg-linear-to-br from-purple-500 to-cyan-500"
-          }`}
+          } ${isLastMessage && !isUser ? 'animate-bounce-subtle' : ''}`}
         >
           {isUser ? <User className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-white" /> : <Bot className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-white" />}
         </div>
@@ -178,6 +199,15 @@ export function ChatMessage({
                 {formatRelativeTime(timestamp)}
               </span>
             )}
+            
+            {/* Message Status Indicator - only for user messages */}
+            {isUser && (
+              <CompactMessageStatus 
+                status={messageStatus}
+                isUserMessage={isUser}
+                timestamp={timestamp}
+              />
+            )}
           </div>
           
           {/* LLM Metadata Badge - inline on header */}
@@ -187,7 +217,9 @@ export function ChatMessage({
         </div>
 
         {/* Message Content */}
-        <div className="prose prose-invert max-w-none text-gray-100 leading-relaxed text-sm prose-pre:p-0 prose-pre:m-0 prose-pre:bg-transparent">
+        <div className={`prose prose-invert max-w-none text-gray-100 leading-relaxed text-sm prose-pre:p-0 prose-pre:m-0 prose-pre:bg-transparent ${
+          isLastMessage && !isUser && content.length > 0 ? 'animate-fade-in-delayed' : ''
+        }`}>
           <ReactMarkdown
             key={contentKey}
             remarkPlugins={[remarkGfm]}
@@ -195,6 +227,11 @@ export function ChatMessage({
           >
             {content}
           </ReactMarkdown>
+          
+          {/* Typing cursor for streaming messages */}
+          {isLastMessage && !isUser && content.length > 0 && (
+            <span className="inline-block w-0.5 h-4 bg-purple-400 animate-typing ml-1 rounded-sm"></span>
+          )}
         </div>
         
         {/* Thought Process - Only for bot messages */}
