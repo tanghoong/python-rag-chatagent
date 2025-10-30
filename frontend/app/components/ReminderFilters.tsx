@@ -114,31 +114,33 @@ export const ReminderFilters: React.FC<ReminderFiltersProps> = ({
   };
 
   return (
-    <div className="bg-white border border-gray-200 rounded-lg p-4">
+    <div className="bg-white border-2 border-gray-200 rounded-xl p-6 shadow-lg">
       {/* Header with Quick Filters */}
-      <div className="flex items-center justify-between mb-4">
-        <div className="flex items-center gap-2">
-          <Filter className="h-5 w-5 text-gray-600" />
-          <h3 className="font-medium text-gray-900">Filters</h3>
+      <div className="flex items-center justify-between mb-6">
+        <div className="flex items-center gap-3">
+          <div className="w-8 h-8 bg-linear-to-br from-indigo-500 to-purple-600 rounded-lg flex items-center justify-center">
+            <Filter className="h-4 w-4 text-white" />
+          </div>
+          <h3 className="font-bold text-gray-900 text-lg">Filters</h3>
           {hasActiveFilters && (
-            <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+            <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold bg-blue-100 text-blue-800 border border-blue-200">
               Active
             </span>
           )}
         </div>
         
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-3">
           {hasActiveFilters && (
             <button
               onClick={onClearFilters}
-              className="text-sm text-gray-600 hover:text-gray-800"
+              className="text-sm text-red-600 hover:text-red-800 font-medium transition-colors"
             >
               Clear all
             </button>
           )}
           <button
             onClick={() => setIsExpanded(!isExpanded)}
-            className="px-3 py-1 text-sm bg-gray-100 hover:bg-gray-200 rounded-md transition-colors"
+            className="px-4 py-2 text-sm bg-gray-100 hover:bg-gray-200 rounded-lg transition-all duration-200 font-medium text-gray-700 border border-gray-300 hover:border-gray-400"
           >
             {isExpanded ? 'Simple' : 'Advanced'}
           </button>
@@ -146,42 +148,46 @@ export const ReminderFilters: React.FC<ReminderFiltersProps> = ({
       </div>
 
       {/* Quick Filters */}
-      <div className="flex flex-wrap gap-2 mb-4">
-        {QUICK_FILTERS.map((filter) => (
-          <button
-            key={filter.key}
-            onClick={() => handleQuickFilter(filter.key)}
-            className="px-3 py-1.5 text-sm bg-gray-100 hover:bg-gray-200 rounded-md transition-colors"
-          >
-            {filter.label}
-          </button>
-        ))}
+      <div className="space-y-3 mb-6">
+        <span className="text-sm font-semibold text-gray-800">Quick Filters</span>
+        <div className="grid grid-cols-2 gap-3">
+          {QUICK_FILTERS.map((filter) => (
+            <button
+              key={filter.key}
+              onClick={() => handleQuickFilter(filter.key)}
+              className="px-4 py-3 text-sm bg-gray-50 hover:bg-blue-100 hover:text-blue-700 rounded-lg transition-all duration-200 font-medium text-gray-700 border border-gray-200 hover:border-blue-300 text-center"
+            >
+              {filter.label}
+            </button>
+          ))}
+        </div>
       </div>
 
       {/* Advanced Filters */}
       {isExpanded && (
-        <div className="space-y-4 pt-4 border-t border-gray-200">
+        <div className="space-y-6 pt-6 border-t-2 border-gray-100">
           {/* Search */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
+          <div className="space-y-3">
+            <label htmlFor="search-input" className="block text-sm font-semibold text-gray-800 mb-2">
               Search
             </label>
             <input
+              id="search-input"
               type="text"
               value={tempFilters.search || ''}
               onChange={(e) => setTempFilters(prev => ({ ...prev, search: e.target.value }))}
-              placeholder="Search in title or description"
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              placeholder="Search in title or description..."
+              className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 text-gray-900 placeholder:text-gray-500 bg-white hover:border-gray-400"
             />
           </div>
 
           {/* Status Filter */}
-          <div>
-            <span className="block text-sm font-medium text-gray-700 mb-2">
-              <CheckCircle className="inline h-4 w-4 mr-1" />
+          <div className="space-y-3">
+            <span className="flex items-center gap-2 text-sm font-semibold text-gray-800">
+              <CheckCircle className="h-4 w-4 text-green-600" />
               Status
             </span>
-            <div className="flex flex-wrap gap-2">
+            <div className="grid grid-cols-2 gap-3">
               {STATUS_OPTIONS.map((option) => (
                 <button
                   key={option.value}
@@ -189,10 +195,10 @@ export const ReminderFilters: React.FC<ReminderFiltersProps> = ({
                     ...prev,
                     status: prev.status === option.value ? undefined : option.value
                   }))}
-                  className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
+                  className={`px-4 py-3 rounded-lg text-sm font-semibold transition-all duration-200 border-2 ${
                     tempFilters.status === option.value
-                      ? option.color
-                      : 'text-gray-600 bg-gray-100 hover:bg-gray-200'
+                      ? `${option.color} border-current shadow-lg transform scale-105`
+                      : 'text-gray-700 bg-gray-50 hover:bg-gray-100 border-gray-200 hover:border-gray-300'
                   }`}
                 >
                   {option.label}
@@ -202,12 +208,12 @@ export const ReminderFilters: React.FC<ReminderFiltersProps> = ({
           </div>
 
           {/* Priority Filter */}
-          <div>
-            <span className="block text-sm font-medium text-gray-700 mb-2">
-              <AlertCircle className="inline h-4 w-4 mr-1" />
+          <div className="space-y-3">
+            <span className="flex items-center gap-2 text-sm font-semibold text-gray-800">
+              <AlertCircle className="h-4 w-4 text-orange-600" />
               Priority
             </span>
-            <div className="flex flex-wrap gap-2">
+            <div className="grid grid-cols-2 gap-3">
               {PRIORITY_OPTIONS.map((option) => (
                 <button
                   key={option.value}
@@ -215,10 +221,10 @@ export const ReminderFilters: React.FC<ReminderFiltersProps> = ({
                     ...prev,
                     priority: prev.priority === option.value ? undefined : option.value
                   }))}
-                  className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
+                  className={`px-4 py-3 rounded-lg text-sm font-semibold transition-all duration-200 border-2 ${
                     tempFilters.priority === option.value
-                      ? option.color
-                      : 'text-gray-600 bg-gray-100 hover:bg-gray-200'
+                      ? `${option.color} border-current shadow-lg transform scale-105`
+                      : 'text-gray-700 bg-gray-50 hover:bg-gray-100 border-gray-200 hover:border-gray-300'
                   }`}
                 >
                   {option.label}
@@ -229,9 +235,9 @@ export const ReminderFilters: React.FC<ReminderFiltersProps> = ({
 
           {/* Tags Filter */}
           {availableTags.length > 0 && (
-            <div>
-              <span className="block text-sm font-medium text-gray-700 mb-2">
-                <Tag className="inline h-4 w-4 mr-1" />
+            <div className="space-y-3">
+              <span className="flex items-center gap-2 text-sm font-semibold text-gray-800">
+                <Tag className="h-4 w-4 text-purple-600" />
                 Tags
               </span>
               <div className="flex flex-wrap gap-2">
@@ -239,10 +245,10 @@ export const ReminderFilters: React.FC<ReminderFiltersProps> = ({
                   <button
                     key={tag}
                     onClick={() => handleTagToggle(tag)}
-                    className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
+                    className={`px-3 py-2 rounded-lg text-sm font-semibold transition-all duration-200 border-2 ${
                       tempFilters.tags?.includes(tag)
-                        ? 'bg-blue-100 text-blue-700'
-                        : 'text-gray-600 bg-gray-100 hover:bg-gray-200'
+                        ? 'bg-blue-100 text-blue-800 border-blue-300 shadow-lg transform scale-105'
+                        : 'text-gray-700 bg-gray-50 hover:bg-gray-100 border-gray-200 hover:border-gray-300'
                     }`}
                   >
                     #{tag}
@@ -253,10 +259,10 @@ export const ReminderFilters: React.FC<ReminderFiltersProps> = ({
           )}
 
           {/* Date Range */}
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label htmlFor="due-after-input" className="block text-sm font-medium text-gray-700 mb-2">
-                <Calendar className="inline h-4 w-4 mr-1" />
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <label htmlFor="due-after-input" className="flex items-center gap-2 text-sm font-semibold text-gray-800">
+                <Calendar className="h-4 w-4 text-blue-600" />
                 Due After
               </label>
               <input
@@ -267,13 +273,13 @@ export const ReminderFilters: React.FC<ReminderFiltersProps> = ({
                   ...prev,
                   dueAfter: e.target.value ? new Date(e.target.value).toISOString() : undefined
                 }))}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 text-gray-900 bg-white hover:border-gray-400"
               />
             </div>
             
-            <div>
-              <label htmlFor="due-before-input" className="block text-sm font-medium text-gray-700 mb-2">
-                <Calendar className="inline h-4 w-4 mr-1" />
+            <div className="space-y-2">
+              <label htmlFor="due-before-input" className="flex items-center gap-2 text-sm font-semibold text-gray-800">
+                <Calendar className="h-4 w-4 text-blue-600" />
                 Due Before
               </label>
               <input
@@ -284,16 +290,16 @@ export const ReminderFilters: React.FC<ReminderFiltersProps> = ({
                   ...prev,
                   dueBefore: e.target.value ? new Date(e.target.value).toISOString() : undefined
                 }))}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 text-gray-900 bg-white hover:border-gray-400"
               />
             </div>
           </div>
 
           {/* Apply Filters Button */}
-          <div className="flex justify-end pt-4">
+          <div className="flex justify-end pt-6 border-t border-gray-200">
             <button
               onClick={handleApplyFilters}
-              className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
+              className="px-6 py-3 bg-linear-to-r from-blue-600 to-purple-600 text-white rounded-lg hover:from-blue-700 hover:to-purple-700 transition-all duration-200 shadow-lg hover:shadow-xl transform hover:scale-105 font-semibold"
             >
               Apply Filters
             </button>

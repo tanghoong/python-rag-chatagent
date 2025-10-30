@@ -373,10 +373,17 @@ def list_reminders_from_chat(
             status_icon = status_emoji.get(reminder.status, "📌")
             priority_icon = priority_emoji.get(reminder.priority, "📌")
             
-            # Check if overdue
+            # Check if overdue - ensure both datetimes are timezone-naive
             overdue_text = ""
-            if reminder.status in [ReminderStatus.PENDING, ReminderStatus.SNOOZED] and reminder.due_date < now:
-                overdue_text = " (OVERDUE)"
+            if reminder.status in [ReminderStatus.PENDING, ReminderStatus.SNOOZED]:
+                # Ensure both datetimes are timezone-naive for comparison
+                reminder_due = reminder.due_date
+                if reminder_due.tzinfo is not None:
+                    # Convert to naive UTC if timezone-aware
+                    reminder_due = reminder_due.replace(tzinfo=None)
+                
+                if reminder_due < now:
+                    overdue_text = " (OVERDUE)"
             
             tags_text = f" #{' #'.join(reminder.tags)}" if reminder.tags else ""
             

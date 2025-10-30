@@ -54,12 +54,12 @@ export const ReminderManager: React.FC<ReminderManagerProps> = ({ className = ''
   // Helper functions for notification button styling
   const getNotificationButtonStyle = () => {
     if (canSendNotifications) {
-      return 'text-green-700 border-green-300 bg-green-50 hover:bg-green-100';
+      return 'text-green-700 border-green-300 bg-green-50 hover:bg-green-100 hover:border-green-400';
     }
     if (permission === 'denied') {
-      return 'text-red-700 border-red-300 bg-red-50 hover:bg-red-100';
+      return 'text-red-700 border-red-300 bg-red-50 hover:bg-red-100 hover:border-red-400';
     }
-    return 'text-gray-700 border-gray-300 hover:bg-gray-50';
+    return 'text-gray-700 border-gray-300 hover:bg-gray-50 hover:border-gray-400 bg-white';
   };
 
   const getNotificationButtonTitle = () => {
@@ -203,43 +203,48 @@ export const ReminderManager: React.FC<ReminderManagerProps> = ({ className = ''
   };
 
   return (
-    <div className={`bg-white min-h-screen ${className}`}>
+    <div className={`bg-linear-to-br from-indigo-50 via-white to-purple-50 min-h-screen ${className}`}>
       {/* Header */}
-      <div className="border-b border-gray-200 bg-white sticky top-0 z-10">
-        <div className="px-6 py-4">
+      <div className="border-b-2 border-gray-200 bg-white/90 backdrop-blur-sm sticky top-0 z-10 shadow-sm">
+        <div className="px-6 py-6">
           <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <h1 className="text-2xl font-bold text-gray-900">Reminder Manager</h1>
+            <div className="flex items-center gap-4">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 bg-linear-to-br from-blue-500 to-purple-600 rounded-xl flex items-center justify-center shadow-lg">
+                  <Bell className="h-5 w-5 text-white" />
+                </div>
+                <h1 className="text-3xl font-bold text-gray-900">Reminder Manager</h1>
+              </div>
               {stats && (
-                <div className="flex items-center gap-4 text-sm text-gray-600">
-                  <span>{stats.total} total</span>
-                  <span className="text-yellow-600">{stats.pending} pending</span>
+                <div className="flex items-center gap-6 text-sm">
+                  <span className="px-3 py-1 bg-gray-100 text-gray-700 rounded-lg font-medium">{stats.total} total</span>
+                  <span className="px-3 py-1 bg-yellow-100 text-yellow-700 rounded-lg font-medium">{stats.pending} pending</span>
                   {stats.overdue > 0 && (
-                    <span className="text-red-600 font-medium">{stats.overdue} overdue</span>
+                    <span className="px-3 py-1 bg-red-100 text-red-700 rounded-lg font-medium animate-pulse">{stats.overdue} overdue</span>
                   )}
                 </div>
               )}
             </div>
             
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-4">
               {/* View Mode Toggle */}
-              <div className="flex rounded-md border border-gray-300">
+              <div className="flex rounded-xl border-2 border-gray-300 bg-white shadow-sm">
                 <button
                   onClick={() => setViewMode('list')}
-                  className={`px-3 py-2 text-sm font-medium transition-colors ${
+                  className={`px-4 py-3 text-sm font-semibold transition-all duration-200 rounded-l-xl ${
                     viewMode === 'list'
-                      ? 'bg-blue-600 text-white'
-                      : 'text-gray-700 hover:text-gray-900'
+                      ? 'bg-blue-600 text-white shadow-lg'
+                      : 'text-gray-700 hover:text-gray-900 hover:bg-gray-50'
                   }`}
                 >
                   <List className="h-4 w-4" />
                 </button>
                 <button
                   onClick={() => setViewMode('grid')}
-                  className={`px-3 py-2 text-sm font-medium transition-colors border-l border-gray-300 ${
+                  className={`px-4 py-3 text-sm font-semibold transition-all duration-200 border-l-2 border-gray-300 rounded-r-xl ${
                     viewMode === 'grid'
-                      ? 'bg-blue-600 text-white'
-                      : 'text-gray-700 hover:text-gray-900'
+                      ? 'bg-blue-600 text-white shadow-lg'
+                      : 'text-gray-700 hover:text-gray-900 hover:bg-gray-50'
                   }`}
                 >
                   <Grid className="h-4 w-4" />
@@ -249,7 +254,7 @@ export const ReminderManager: React.FC<ReminderManagerProps> = ({ className = ''
               {/* Stats Button */}
               {stats && (
                 <button
-                  className="flex items-center gap-2 px-3 py-2 text-sm text-gray-700 border border-gray-300 rounded-md hover:bg-gray-50"
+                  className="flex items-center gap-3 px-4 py-3 text-sm text-gray-700 border-2 border-gray-300 rounded-xl hover:bg-gray-50 font-medium transition-all duration-200 bg-white shadow-sm hover:shadow-md"
                   title="View Statistics"
                 >
                   <BarChart3 className="h-4 w-4" />
@@ -260,7 +265,7 @@ export const ReminderManager: React.FC<ReminderManagerProps> = ({ className = ''
               {/* Notification Settings Button */}
               <button
                 onClick={() => setNotificationSettingsOpen(true)}
-                className={`flex items-center gap-2 px-3 py-2 text-sm border rounded-md transition-colors ${getNotificationButtonStyle()}`}
+                className={`flex items-center gap-3 px-4 py-3 text-sm border-2 rounded-xl transition-all duration-200 font-medium shadow-sm hover:shadow-md ${getNotificationButtonStyle()}`}
                 title={getNotificationButtonTitle()}
               >
                 {canSendNotifications ? (
@@ -274,7 +279,7 @@ export const ReminderManager: React.FC<ReminderManagerProps> = ({ className = ''
               {/* Create Button */}
               <button
                 onClick={handleCreateReminder}
-                className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
+                className="flex items-center gap-3 px-6 py-3 bg-linear-to-r from-blue-600 to-purple-600 text-white rounded-xl hover:from-blue-700 hover:to-purple-700 transition-all duration-200 shadow-lg hover:shadow-xl transform hover:scale-105 font-semibold"
               >
                 <Plus className="h-4 w-4" />
                 New Reminder
@@ -287,8 +292,8 @@ export const ReminderManager: React.FC<ReminderManagerProps> = ({ className = ''
       {/* Content */}
       <div className="flex flex-1">
         {/* Filters Sidebar */}
-        <div className="w-80 border-r border-gray-200 bg-gray-50">
-          <div className="p-4">
+        <div className="w-80 border-r-2 border-gray-200 bg-white/50 backdrop-blur-sm">
+          <div className="p-6">
             <ReminderFilters
               filters={filters}
               availableTags={availableTags}
