@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from "react";
-import { Send, Square, Loader2, Sparkles } from "lucide-react";
+import { Send, Square, Loader2, Sparkles, Search, Zap, Cpu } from "lucide-react";
 import { VoiceInput } from "./VoiceInput";
 import { QuickTemplates } from "./QuickTemplates";
 import { PromptTemplates } from "./PromptTemplates";
@@ -9,6 +9,7 @@ interface ChatInputProps {
   onCancel?: () => void;
   disabled?: boolean;
   loading?: boolean;
+  processingState?: 'thinking' | 'searching' | 'generating' | 'processing' | null;
   error?: string | null;
   inputRef?: React.RefObject<HTMLTextAreaElement | null>;
 }
@@ -18,6 +19,7 @@ export function ChatInput({
   onCancel,
   disabled = false, 
   loading = false,
+  processingState = null,
   error = null,
   inputRef 
 }: Readonly<ChatInputProps>) {
@@ -103,22 +105,89 @@ export function ChatInput({
     return 'text-white/40';
   };
 
-  // Show loading state
+  // Get processing state configuration
+  const getProcessingConfig = () => {
+    switch (processingState) {
+      case 'thinking':
+        return {
+          icon: Cpu,
+          color: 'text-blue-400',
+          message: 'AI is thinking...',
+          bgColor: 'from-blue-500/20 to-cyan-500/20'
+        };
+      case 'searching':
+        return {
+          icon: Search,
+          color: 'text-yellow-400',
+          message: 'Searching knowledge base...',
+          bgColor: 'from-yellow-500/20 to-orange-500/20'
+        };
+      case 'generating':
+        return {
+          icon: Zap,
+          color: 'text-green-400',
+          message: 'Generating response...',
+          bgColor: 'from-green-500/20 to-emerald-500/20'
+        };
+      case 'processing':
+        return {
+          icon: Loader2,
+          color: 'text-purple-400',
+          message: 'Processing your request...',
+          bgColor: 'from-purple-500/20 to-pink-500/20'
+        };
+      default:
+        return {
+          icon: Loader2,
+          color: 'text-purple-400',
+          message: 'Thinking...',
+          bgColor: 'from-purple-500/20 to-blue-500/20'
+        };
+    }
+  };
+
+  // Show enhanced loading state
   if (loading) {
+    const config = getProcessingConfig();
+    const IconComponent = config.icon;
+
     return (
-      <div className="backdrop-blur-xl bg-white/5 border border-white/10 rounded-2xl px-4 py-2.5">
-        <div className="flex items-center justify-between">
+      <div className={`backdrop-blur-xl bg-white/5 border border-white/10 rounded-2xl px-4 py-2.5 relative overflow-hidden`}>
+        {/* Animated background */}
+        <div className={`absolute inset-0 bg-linear-to-r ${config.bgColor} opacity-50`} />
+        
+        <div className="flex items-center justify-between relative z-10">
           <div className="flex items-center space-x-2.5">
-            <Loader2 className="w-4 h-4 text-purple-400 animate-spin" />
-            <span className="text-white/70 text-sm">Thinking...</span>
+            <div className="relative">
+              <IconComponent className={`w-4 h-4 ${config.color} ${config.icon === Loader2 || processingState === 'processing' ? 'animate-spin' : ''}`} />
+              {/* Pulse effect */}
+              <div className={`absolute inset-0 ${config.color.replace('text-', 'bg-')} opacity-30 animate-ping rounded-full scale-150`} />
+            </div>
+            <span className={`${config.color} text-sm font-medium`}>
+              {config.message}
+            </span>
+            
+            {/* Processing dots */}
+            <div className="flex space-x-1">
+              {[0, 1, 2].map((i) => (
+                <div
+                  key={i}
+                  className={`w-1 h-1 ${config.color.replace('text-', 'bg-')} rounded-full animate-bounce`}
+                  style={{
+                    animationDelay: `${i * 0.2}s`,
+                    animationDuration: '1s'
+                  }}
+                />
+              ))}
+            </div>
           </div>
           {onCancel && (
             <button
               onClick={handleCancel}
-              className="p-1.5 hover:bg-white/10 rounded-full transition-colors"
+              className="p-1.5 hover:bg-white/10 rounded-full transition-colors group"
               aria-label="Cancel"
             >
-              <Square className="w-3.5 h-3.5 text-white/70 fill-current" />
+              <Square className="w-3.5 h-3.5 text-white/70 fill-current group-hover:text-red-400 transition-colors" />
             </button>
           )}
         </div>
@@ -153,8 +222,8 @@ export function ChatInput({
 
   return (
     <div className="relative">
-      <form onSubmit={handleSubmit} className="backdrop-blur-xl bg-white/10 border-2 border-white/20 hover:border-white/30 focus-within:border-purple-500/50 rounded-2xl shadow-xl shadow-black/20 transition-all duration-200">
-      <div className="flex items-end gap-2 px-3 py-2.5">
+      <form onSubmit={handleSubmit} className="backdrop-blur-xl bg-white/10 border border-white/20 hover:border-white/30 focus-within:border-purple-500/50 rounded-xl shadow-lg shadow-black/20 transition-all duration-200">
+      <div className="flex items-end gap-2 px-2.5 py-2">
         <textarea
           ref={textareaRef}
           value={input}
@@ -162,29 +231,31 @@ export function ChatInput({
           onKeyDown={handleKeyDown}
           disabled={disabled}
           placeholder="Ask me anything... (Shift + Enter for new line)"
-          className="flex-1 bg-transparent border-none outline-none text-white placeholder-gray-400/50 disabled:opacity-50 text-sm resize-none min-h-10 max-h-[200px] px-2 py-2 custom-scrollbar rounded transition-all"
+          className="flex-1 bg-transparent border-none outline-none text-white placeholder-gray-400/50 disabled:opacity-50 text-sm resize-none min-h-9 max-h-[200px] px-2 py-1.5 custom-scrollbar rounded transition-all"
           style={{ transition: 'height 0.1s ease-out' }}
           maxLength={maxLength}
           rows={1}
+          aria-label="Chat message input"
+          aria-describedby="char-count"
         />
-        <div className="flex items-center gap-1.5 pb-0.5">
+        <div className="flex items-center gap-1 pb-0.5">
           <button
             type="button"
             onClick={() => setShowQuickTemplates(!showQuickTemplates)}
             disabled={disabled}
-            className="p-2 text-white/60 hover:text-white hover:bg-white/10 rounded-lg transition-all disabled:opacity-50"
+            className="p-1.5 text-white/60 hover:text-white hover:bg-white/10 rounded-lg transition-all disabled:opacity-50"
             title="Template prompts"
           >
-            <Sparkles className="w-4 h-4" />
+            <Sparkles className="w-3.5 h-3.5" />
           </button>
           <VoiceInput onTranscript={handleVoiceTranscript} disabled={disabled || loading} />
           <button
             type="submit"
             disabled={disabled || !input.trim() || loading}
-            className="bg-linear-to-r from-purple-500 to-blue-500 hover:from-purple-600 hover:to-blue-600 disabled:opacity-40 disabled:cursor-not-allowed rounded-full p-2.5 transition-all shadow-lg shadow-purple-500/25 hover:shadow-purple-500/40 hover:scale-105 active:scale-95"
+            className="bg-linear-to-r from-purple-500 to-blue-500 hover:from-purple-600 hover:to-blue-600 disabled:opacity-40 disabled:cursor-not-allowed rounded-full p-2 transition-all shadow-lg shadow-purple-500/25 hover:shadow-purple-500/40 hover:scale-105 active:scale-95"
             aria-label="Send message"
           >
-            <Send className="w-4 h-4 text-white" />
+            <Send className="w-3.5 h-3.5 text-white" />
           </button>
         </div>
       </div>
@@ -202,7 +273,7 @@ export function ChatInput({
               />
             </div>
           )}
-          <span className={`text-xs transition-colors ${getCharCountColor()}`}>
+          <span id="char-count" className={`text-xs transition-colors ${getCharCountColor()}`}>
             {charCount} / {maxLength}
           </span>
         </div>

@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { toast } from "sonner";
 import { useLocalStorage } from "./useLocalStorage";
+import { useMessageStatus } from "./useMessageStatus";
 import { fetchWithRetry } from "../utils/fetchWithRetry";
 import { API_ENDPOINTS } from "../config";
 
@@ -76,6 +77,13 @@ export function useChatSession() {
   const [loading, setLoading] = useState(false);
   const [processingState, setProcessingState] = useState<'thinking' | 'searching' | 'generating' | 'processing' | null>(null);
   const [abortController, setAbortController] = useState<AbortController | null>(null);
+  
+  // Add message status tracking
+  const { 
+    updateMessageStatus, 
+    getMessageStatus: getStatusForMessage, 
+    simulateMessageProgression 
+  } = useMessageStatus();
 
   // Load chat session when activeChatId changes
   useEffect(() => {
@@ -177,13 +185,20 @@ export function useChatSession() {
       const controller = new AbortController();
       setAbortController(controller);
 
-      // Add user message optimistically with timestamp
+      // Generate unique message ID for tracking
+      const messageId = `msg_${Date.now()}_${Math.random().toString(36).substring(2, 11)}`;
+
+      // Add user message optimistically with timestamp and ID
       const userMessage: Message = {
+        id: messageId,
         role: "user",
         content: message,
         timestamp: new Date().toISOString(),
       };
       setMessages((prev) => [...prev, userMessage]);
+
+      // Start message status progression
+      simulateMessageProgression(messageId);
 
       // Use streaming endpoint
       const response = await fetch(API_ENDPOINTS.chatStream, {
@@ -471,5 +486,7 @@ export function useChatSession() {
     editMessage,
     regenerateMessage,
     deleteMessage,
+    // Message status tracking
+    getMessageStatus: getStatusForMessage,
   };
 }

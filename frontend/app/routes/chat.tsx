@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import type { Route } from "./+types/chat";
 import { toast } from "sonner";
-import { ArrowDown, ArrowUp } from "lucide-react";
+import { ArrowDown, ArrowUp, Activity } from "lucide-react";
 import { AnimatedBackground } from "../components/AnimatedBackground";
 import { ChatMessage } from "../components/ChatMessage";
 import { ChatInput } from "../components/ChatInput";
@@ -10,6 +10,7 @@ import { ShortcutsHelp } from "../components/ShortcutsHelp";
 import { ReminderSidebar } from "../components/ReminderSidebar";
 import { TypingIndicator } from "../components/TypingIndicator";
 import { StreamingProgressIndicator } from "../components/StreamingProgressIndicator";
+import { TokenUsageVisualization } from "../components/TokenUsageVisualization";
 import { useChatSession } from "../hooks/useChatSession";
 import { useKeyboardShortcuts } from "../hooks/useKeyboardShortcuts";
 
@@ -28,12 +29,12 @@ export default function Chat() {
     processingState,
     sendMessage,
     cancelMessage,
-    createNewChat,
     switchChat,
     startNewChat,
     editMessage,
     regenerateMessage,
     deleteMessage,
+    getMessageStatus: getMessageStatusFromHook,
   } = useChatSession();
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -45,6 +46,7 @@ export default function Chat() {
   const [showSearch, setShowSearch] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [reminderSidebarOpen, setReminderSidebarOpen] = useState(true);
+  const [showTokenUsage, setShowTokenUsage] = useState(false);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isUserScrolling, setIsUserScrolling] = useState(false);
@@ -442,17 +444,17 @@ export default function Chat() {
         onToggle={() => setSidebarOpen(!sidebarOpen)}
       />
 
-      {/* Main Chat Area - Center Column */}
+      {/* Main Chat Area - Center Column with enhanced responsive design */}
       <div className={`relative z-10 flex-1 flex flex-col overflow-hidden transition-all duration-300 ${
-        sidebarOpen ? 'lg:ml-64' : 'lg:ml-0'
+        sidebarOpen ? 'md:ml-56 lg:ml-56' : 'md:ml-0 lg:ml-0'
       } ${
-        reminderSidebarOpen ? 'lg:mr-80' : 'lg:mr-0'
+        reminderSidebarOpen ? 'xl:mr-80' : 'xl:mr-0'
       }`}>
         <div className="flex-1 flex flex-col w-full overflow-hidden">
-          {/* Messages Container with improved padding for scrolling */}
+          {/* Messages Container with responsive spacing */}
           <div 
             ref={messagesContainerRef}
-            className="relative flex-1 overflow-y-auto scrollbar-hover space-y-2 sm:space-y-3 px-3 sm:px-6 lg:px-8 py-2 sm:py-4 pb-32 sm:pb-36 min-h-0 scroll-smooth"
+            className="relative flex-1 overflow-y-auto scrollbar-hover space-y-1 sm:space-y-2 px-1 xs:px-2 sm:px-4 lg:px-6 py-1 sm:py-2 pb-20 xs:pb-24 sm:pb-28 min-h-0 scroll-smooth"
           >
             {messages.length === 0 && (
               <div className="flex items-center justify-center h-full mt-20">
@@ -476,9 +478,16 @@ export default function Chat() {
               const isLastUserMessage = index === lastUserMessageIndex;
               const showDateSeparator = shouldShowDateSeparator(index);
 
-              // Determine message status for user messages
+              // Enhanced message status for user messages with tracking
               const getMessageStatus = () => {
                 if (message.role !== "user") return undefined;
+                
+                // Use enhanced status tracking if message has ID
+                if (message.id && getMessageStatusFromHook) {
+                  return getMessageStatusFromHook(message.id);
+                }
+                
+                // Fallback to simple logic for messages without ID
                 if (loading && isLastUserMessage) return 'sending';
                 return 'delivered';
               };
@@ -540,6 +549,29 @@ export default function Chat() {
             <div ref={messagesEndRef} />
           </div>
 
+          {/* Token Usage Toggle Button */}
+          {activeChatId && (
+            <button
+              onClick={() => setShowTokenUsage(!showTokenUsage)}
+              className={`fixed bottom-44 sm:bottom-52 z-40 bg-linear-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600 text-white rounded-full w-10 h-10 flex items-center justify-center shadow-lg shadow-green-500/30 hover:shadow-green-500/50 transition-all duration-200 transform hover:scale-105 ${
+                showTokenUsage ? 'rotate-180' : ''
+              } ${
+                (() => {
+                  if (sidebarOpen && reminderSidebarOpen) {
+                    return 'right-84 lg:right-88';
+                  } else if (reminderSidebarOpen) {
+                    return 'right-72 lg:right-84';
+                  } else {
+                    return 'right-4 lg:right-6';
+                  }
+                })()
+              }`}
+              title={showTokenUsage ? 'Hide Token Usage' : 'Show Token Usage'}
+            >
+              <Activity className="w-5 h-5" />
+            </button>
+          )}
+
           {/* Fixed scroll toggle button - positioned at right edge, outside scrolling container */}
           {messages.length > 0 && (
             <button
@@ -595,16 +627,17 @@ export default function Chat() {
           />
 
           {/* Input - Fixed at bottom */}
-          <div className={`fixed bottom-0 left-0 right-0 z-20 px-3 sm:px-6 lg:px-8 pb-3 sm:pb-4 pt-2 bg-linear-to-t from-black/80 via-black/50 to-transparent backdrop-blur-sm transition-all duration-300 ${
-            sidebarOpen ? 'lg:left-64' : 'lg:left-0'
+          <div className={`fixed bottom-0 left-0 right-0 z-20 px-2 xs:px-3 sm:px-6 lg:px-8 pb-2 xs:pb-3 sm:pb-4 pt-2 bg-linear-to-t from-black/80 via-black/50 to-transparent backdrop-blur-sm transition-all duration-300 ${
+            sidebarOpen ? 'md:left-56 lg:left-56' : 'md:left-0 lg:left-0'
           } ${
-            reminderSidebarOpen ? 'lg:right-80' : 'lg:right-0'
+            reminderSidebarOpen ? 'xl:right-80' : 'xl:right-0'
           }`}>
             <div className="w-full mx-auto">
               <ChatInput 
                 onSend={handleSendMessage} 
                 onCancel={cancelMessage}
                 loading={loading}
+                processingState={processingState}
                 error={error}
                 inputRef={inputRef} 
               />
@@ -612,6 +645,17 @@ export default function Chat() {
           </div>
         </div>
       </div>
+
+      {/* Token Usage Panel - Floating */}
+      {showTokenUsage && (
+        <div className="fixed bottom-20 right-4 w-80 z-30 animate-slide-up">
+          <TokenUsageVisualization 
+            chatId={activeChatId}
+            isVisible={showTokenUsage}
+            className="shadow-xl"
+          />
+        </div>
+      )}
 
       {/* Right Sidebar - Reminder System */}
       {reminderSidebarOpen && (

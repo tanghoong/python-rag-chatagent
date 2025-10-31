@@ -24,6 +24,7 @@ const STATUS_CONFIG = {
     bgColor: 'bg-gray-400/20',
     label: 'Sending...',
     spinning: true,
+    pulseColor: 'bg-gray-400',
   },
   sent: {
     icon: Check,
@@ -31,6 +32,7 @@ const STATUS_CONFIG = {
     bgColor: 'bg-blue-400/20',
     label: 'Sent',
     spinning: false,
+    pulseColor: 'bg-blue-400',
   },
   delivered: {
     icon: CheckCheck,
@@ -38,6 +40,7 @@ const STATUS_CONFIG = {
     bgColor: 'bg-green-400/20',
     label: 'Delivered',
     spinning: false,
+    pulseColor: 'bg-green-400',
   },
   read: {
     icon: CheckCheck,
@@ -45,6 +48,7 @@ const STATUS_CONFIG = {
     bgColor: 'bg-cyan-400/20',
     label: 'Read',
     spinning: false,
+    pulseColor: 'bg-cyan-400',
   },
   error: {
     icon: AlertCircle,
@@ -52,6 +56,7 @@ const STATUS_CONFIG = {
     bgColor: 'bg-red-400/20',
     label: 'Failed',
     spinning: false,
+    pulseColor: 'bg-red-400',
   },
   cancelled: {
     icon: AlertCircle,
@@ -59,6 +64,7 @@ const STATUS_CONFIG = {
     bgColor: 'bg-yellow-400/20',
     label: 'Cancelled',
     spinning: false,
+    pulseColor: 'bg-yellow-400',
   },
 } as const;
 
@@ -87,7 +93,7 @@ export function MessageStatusIndicator({
   isUserMessage = true,
   timestamp,
   errorMessage
-}: MessageStatusIndicatorProps) {
+}: Readonly<MessageStatusIndicatorProps>) {
   // Only show status indicators for user messages
   if (!isUserMessage) {
     return null;
@@ -97,17 +103,26 @@ export function MessageStatusIndicator({
   const sizeConfig = SIZE_CONFIG[size];
   const IconComponent = statusConfig.icon;
 
+  // Create tooltip text without nested template literals
+  const timeText = timestamp ? ` at ${new Date(timestamp).toLocaleTimeString()}` : '';
+  const tooltipText = errorMessage || `${statusConfig.label}${timeText}`;
+
   return (
     <div 
-      className={`flex items-center space-x-1 ${sizeConfig.container} rounded-full ${statusConfig.bgColor} transition-all duration-200`}
-      title={errorMessage || `${statusConfig.label}${timestamp ? ` at ${new Date(timestamp).toLocaleTimeString()}` : ''}`}
+      className={`flex items-center space-x-1 ${sizeConfig.container} rounded-full ${statusConfig.bgColor} transition-all duration-300 hover:scale-105 animate-fade-in relative overflow-hidden`}
+      title={tooltipText}
     >
+      {/* Pulse animation for active states */}
+      {statusConfig.spinning && (
+        <div className={`absolute inset-0 ${statusConfig.pulseColor} opacity-20 animate-ping rounded-full`} />
+      )}
+      
       <IconComponent 
-        className={`${sizeConfig.icon} ${statusConfig.color} ${statusConfig.spinning ? 'animate-spin' : ''}`}
+        className={`${sizeConfig.icon} ${statusConfig.color} ${statusConfig.spinning ? 'animate-spin' : ''} transition-transform duration-200 relative z-10`}
       />
       
       {showLabel && (
-        <span className={`${sizeConfig.text} ${statusConfig.color} font-medium`}>
+        <span className={`${sizeConfig.text} ${statusConfig.color} font-medium relative z-10`}>
           {statusConfig.label}
         </span>
       )}
@@ -120,20 +135,34 @@ export function CompactMessageStatus({
   status,
   isUserMessage = true,
   timestamp
-}: Pick<MessageStatusIndicatorProps, 'status' | 'isUserMessage' | 'timestamp'>) {
+}: Readonly<Pick<MessageStatusIndicatorProps, 'status' | 'isUserMessage' | 'timestamp'>>) {
   if (!isUserMessage) return null;
 
   const statusConfig = STATUS_CONFIG[status];
   const IconComponent = statusConfig.icon;
 
-  const tooltipText = statusConfig.label + (timestamp ? ` at ${new Date(timestamp).toLocaleTimeString()}` : '');
+  const timeText = timestamp ? ` at ${new Date(timestamp).toLocaleTimeString()}` : '';
+  const tooltipText = statusConfig.label + timeText;
 
   return (
-    <div className="flex items-center space-x-1 opacity-60 hover:opacity-100 transition-opacity">
-      <div title={tooltipText}>
+    <div className="flex items-center space-x-1 opacity-60 hover:opacity-100 transition-all duration-200 group">
+      <div 
+        title={tooltipText}
+        className="relative"
+      >
+        {/* Pulse effect for sending status */}
+        {status === 'sending' && (
+          <div className={`absolute inset-0 ${statusConfig.pulseColor} opacity-30 animate-ping rounded-full scale-150`} />
+        )}
+        
         <IconComponent 
-          className={`w-3 h-3 ${statusConfig.color} ${statusConfig.spinning ? 'animate-spin' : ''}`}
+          className={`w-3 h-3 ${statusConfig.color} ${statusConfig.spinning ? 'animate-spin' : ''} transition-all duration-200 group-hover:scale-110 relative z-10`}
         />
+        
+        {/* Success pulse animation for delivered/read states */}
+        {(status === 'delivered' || status === 'read') && (
+          <div className={`absolute inset-0 ${statusConfig.pulseColor} opacity-20 animate-pulse rounded-full scale-125`} />
+        )}
       </div>
     </div>
   );

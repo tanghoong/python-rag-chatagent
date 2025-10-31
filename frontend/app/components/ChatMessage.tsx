@@ -35,15 +35,15 @@ const createMarkdownComponents = (): Components => ({
       </CodeBlock>
     );
   },
-  p: ({ children }) => <p className="mb-2 last:mb-0">{children}</p>,
-  ul: ({ children }) => <ul className="list-disc list-inside mb-2 space-y-1">{children}</ul>,
-  ol: ({ children }) => <ol className="list-decimal list-inside mb-2 space-y-1">{children}</ol>,
-  li: ({ children }) => <li className="ml-2">{children}</li>,
-  h1: ({ children }) => <h1 className="text-xl font-bold mb-2 mt-4 first:mt-0">{children}</h1>,
-  h2: ({ children }) => <h2 className="text-lg font-bold mb-2 mt-3 first:mt-0">{children}</h2>,
-  h3: ({ children }) => <h3 className="text-base font-bold mb-2 mt-2 first:mt-0">{children}</h3>,
+  p: ({ children }) => <p className="mb-1.5 last:mb-0">{children}</p>,
+  ul: ({ children }) => <ul className="list-disc list-inside mb-1.5 space-y-0.5">{children}</ul>,
+  ol: ({ children }) => <ol className="list-decimal list-inside mb-1.5 space-y-0.5">{children}</ol>,
+  li: ({ children }) => <li className="ml-1.5">{children}</li>,
+  h1: ({ children }) => <h1 className="text-lg font-bold mb-1.5 mt-3 first:mt-0">{children}</h1>,
+  h2: ({ children }) => <h2 className="text-base font-bold mb-1.5 mt-2.5 first:mt-0">{children}</h2>,
+  h3: ({ children }) => <h3 className="text-sm font-bold mb-1.5 mt-2 first:mt-0">{children}</h3>,
   blockquote: ({ children }) => (
-    <blockquote className="border-l-4 border-purple-500 pl-4 italic my-2 text-gray-300">
+    <blockquote className="border-l-3 border-purple-500 pl-3 italic my-1.5 text-gray-300">
       {children}
     </blockquote>
   ),
@@ -145,46 +145,88 @@ export function ChatMessage({
     return `${start}-${content.length}-${end}`;
   }, [content]);
 
-  // Determine animation class based on message type and state
+  // Enhanced animation logic for messages
   const getAnimationClass = () => {
     if (isUser) {
+      // User messages slide in from the right with a slight bounce
       return 'animate-slide-in-right';
     }
     
-    // For bot messages, use different animations based on whether it's streaming
-    if (isLastMessage && content.length < 50) {
-      // Short content, likely still streaming or just started
-      return 'animate-scale-in';
+    // For bot messages, use different animations based on context
+    if (isLastMessage) {
+      if (content.length < 30) {
+        // Very short content (likely just started streaming)
+        return 'animate-pop-in';
+      } else if (content.length < 100) {
+        // Short to medium content
+        return 'animate-slide-up-fade';
+      } else {
+        // Longer content
+        return 'animate-float-in';
+      }
     }
     
+    // Non-last messages use subtle slide-in
     return 'animate-slide-in-left';
   };
 
   const animationClass = getAnimationClass();
 
   return (
-    <div className={`group flex items-start gap-2 sm:gap-3 ${animationClass} px-2 sm:px-0`}>
-      {/* Avatar */}
+    <article 
+      className={`group flex items-start gap-2 ${animationClass} px-1 sm:px-0`}
+      aria-label={`${isUser ? 'User' : 'Assistant'} message`}
+    >
+      {/* Compact Avatar with contextual animations */}
       <div className="flex flex-col items-center gap-1 shrink-0">
         <div 
-          className={`w-7 h-7 sm:w-8 sm:h-8 rounded-full flex items-center justify-center ${
+          className={`w-6 h-6 sm:w-7 sm:h-7 rounded-full flex items-center justify-center relative ${
             isUser 
               ? "bg-linear-to-br from-cyan-500 to-blue-500" 
               : "bg-linear-to-br from-purple-500 to-cyan-500"
-          } ${isLastMessage && !isUser ? 'animate-bounce-subtle' : ''}`}
+          } ${isLastMessage && !isUser ? 'animate-bounce-subtle' : ''} 
+          ${isLastMessage ? 'ring-1 ring-white/20 ring-offset-1 ring-offset-transparent' : ''} 
+          transition-all duration-300 hover:scale-110`}
+          aria-label={isUser ? 'User avatar' : 'AI assistant avatar'}
         >
-          {isUser ? <User className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-white" /> : <Bot className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-white" />}
+          {/* Pulse effect for new messages */}
+          {isLastMessage && (
+            <div className={`absolute -inset-1 rounded-full opacity-30 animate-ping ${
+              isUser ? 'bg-cyan-400' : 'bg-purple-400'
+            }`} />
+          )}
+          
+          {isUser ? (
+            <User className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-white relative z-10" />
+          ) : (
+            <Bot className={`w-3 h-3 sm:w-3.5 sm:h-3.5 text-white relative z-10 ${
+              isLastMessage ? 'animate-pulse' : ''
+            }`} />
+          )}
         </div>
       </div>
 
-      {/* Message bubble */}
+      {/* Enhanced Message bubble with improved design and contrast */}
       <div 
-        className={`flex-1 max-w-3xl transition-all duration-200 ${
+        className={`flex-1 max-w-3xl transition-all duration-300 hover:shadow-lg ${
           isUser 
-            ? "bg-linear-to-br from-cyan-500/10 to-blue-500/10 border border-cyan-500/20 rounded-2xl py-2 px-3 sm:px-4" 
-            : "bg-white/5 border border-white/10 rounded-2xl py-2 px-3 sm:px-4"
-        }`}
+            ? "bg-linear-to-br from-cyan-500/20 to-blue-500/20 border border-cyan-400/30 rounded-lg py-1.5 px-2.5 sm:px-3" 
+            : "bg-linear-to-br from-slate-800/60 to-slate-700/60 border border-slate-600/40 rounded-lg py-1.5 px-2.5 sm:px-3"
+        } ${isLastMessage ? 'shadow-md ring-1 ring-white/10' : ''} relative overflow-hidden backdrop-blur-sm`}
       >
+        {/* Shimmer effect for new messages */}
+        {isLastMessage && (
+          <div className={`absolute inset-0 opacity-20 ${
+            isUser 
+              ? 'bg-linear-to-r from-transparent via-cyan-400/30 to-transparent' 
+              : 'bg-linear-to-r from-transparent via-purple-400/30 to-transparent'
+          } animate-shimmer`} 
+          style={{
+            animation: 'shimmer 2s ease-in-out',
+            backgroundSize: '200% 100%'
+          }}
+          />
+        )}
         {/* Header Row - Role, Timestamp, LLM Badge */}
         <div className="flex items-center justify-between gap-2 mb-2 flex-wrap">
           <div className="flex items-center gap-2">
@@ -193,7 +235,7 @@ export function ChatMessage({
             </span>
             {timestamp && (
               <span 
-                className="text-[10px] sm:text-xs text-gray-500 hover:text-gray-400 cursor-help transition-colors"
+                className="text-[10px] sm:text-xs text-gray-400 hover:text-gray-300 cursor-help transition-colors"
                 title={formatFullDateTime(timestamp)}
               >
                 {formatRelativeTime(timestamp)}
@@ -216,10 +258,10 @@ export function ChatMessage({
           )}
         </div>
 
-        {/* Message Content */}
-        <div className={`prose prose-invert max-w-none text-gray-100 leading-relaxed text-sm prose-pre:p-0 prose-pre:m-0 prose-pre:bg-transparent ${
-          isLastMessage && !isUser && content.length > 0 ? 'animate-fade-in-delayed' : ''
-        }`}>
+        {/* Message Content with enhanced readability */}
+        <div className={`prose prose-invert max-w-none leading-relaxed text-sm prose-pre:p-0 prose-pre:m-0 prose-pre:bg-transparent ${
+          isUser ? 'text-white' : 'text-gray-50'
+        } ${isLastMessage && !isUser && content.length > 0 ? 'animate-fade-in-delayed' : ''}`}>
           <ReactMarkdown
             key={contentKey}
             remarkPlugins={[remarkGfm]}
@@ -228,9 +270,9 @@ export function ChatMessage({
             {content}
           </ReactMarkdown>
           
-          {/* Typing cursor for streaming messages */}
+          {/* Enhanced typing cursor for streaming messages */}
           {isLastMessage && !isUser && content.length > 0 && (
-            <span className="inline-block w-0.5 h-4 bg-purple-400 animate-typing ml-1 rounded-sm"></span>
+            <span className="inline-block w-0.5 h-4 bg-purple-400 animate-typing ml-1 rounded-sm shadow-sm"></span>
           )}
         </div>
         
@@ -273,6 +315,6 @@ export function ChatMessage({
           </div>
         )}
       </div>
-    </div>
+    </article>
   );
 }

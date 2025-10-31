@@ -157,38 +157,38 @@ export function ChatSidebar({
 
   return (
     <>
-      {/* Sidebar */}
+      {/* Sidebar with enhanced responsive design */}
       <aside
-        className={`fixed top-14 left-0 h-[calc(100vh-3.5rem)] w-64 bg-black/40 backdrop-blur-xl transition-transform duration-300 z-40 flex flex-col ${
+        className={`fixed top-14 left-0 h-[calc(100vh-3.5rem)] w-56 bg-black/40 backdrop-blur-xl transition-transform duration-300 z-40 flex flex-col ${
           isOpen ? "translate-x-0" : "-translate-x-full"
-        } lg:translate-x-0`}
+        } md:translate-x-0`}
       >
         {/* Header with New Chat */}
-        <div className="p-4 space-y-3">
+        <div className="p-3 space-y-2.5">
           <button
             onClick={handleNewChat}
-            className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-linear-to-r from-purple-500 to-cyan-500 hover:from-purple-600 hover:to-cyan-600 rounded-lg transition-all font-medium text-sm"
+            className="w-full flex items-center justify-center gap-2 px-3 py-2 bg-linear-to-r from-purple-500 to-cyan-500 hover:from-purple-600 hover:to-cyan-600 rounded-lg transition-all font-medium text-sm"
           >
-            <Plus className="w-4 h-4" />
+            <Plus className="w-3.5 h-3.5" />
             <span>New Chat</span>
           </button>
 
           {/* Search */}
           <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+            <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400" />
             <input
               ref={searchInputRef}
               type="text"
               placeholder="Search chats..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-9 pr-3 py-2 text-sm bg-white/5 hover:bg-white/10 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500/50 text-white placeholder-gray-500 transition-colors"
+              className="w-full pl-8 pr-2.5 py-1.5 text-sm bg-white/5 hover:bg-white/10 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500/50 text-white placeholder-gray-500 transition-colors"
             />
           </div>
         </div>
 
         {/* Chat List */}
-        <div className="flex-1 overflow-y-auto scrollbar-hover px-2 pb-4">
+        <div className="flex-1 overflow-y-auto scrollbar-hover px-1.5 pb-3">
           {loading && <ChatListSkeleton />}
           
           {!loading && filteredChats.length === 0 && (
@@ -196,12 +196,12 @@ export function ChatSidebar({
           )}
           
           {!loading && filteredChats.length > 0 && (
-            <div className="space-y-1">
+            <div className="space-y-0.5">
               {filteredChats.map((chat) => (
                 <button
                   key={chat.id}
                   onClick={() => onChatSelect(chat.id)}
-                  className={`w-full group relative px-3 py-2.5 rounded-lg cursor-pointer transition-all text-left ${
+                  className={`w-full group relative px-2.5 py-2 rounded-lg cursor-pointer transition-all text-left ${
                     activeChatId === chat.id
                       ? "bg-white/15"
                       : "hover:bg-white/5"
@@ -213,7 +213,7 @@ export function ChatSidebar({
                         {chat.title}
                       </h3>
                       <p className="text-xs text-gray-400 mt-0.5">
-                        {chat.message_count} {chat.message_count === 1 ? 'message' : 'messages'}
+                        {chat.message_count} {chat.message_count === 1 ? 'msg' : 'msgs'}
                       </p>
                     </div>
                     
