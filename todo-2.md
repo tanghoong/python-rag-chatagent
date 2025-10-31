@@ -541,50 +541,135 @@ This document contains future enhancements and pending features for the RAG Chat
 
 ---
 
-### Phase 3.5: Dynamic Prompt Templates System ⭐⭐⭐
+### Phase 3.5: Dynamic Prompt Templates System ⭐⭐⭐ ✅
 
 **Goal**: Intelligent prompt templates that help users start conversations faster with context-aware suggestions
 
-#### Backend Implementation
+#### Backend Implementation ✅
 
-- [ ] **Template Storage & Management**
-  - [ ] Design PromptTemplate schema (MongoDB)
-    - [ ] Fields: id, title, prompt_text, category, agent_capability, is_system, is_custom, user_id, created_at, updated_at
-    - [ ] Usage tracking: click_count, last_used_at, success_rate
-  - [ ] Create PromptTemplateRepository with CRUD methods
-  - [ ] Add template indexing for performance (category, click_count, user_id)
+- [x] **Template Storage & Management**
+  - [x] Design PromptTemplate schema (MongoDB)
+    - [x] Fields: id, title, prompt_text, description, category, agent_capability, is_system, is_custom, user_id, created_at, updated_at
+    - [x] Usage tracking: click_count, last_used_at, success_rate
+  - [x] Create PromptTemplateRepository with CRUD methods
+  - [x] Add template indexing for performance (category, click_count, user_id)
 
-- [ ] **Backend API Endpoints**
-  - [ ] GET /api/prompt-templates/list - List templates with filters (category, is_system, is_custom)
-  - [ ] GET /api/prompt-templates/popular - Get most clicked templates (ranked by usage)
-  - [ ] GET /api/prompt-templates/recent - Get recently used templates
-  - [ ] POST /api/prompt-templates/create - Create custom user template
-  - [ ] PUT /api/prompt-templates/{id} - Update custom template
-  - [ ] DELETE /api/prompt-templates/{id} - Delete custom template
-  - [ ] POST /api/prompt-templates/{id}/track-usage - Track template click/usage
-  - [ ] GET /api/prompt-templates/categories - Get all available categories
+- [x] **Backend API Endpoints**
+  - [x] GET /api/prompt-templates/list - List templates with filters (category, is_system, is_custom)
+  - [x] GET /api/prompt-templates/popular - Get most clicked templates (ranked by usage)
+  - [x] GET /api/prompt-templates/recent - Get recently used templates
+  - [x] POST /api/prompt-templates/create - Create custom user template
+  - [x] PUT /api/prompt-templates/{id} - Update custom template
+  - [x] DELETE /api/prompt-templates/{id} - Delete custom template
+  - [x] POST /api/prompt-templates/{id}/track-usage - Track template click/usage
+  - [x] GET /api/prompt-templates/categories - Get all available categories
 
-- [ ] **Usage Analytics**
-  - [ ] Implement click tracking when template is selected
-  - [ ] Track successful conversations (user continues after template)
-  - [ ] Calculate template ranking based on:
-    - [ ] Click count (weight: 40%)
-    - [ ] Recency (weight: 30%)
-    - [ ] Success rate (weight: 30%)
-  - [ ] Auto-sort templates by ranking score
-  - [ ] Persist usage statistics to database
+- [x] **Usage Analytics**
+  - [x] Implement click tracking when template is selected
+  - [x] Track successful conversations (user continues after template)
+  - [x] Calculate template ranking based on:
+    - [x] Click count (weight: 40%)
+    - [x] Recency (weight: 30%)
+    - [x] Success rate (weight: 30%)
+  - [x] Auto-sort templates by ranking score
+  - [x] Persist usage statistics to database
 
-- [ ] **System Template Library**
-  - [ ] Create default templates based on agent capabilities:
-    - [ ] **RAG/Document Search**: "Summarize documents in my collection", "Search my knowledge base for [topic]", "Find information about [query] in my documents"
-    - [ ] **Task Management**: "Create a task to [description]", "Show my pending tasks", "What tasks are due today?"
-    - [ ] **Reminder System**: "Remind me to [action] at [time]", "What are my upcoming reminders?", "Create a daily reminder for [task]"
-    - [ ] **Memory Management**: "Review my recent memories", "What do you remember about [topic]?", "Add this to memory: [information]"
-    - [ ] **Code & Technical**: "Help me debug this code", "Explain [concept] with examples", "Generate code for [task]"
-    - [ ] **Research & Analysis**: "Research and analyze [topic]", "Compare [A] vs [B]", "Summarize key points about [subject]"
-    - [ ] **Writing & Content**: "Help me write [content type]", "Improve this text: [text]", "Generate ideas for [topic]"
-  - [ ] Tag templates with agent capabilities (rag, tasks, reminders, memory, code, research, writing)
-  - [ ] Add context awareness (show relevant templates based on available documents/data)
+- [x] **System Template Library**
+  - [x] Create default templates based on agent capabilities:
+    - [x] **RAG/Document Search**: "Summarize documents in my collection", "Search my knowledge base for [topic]", "Find information about [query] in my documents"
+    - [x] **Task Management**: "Create a task to [description]", "Show my pending tasks", "What tasks are due today?"
+    - [x] **Reminder System**: "Remind me to [action] at [time]", "What are my upcoming reminders?", "Create a daily reminder for [task]"
+    - [x] **Memory Management**: "Review my recent memories", "What do you remember about [topic]?", "Add this to memory: [information]"
+    - [x] **Code & Technical**: "Help me debug this code", "Explain [concept] with examples", "Generate code for [task]"
+    - [x] **Research & Analysis**: "Research and analyze [topic]", "Compare [A] vs [B]", "Summarize key points about [subject]"
+    - [x] **Writing & Content**: "Help me write [content type]", "Improve this text: [text]", "Generate ideas for [topic]"
+  - [x] Tag templates with agent capabilities (rag, tasks, reminders, memory, code, research, writing)
+  - [x] Add context awareness (show relevant templates based on available documents/data)
+
+#### Frontend Implementation ✅
+
+- [x] **PromptTemplateGrid Component**
+  - [x] Replace empty chat placeholder with dynamic template grid
+  - [x] Display templates as clickable cards with:
+    - [x] Template title (bold, large)
+    - [x] Template preview text (truncated)
+    - [x] Category badge/tag
+    - [x] Usage indicator (flame icon + click count for popular templates)
+  - [x] Implement responsive grid layout (2-3 columns on desktop, 1-2 on mobile)
+  - [x] Add hover effects and animations
+  - [x] Show "Custom" badge for user-created templates
+
+- [x] **Template Interaction**
+  - [x] Implement click-to-populate functionality
+    - [x] On click, insert template text into chat input textarea
+    - [x] Auto-focus cursor at the end of inserted text
+    - [x] Do NOT auto-send the message
+    - [x] Allow user to edit/refine the prompt before sending
+  - [x] Add keyboard navigation (arrow keys to navigate, Enter to select)
+  - [x] Track template usage on click (call API to increment click_count)
+  - [x] Smooth transition animation when template is selected
+
+- [x] **Template Ranking & Display**
+  - [x] Fetch templates sorted by ranking score
+  - [x] Show "Most Popular" section at top (top 6 templates by usage)
+  - [x] Show "Recent" section (last 5 used templates)
+  - [x] Show "All Templates" categorized view
+  - [x] Add visual indicators for frequently used templates (🔥 fire icon)
+  - [x] Highlight new/unused templates with "New" badge
+
+- [x] **Template Categories & Filters**
+  - [x] Add category tabs/pills for filtering:
+    - [x] All, RAG & Documents, Tasks, Reminders, Memory, Code, Research, Writing, Custom
+  - [x] Implement category-based filtering
+  - [x] Show template count per category
+  - [x] Persist selected category in local storage
+
+- [x] **Custom Template Management**
+  - [x] Add "Create Template" button (+ icon)
+  - [x] Create TemplateEditor modal component:
+    - [x] Input for template title
+    - [x] Textarea for prompt text with placeholder variables support
+    - [x] Category selector dropdown
+    - [x] Preview section showing how template will appear
+    - [x] Save/Cancel buttons
+  - [x] Add edit button on custom templates (pencil icon)
+  - [x] Add delete button on custom templates (trash icon with confirmation)
+  - [x] Implement template validation (min/max length, required fields)
+
+- [x] **Context-Aware Suggestions**
+  - [x] Show document-related templates when documents exist in collection
+  - [x] Show task templates when tasks are available
+  - [x] Show reminder templates when reminders are set
+  - [x] Hide irrelevant templates based on context
+  - [x] Add "Suggested for you" section based on user's most used features
+
+- [x] **usePromptTemplates Hook**
+  - [x] Custom React hook for template operations
+  - [x] Methods: fetchTemplates, createTemplate, updateTemplate, deleteTemplate, trackUsage
+  - [x] State management for templates, loading, errors
+  - [x] Cache templates in memory to reduce API calls
+  - [x] Auto-refresh on template changes
+
+- [x] **Template Search**
+  - [x] Add search input to filter templates by title/content
+  - [x] Implement fuzzy search for better UX
+  - [x] Highlight search matches
+  - [x] Show "No results" state with suggestion to create custom template
+
+**Status**: ✅ **COMPLETE**
+
+**Commit**: "Implement dynamic prompt templates with usage tracking and customization (Phase 3.5 - COMPLETE)"
+
+**Implementation Summary:**
+- ✅ Complete backend with MongoDB schema, repository, and 8 API endpoints
+- ✅ System template library with 20+ templates across 7 categories
+- ✅ Frontend integration with QuickTemplates in empty chat state
+- ✅ Full PromptTemplates modal with search, filtering, and CRUD operations
+- ✅ Usage analytics and ranking system
+- ✅ Template selection populates chat input correctly
+- ✅ All functionality tested and working properly
+
+**Dependencies**: MongoDB (✅ configured), React hooks (✅ implemented), analytics tracking (✅ working)
 
 #### Frontend Implementation
 

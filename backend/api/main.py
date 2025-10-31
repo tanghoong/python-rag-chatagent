@@ -2580,6 +2580,13 @@ async def startup_event():
         print("✅ Database connection verified")
     else:
         print("⚠️ Warning: Database connection failed")
+    
+    # Initialize prompt template repository indexes
+    try:
+        await prompt_template_repository.initialize()
+        print("✅ Prompt template repository initialized")
+    except Exception as e:
+        print(f"⚠️ Warning: Failed to initialize prompt template repository: {e}")
 
 
 @app.on_event("shutdown")

@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import type { Route } from "./+types/chat";
 import { toast } from "sonner";
-import { ArrowDown, ArrowUp, Activity } from "lucide-react";
+import { ArrowDown, ArrowUp, Activity, Sparkles, Grid3x3 } from "lucide-react";
 import { AnimatedBackground } from "../components/AnimatedBackground";
 import { ChatMessage } from "../components/ChatMessage";
 import { ChatInput } from "../components/ChatInput";
@@ -11,6 +11,8 @@ import { ReminderSidebar } from "../components/ReminderSidebar";
 import { TypingIndicator } from "../components/TypingIndicator";
 import { StreamingProgressIndicator } from "../components/StreamingProgressIndicator";
 import { TokenUsageVisualization } from "../components/TokenUsageVisualization";
+import { QuickTemplates } from "../components/QuickTemplates";
+import { PromptTemplates } from "../components/PromptTemplates";
 import { useChatSession } from "../hooks/useChatSession";
 import { useKeyboardShortcuts } from "../hooks/useKeyboardShortcuts";
 
@@ -47,6 +49,8 @@ export default function Chat() {
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [reminderSidebarOpen, setReminderSidebarOpen] = useState(true);
   const [showTokenUsage, setShowTokenUsage] = useState(false);
+  const [showPromptTemplates, setShowPromptTemplates] = useState(false);
+  const [selectedTemplate, setSelectedTemplate] = useState<{ prompt_text: string } | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isUserScrolling, setIsUserScrolling] = useState(false);
@@ -203,6 +207,14 @@ export default function Chat() {
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to send message');
     }
+  };
+
+  // Handle template selection from empty state
+  const handleTemplateSelect = (template: any) => {
+    setSelectedTemplate({ prompt_text: template.prompt_text });
+    // Clear the selection after a short delay to reset the state
+    setTimeout(() => setSelectedTemplate(null), 1000);
+    toast.success(`Applied template: ${template.title}`);
   };
 
   const handleRegenerate = async (messageId: string) => {
@@ -457,10 +469,29 @@ export default function Chat() {
             className="relative flex-1 overflow-y-auto scrollbar-hover space-y-1 sm:space-y-2 px-1 xs:px-2 sm:px-4 lg:px-6 py-1 sm:py-2 pb-20 xs:pb-24 sm:pb-28 min-h-0 scroll-smooth"
           >
             {messages.length === 0 && (
-              <div className="flex items-center justify-center h-full mt-20">
-                <div className="text-center text-gray-500">
-                  <p className="text-base sm:text-lg mb-2">No messages yet</p>
-                  <p className="text-xs sm:text-sm">Start a conversation by typing a message below</p>
+              <div className="flex flex-col items-center justify-center h-full mt-8 px-4">
+                {/* Welcome Header */}
+                <div className="text-center mb-8">
+                  <div className="flex items-center justify-center mb-4">
+                    <div className="w-12 h-12 bg-linear-to-br from-purple-500 to-blue-600 rounded-full flex items-center justify-center">
+                      <Sparkles className="w-6 h-6 text-white" />
+                    </div>
+                  </div>
+                  <h2 className="text-2xl sm:text-3xl font-bold text-white mb-2">Welcome to RAG Chatbot</h2>
+                  <p className="text-gray-400 text-sm sm:text-base">Get started with these popular prompt templates or type your own message</p>
+                </div>
+
+                {/* Quick Templates Section */}
+                <div className="w-full max-w-4xl mb-8">
+                  <QuickTemplates 
+                    onSelectTemplate={handleTemplateSelect}
+                    onOpenFullTemplates={() => setShowPromptTemplates(true)}
+                  />
+                </div>
+
+                {/* Get Started Tips */}
+                <div className="text-center text-gray-500 text-sm">
+                  <p>💡 Tip: Click a template to populate the message box, then edit and send</p>
                 </div>
               </div>
             )}
@@ -639,7 +670,8 @@ export default function Chat() {
                 loading={loading}
                 processingState={processingState}
                 error={error}
-                inputRef={inputRef} 
+                inputRef={inputRef}
+                externalTemplate={selectedTemplate}
               />
             </div>
           </div>
@@ -674,6 +706,13 @@ export default function Chat() {
           />
         </aside>
       )}
+
+      {/* Prompt Templates Modal */}
+      <PromptTemplates 
+        isOpen={showPromptTemplates}
+        onClose={() => setShowPromptTemplates(false)}
+        onSelectTemplate={handleTemplateSelect}
+      />
 
       {/* Keyboard Shortcuts Help Modal */}
       <ShortcutsHelp isOpen={showShortcuts} onClose={() => setShowShortcuts(false)} />

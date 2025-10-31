@@ -12,6 +12,7 @@ interface ChatInputProps {
   processingState?: 'thinking' | 'searching' | 'generating' | 'processing' | null;
   error?: string | null;
   inputRef?: React.RefObject<HTMLTextAreaElement | null>;
+  externalTemplate?: { prompt_text: string } | null;
 }
 
 export function ChatInput({ 
@@ -21,7 +22,8 @@ export function ChatInput({
   loading = false,
   processingState = null,
   error = null,
-  inputRef 
+  inputRef,
+  externalTemplate = null
 }: Readonly<ChatInputProps>) {
   const [input, setInput] = useState("");
   const [showTemplates, setShowTemplates] = useState(false);
@@ -43,6 +45,17 @@ export function ChatInput({
       textarea.style.height = `${newHeight}px`;
     }
   }, [input, textareaRef]);
+
+  // Handle external template selection
+  useEffect(() => {
+    if (externalTemplate?.prompt_text) {
+      setInput(externalTemplate.prompt_text);
+      // Focus the textarea
+      setTimeout(() => {
+        textareaRef.current?.focus();
+      }, 100);
+    }
+  }, [externalTemplate, textareaRef]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();

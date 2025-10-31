@@ -12,6 +12,7 @@ import {
   Filter,
   TrendingUp
 } from "lucide-react";
+import { API_BASE_URL } from "../config";
 
 interface PromptTemplate {
   id: string;
@@ -47,7 +48,7 @@ export function PromptTemplates({ onSelectTemplate, isOpen, onClose }: Readonly<
   const fetchTemplates = async () => {
     setLoading(true);
     try {
-      const response = await fetch('/api/prompt-templates');
+      const response = await fetch(`${API_BASE_URL}/api/prompt-templates/list`);
       if (response.ok) {
         const data = await response.json();
         setTemplates(data);
@@ -62,7 +63,7 @@ export function PromptTemplates({ onSelectTemplate, isOpen, onClose }: Readonly<
 
   const fetchPopularTemplates = async () => {
     try {
-      const response = await fetch('/api/prompt-templates/popular');
+      const response = await fetch(`${API_BASE_URL}/api/prompt-templates/popular`);
       if (response.ok) {
         const data = await response.json();
         setPopularTemplates(data);
@@ -74,7 +75,7 @@ export function PromptTemplates({ onSelectTemplate, isOpen, onClose }: Readonly<
 
   const fetchRecentTemplates = async () => {
     try {
-      const response = await fetch('/api/prompt-templates/recent');
+      const response = await fetch(`${API_BASE_URL}/api/prompt-templates/recent`);
       if (response.ok) {
         const data = await response.json();
         setRecentTemplates(data);
@@ -86,7 +87,7 @@ export function PromptTemplates({ onSelectTemplate, isOpen, onClose }: Readonly<
 
   const fetchCategories = async () => {
     try {
-      const response = await fetch('/api/prompt-templates/categories');
+      const response = await fetch(`${API_BASE_URL}/api/prompt-templates/categories`);
       if (response.ok) {
         const data = await response.json();
         setCategories(data);
@@ -109,7 +110,7 @@ export function PromptTemplates({ onSelectTemplate, isOpen, onClose }: Readonly<
   const handleSelectTemplate = async (template: PromptTemplate) => {
     try {
       // Track usage
-      await fetch(`/api/prompt-templates/${template.id}/track-usage`, {
+      await fetch(`${API_BASE_URL}/api/prompt-templates/${template.id}/track-usage`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ success: true })
@@ -138,7 +139,7 @@ export function PromptTemplates({ onSelectTemplate, isOpen, onClose }: Readonly<
       const query = searchQuery.toLowerCase();
       filtered = filtered.filter(t => 
         t.title.toLowerCase().includes(query) ||
-        t.description.toLowerCase().includes(query) ||
+        (t.description && t.description.toLowerCase().includes(query)) ||
         t.category.toLowerCase().includes(query)
       );
     }
@@ -300,7 +301,7 @@ export function PromptTemplates({ onSelectTemplate, isOpen, onClose }: Readonly<
                       </div>
                     </div>
                     <p className="text-sm text-white/60 mb-3 line-clamp-2">
-                      {template.description}
+                      {template.description || "No description available"}
                     </p>
                     <div className="flex items-center justify-between text-xs text-white/40">
                       <span className="px-2 py-1 bg-white/10 rounded-md">

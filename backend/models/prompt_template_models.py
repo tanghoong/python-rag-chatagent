@@ -14,6 +14,7 @@ class PromptTemplateBase(BaseModel):
     """Base model for prompt templates"""
     title: str = Field(..., min_length=3, max_length=100, description="Template title")
     prompt_text: str = Field(..., min_length=10, max_length=2000, description="Template prompt text")
+    description: Optional[str] = Field(None, max_length=500, description="Template description")
     category: str = Field(..., description="Template category (rag, tasks, reminders, memory, code, research, writing, custom)")
     agent_capability: Optional[str] = Field(None, description="Associated agent capability")
     is_system: bool = Field(default=False, description="Whether this is a system-provided template")
@@ -30,6 +31,7 @@ class PromptTemplateUpdate(BaseModel):
     """Model for updating an existing prompt template"""
     title: Optional[str] = Field(None, min_length=3, max_length=100)
     prompt_text: Optional[str] = Field(None, min_length=10, max_length=2000)
+    description: Optional[str] = Field(None, max_length=500)
     category: Optional[str] = None
     agent_capability: Optional[str] = None
     tags: Optional[List[str]] = None
@@ -55,6 +57,7 @@ class PromptTemplate(PromptTemplateBase):
                 "id": "tpl_abc123",
                 "title": "Summarize My Documents",
                 "prompt_text": "Please summarize all the key points from the documents in my collection about {topic}",
+                "description": "Get a concise summary of your knowledge base",
                 "category": "rag",
                 "agent_capability": "document_search",
                 "is_system": True,
