@@ -48,6 +48,10 @@ class ChatSession(BaseModel):
     messages: List[Message] = Field(default_factory=list)
     created_at: datetime = Field(default_factory=datetime.utcnow)
     updated_at: datetime = Field(default_factory=datetime.utcnow)
+    is_pinned: bool = Field(default=False, description="Whether chat is pinned to top")
+    is_starred: bool = Field(default=False, description="Whether chat is starred/favorited")
+    tags: List[str] = Field(default_factory=list, description="Tags for organizing chats")
+    persona_id: Optional[str] = Field(default=None, description="Active persona ID for this chat")
     metadata: Optional[dict] = Field(default=None, description="Session metadata")
 
     class Config:
@@ -72,6 +76,9 @@ class ChatSessionResponse(BaseModel):
     created_at: datetime
     updated_at: datetime
     message_count: int
+    is_pinned: bool = False
+    is_starred: bool = False
+    tags: List[str] = Field(default_factory=list)
 
     class Config:
         json_encoders = {

@@ -21,6 +21,7 @@ export const API_ENDPOINTS = {
   regenerate: (chatId: string, messageId: string) => 
     `${API_BASE_URL}/api/chats/${chatId}/regenerate/${messageId}`,
   stats: (chatId: string) => `${API_BASE_URL}/api/chats/${chatId}/stats`,
+  chatTags: `${API_BASE_URL}/api/chats/tags/list`,
 } as const;
 
 // Feature flags

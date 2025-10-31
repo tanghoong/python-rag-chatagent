@@ -1,6 +1,6 @@
 import { useEffect } from "react";
 
-interface KeyboardShortcut {
+export interface KeyboardShortcut {
   key: string;
   ctrlKey?: boolean;
   shiftKey?: boolean;
@@ -89,11 +89,10 @@ export const CHAT_SHORTCUTS: KeyboardShortcut[] = [
     description: "Search chats",
   },
   {
-    key: "O",
+    key: "n",
     ctrlKey: true,
-    shiftKey: true,
     handler: () => {}, // Will be overridden
-    description: "Open new chat",
+    description: "New chat",
   },
   {
     key: "S",
@@ -103,53 +102,28 @@ export const CHAT_SHORTCUTS: KeyboardShortcut[] = [
     description: "Toggle sidebar",
   },
   {
-    key: ";",
+    key: "R",
     ctrlKey: true,
     shiftKey: true,
     handler: () => {}, // Will be overridden
-    description: "Copy last code block",
-  },
-  {
-    key: "Backspace",
-    ctrlKey: true,
-    shiftKey: true,
-    handler: () => {}, // Will be overridden
-    description: "Delete chat",
-  },
-  {
-    key: "Escape",
-    shiftKey: true,
-    handler: () => {}, // Will be overridden
-    description: "Focus chat input",
-  },
-  {
-    key: "u",
-    ctrlKey: true,
-    handler: () => {}, // Will be overridden
-    description: "Add photos & files",
-  },
-  {
-    key: "Escape",
-    handler: () => {}, // Will be overridden
-    description: "Cancel / Clear input",
+    description: "Toggle reminder sidebar",
   },
   {
     key: "/",
     ctrlKey: true,
     handler: () => {}, // Will be overridden
-    description: "Show shortcuts",
+    description: "Show shortcuts help",
   },
   {
-    key: "I",
+    key: "Escape",
+    handler: () => {}, // Will be overridden
+    description: "Cancel operation / Close modal",
+  },
+  {
+    key: "b",
     ctrlKey: true,
     shiftKey: true,
     handler: () => {}, // Will be overridden
-    description: "Set custom instructions",
-  },
-  {
-    key: "/",
-    ctrlKey: true,
-    handler: () => {}, // Will be overridden
-    description: "Show shortcuts",
+    description: "Toggle bulk select mode",
   },
 ];

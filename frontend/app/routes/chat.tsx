@@ -13,6 +13,8 @@ import { StreamingProgressIndicator } from "../components/StreamingProgressIndic
 import { TokenUsageVisualization } from "../components/TokenUsageVisualization";
 import { QuickTemplates } from "../components/QuickTemplates";
 import { PromptTemplates } from "../components/PromptTemplates";
+import { PersonaSelector } from "../components/PersonaSelector";
+import { PersonaEditor } from "../components/PersonaEditor";
 import { useChatSession } from "../hooks/useChatSession";
 import { useKeyboardShortcuts } from "../hooks/useKeyboardShortcuts";
 
@@ -55,6 +57,8 @@ export default function Chat() {
   const [error, setError] = useState<string | null>(null);
   const [isUserScrolling, setIsUserScrolling] = useState(false);
   const [isAtBottom, setIsAtBottom] = useState(true);
+  const [showPersonaEditor, setShowPersonaEditor] = useState(false);
+  const [currentPersonaId, setCurrentPersonaId] = useState<string | undefined>(undefined);
 
   // Improved scroll to bottom function with retry mechanism
   const scrollToBottom = (behavior: ScrollBehavior = "smooth") => {
@@ -297,9 +301,17 @@ export default function Chat() {
         shiftKey: true,
         handler: () => {
           // Trigger search event for sidebar
-          window.dispatchEvent(new CustomEvent('toggle-search'));
+          globalThis.dispatchEvent(new CustomEvent('toggle-search'));
         },
         description: "Search chats",
+      },
+      {
+        key: "n",
+        ctrlKey: true,
+        handler: () => {
+          handleNewChat();
+        },
+        description: "New chat",
       },
       {
         key: "O",
@@ -463,6 +475,18 @@ export default function Chat() {
         reminderSidebarOpen ? 'xl:mr-80' : 'xl:mr-0'
       }`}>
         <div className="flex-1 flex flex-col w-full overflow-hidden">
+          {/* Chat Header with Persona Selector */}
+          {activeChatId && (
+            <div className="flex items-center justify-between px-4 py-3 border-b border-white/10 bg-black/20 backdrop-blur-sm">
+              <PersonaSelector
+                activeChatId={activeChatId}
+                currentPersonaId={currentPersonaId}
+                onPersonaChange={(personaId) => setCurrentPersonaId(personaId)}
+                onCreatePersona={() => setShowPersonaEditor(true)}
+              />
+            </div>
+          )}
+
           {/* Messages Container with responsive spacing */}
           <div 
             ref={messagesContainerRef}
@@ -712,6 +736,16 @@ export default function Chat() {
         isOpen={showPromptTemplates}
         onClose={() => setShowPromptTemplates(false)}
         onSelectTemplate={handleTemplateSelect}
+      />
+
+      {/* Persona Editor Modal */}
+      <PersonaEditor
+        isOpen={showPersonaEditor}
+        onClose={() => setShowPersonaEditor(false)}
+        onSave={() => {
+          // Refresh persona list in PersonaSelector
+          setShowPersonaEditor(false);
+        }}
       />
 
       {/* Keyboard Shortcuts Help Modal */}

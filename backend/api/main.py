@@ -22,6 +22,11 @@ from database.chat_repository import (
     add_message,
     delete_chat_session,
     update_chat_title,
+    toggle_pin_chat,
+    toggle_star_chat,
+    update_chat_tags,
+    get_all_chat_tags,
+    update_chat_persona,
     get_chat_messages,
     update_message,
     delete_message,
@@ -32,6 +37,15 @@ from database.chat_repository import (
 from database.task_repository import task_repository
 from database.reminder_repository import reminder_repository
 from database.prompt_template_repository import PromptTemplateRepository
+from database.persona_repository import (
+    create_persona as create_persona_db,
+    get_persona,
+    list_personas,
+    update_persona as update_persona_db,
+    delete_persona as delete_persona_db,
+    increment_persona_use_count,
+    get_all_tags as get_persona_tags
+)
 from models.chat_models import (
     Message,
     CreateChatRequest,
@@ -67,6 +81,12 @@ from models.prompt_template_models import (
     PromptTemplateUpdate,
     PromptTemplateStats,
     PromptTemplateUsageTrack
+)
+from models.persona_models import (
+    PersonaCreate,
+    PersonaUpdate,
+    PersonaResponse,
+    PersonaListResponse
 )
 from models.usage_models import UsageStatsResponse
 from utils.title_generator import generate_chat_title
@@ -135,6 +155,26 @@ class ChatResponse(BaseModel):
 class UpdateTitleRequest(BaseModel):
     """Request model for updating chat title"""
     title: str = Field(..., min_length=1, max_length=200)
+
+
+class TogglePinRequest(BaseModel):
+    """Request model for toggling chat pin status"""
+    is_pinned: bool = Field(..., description="Pin status")
+
+
+class ToggleStarRequest(BaseModel):
+    """Request model for toggling chat star status"""
+    is_starred: bool = Field(..., description="Star status")
+
+
+class UpdateTagsRequest(BaseModel):
+    """Request model for updating chat tags"""
+    tags: List[str] = Field(..., description="List of tags")
+
+
+class UpdatePersonaRequest(BaseModel):
+    """Request model for updating chat persona"""
+    persona_id: Optional[str] = Field(None, description="Persona ID (null to use default)")
 
 
 class UpdateMessageRequest(BaseModel):
@@ -534,6 +574,173 @@ async def update_title(chat_id: str, request: UpdateTitleRequest):
         raise HTTPException(
             status_code=500,
             detail=f"Failed to update chat title: {str(e)}"
+        )
+
+
+@app.patch("/api/chats/{chat_id}/pin", tags=["Chat Sessions"])
+async def toggle_chat_pin(chat_id: str, request: TogglePinRequest):
+    """
+    Toggle chat session pin status
+
+    Args:
+        chat_id: Chat session ID
+        request: TogglePinRequest with pin status
+
+    Returns:
+        Success message
+    """
+    try:
+        updated = await toggle_pin_chat(chat_id, request.is_pinned)
+
+        if not updated:
+            raise HTTPException(
+                status_code=404,
+                detail="Chat session not found"
+            )
+
+        return {
+            "message": "Chat pin status updated successfully",
+            "chat_id": chat_id,
+            "is_pinned": request.is_pinned
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to update chat pin status: {str(e)}"
+        )
+
+
+@app.patch("/api/chats/{chat_id}/star", tags=["Chat Sessions"])
+async def toggle_chat_star(chat_id: str, request: ToggleStarRequest):
+    """
+    Toggle chat session star/favorite status
+
+    Args:
+        chat_id: Chat session ID
+        request: ToggleStarRequest with star status
+
+    Returns:
+        Success message
+    """
+    try:
+        updated = await toggle_star_chat(chat_id, request.is_starred)
+
+        if not updated:
+            raise HTTPException(
+                status_code=404,
+                detail="Chat session not found"
+            )
+
+        return {
+            "message": "Chat star status updated successfully",
+            "chat_id": chat_id,
+            "is_starred": request.is_starred
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to update chat star status: {str(e)}"
+        )
+
+
+@app.patch("/api/chats/{chat_id}/tags", tags=["Chat Sessions"])
+async def update_chat_tags_endpoint(chat_id: str, request: UpdateTagsRequest):
+    """
+    Update chat session tags
+
+    Args:
+        chat_id: Chat session ID
+        request: UpdateTagsRequest with list of tags
+
+    Returns:
+        Success message
+    """
+    try:
+        updated = await update_chat_tags(chat_id, request.tags)
+
+        if not updated:
+            raise HTTPException(
+                status_code=404,
+                detail="Chat session not found"
+            )
+
+        return {
+            "message": "Chat tags updated successfully",
+            "chat_id": chat_id,
+            "tags": request.tags
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to update chat tags: {str(e)}"
+        )
+
+
+@app.get("/api/chats/tags/list", tags=["Chat Sessions"])
+async def get_chat_tags():
+    """
+    Get all unique tags used across all chat sessions
+
+    Returns:
+        List of unique tags
+    """
+    try:
+        tags = await get_all_chat_tags()
+        return {"tags": tags}
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to get chat tags: {str(e)}"
+        )
+
+
+@app.patch("/api/chats/{chat_id}/persona", tags=["Chat Sessions"])
+async def update_chat_persona_endpoint(chat_id: str, request: UpdatePersonaRequest):
+    """
+    Update chat session persona
+
+    Args:
+        chat_id: Chat session ID
+        request: UpdatePersonaRequest with persona ID
+
+    Returns:
+        Success message
+    """
+    try:
+        # Verify persona exists if provided
+        if request.persona_id:
+            persona = await get_persona(request.persona_id)
+            if not persona:
+                raise HTTPException(
+                    status_code=404,
+                    detail="Persona not found"
+                )
+        
+        updated = await update_chat_persona(chat_id, request.persona_id)
+
+        if not updated:
+            raise HTTPException(
+                status_code=404,
+                detail="Chat session not found"
+            )
+
+        return {
+            "message": "Chat persona updated successfully",
+            "chat_id": chat_id,
+            "persona_id": request.persona_id
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to update chat persona: {str(e)}"
         )
 
 
@@ -2565,6 +2772,261 @@ async def get_template_stats():
         raise HTTPException(
             status_code=500,
             detail=f"Error retrieving template statistics: {str(e)}"
+        )
+
+
+# ============================================================================
+# PERSONAS ENDPOINTS
+# ============================================================================
+
+@app.get("/api/personas/list", response_model=List[PersonaListResponse], tags=["Personas"])
+async def get_personas(
+    is_system: Optional[bool] = None,
+    is_active: bool = True,
+    tags: Optional[str] = None
+):
+    """
+    List all personas with optional filtering
+    
+    Args:
+        is_system: Filter by system/custom personas
+        is_active: Filter by active status (default: True)
+        tags: Comma-separated list of tags to filter by
+    
+    Returns:
+        List of personas (without full system prompt)
+    """
+    try:
+        tag_list = [t.strip() for t in tags.split(",")] if tags else None
+        personas = await list_personas(
+            is_system=is_system,
+            is_active=is_active,
+            tags=tag_list
+        )
+        return personas
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Error retrieving personas: {str(e)}"
+        )
+
+
+@app.get("/api/personas/{persona_id}", response_model=PersonaResponse, tags=["Personas"])
+async def get_persona_by_id(persona_id: str):
+    """
+    Get a specific persona by ID (includes full system prompt)
+    
+    Args:
+        persona_id: Persona ID
+    
+    Returns:
+        Full persona details
+    """
+    try:
+        persona = await get_persona(persona_id)
+        
+        if not persona:
+            raise HTTPException(
+                status_code=404,
+                detail="Persona not found"
+            )
+        
+        return persona
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Error retrieving persona: {str(e)}"
+        )
+
+
+@app.post("/api/personas/create", response_model=PersonaResponse, tags=["Personas"])
+async def create_persona(request: PersonaCreate):
+    """
+    Create a new custom persona
+    
+    Args:
+        request: Persona creation data
+    
+    Returns:
+        Created persona details
+    """
+    try:
+        persona_data = request.model_dump()
+        persona_data["is_system"] = False  # Custom personas are never system
+        persona_data["is_active"] = True
+        persona_data["use_count"] = 0
+        
+        persona_id = await create_persona_db(persona_data)
+        
+        # Fetch and return the created persona
+        persona = await get_persona(persona_id)
+        if not persona:
+            raise HTTPException(
+                status_code=500,
+                detail="Failed to retrieve created persona"
+            )
+        
+        return persona
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Error creating persona: {str(e)}"
+        )
+
+
+@app.put("/api/personas/{persona_id}", response_model=PersonaResponse, tags=["Personas"])
+async def update_persona(persona_id: str, request: PersonaUpdate):
+    """
+    Update a custom persona
+    
+    Args:
+        persona_id: Persona ID
+        request: Persona update data
+    
+    Returns:
+        Updated persona details
+    """
+    try:
+        # Get existing persona to check if it's a system persona
+        existing = await get_persona(persona_id)
+        if not existing:
+            raise HTTPException(
+                status_code=404,
+                detail="Persona not found"
+            )
+        
+        if existing.is_system:
+            raise HTTPException(
+                status_code=403,
+                detail="Cannot modify system personas"
+            )
+        
+        # Update only provided fields
+        update_data = request.model_dump(exclude_unset=True)
+        
+        success = await update_persona_db(persona_id, update_data)
+        
+        if not success:
+            raise HTTPException(
+                status_code=500,
+                detail="Failed to update persona"
+            )
+        
+        # Fetch and return updated persona
+        persona = await get_persona(persona_id)
+        if not persona:
+            raise HTTPException(
+                status_code=500,
+                detail="Failed to retrieve updated persona"
+            )
+        
+        return persona
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Error updating persona: {str(e)}"
+        )
+
+
+@app.delete("/api/personas/{persona_id}", tags=["Personas"])
+async def delete_persona(persona_id: str):
+    """
+    Delete a custom persona
+    
+    Args:
+        persona_id: Persona ID
+    
+    Returns:
+        Success message
+    """
+    try:
+        # Get persona to check if it's system
+        persona = await get_persona(persona_id)
+        if not persona:
+            raise HTTPException(
+                status_code=404,
+                detail="Persona not found"
+            )
+        
+        if persona.is_system:
+            raise HTTPException(
+                status_code=403,
+                detail="Cannot delete system personas"
+            )
+        
+        success = await delete_persona_db(persona_id)
+        
+        if not success:
+            raise HTTPException(
+                status_code=500,
+                detail="Failed to delete persona"
+            )
+        
+        return {
+            "message": "Persona deleted successfully",
+            "persona_id": persona_id
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Error deleting persona: {str(e)}"
+        )
+
+
+@app.post("/api/personas/{persona_id}/use", tags=["Personas"])
+async def track_persona_usage(persona_id: str):
+    """
+    Increment usage count for a persona
+    
+    Args:
+        persona_id: Persona ID
+    
+    Returns:
+        Success message
+    """
+    try:
+        success = await increment_persona_use_count(persona_id)
+        
+        if not success:
+            raise HTTPException(
+                status_code=404,
+                detail="Persona not found"
+            )
+        
+        return {
+            "message": "Usage tracked successfully",
+            "persona_id": persona_id
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Error tracking usage: {str(e)}"
+        )
+
+
+@app.get("/api/personas/tags/list", response_model=List[str], tags=["Personas"])
+async def get_persona_tags_list():
+    """
+    Get all unique persona tags
+    
+    Returns:
+        List of tags
+    """
+    try:
+        tags = await get_persona_tags()
+        return tags
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Error retrieving tags: {str(e)}"
         )
 
 
