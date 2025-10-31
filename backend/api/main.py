@@ -3051,6 +3051,223 @@ async def startup_event():
         print(f"⚠️ Warning: Failed to initialize prompt template repository: {e}")
 
 
+# ================================
+# RETRIEVAL FEEDBACK ENDPOINTS
+# ================================
+
+class RetrievalFeedbackRequest(BaseModel):
+    """Request model for retrieval feedback"""
+    chunk_id: str
+    helpful: bool
+    source: str
+    content: str
+    relevance_score: float
+    chat_id: Optional[str] = None
+    query: Optional[str] = None
+    metadata: Optional[dict] = None
+
+
+@app.post("/api/retrieval/feedback", tags=["Retrieval"])
+async def record_retrieval_feedback(request: RetrievalFeedbackRequest):
+    """
+    Record user feedback on a retrieved chunk.
+    
+    This helps improve future retrievals by tracking which chunks are helpful.
+    
+    Args:
+        request: Feedback data including chunk_id, helpful flag, and metadata
+        
+    Returns:
+        Feedback record ID and status
+    """
+    try:
+        from database.retrieval_feedback_repository import RetrievalFeedbackRepository
+        
+        repo = RetrievalFeedbackRepository()
+        feedback_id = await repo.record_feedback(
+            chunk_id=request.chunk_id,
+            helpful=request.helpful,
+            source=request.source,
+            content=request.content,
+            relevance_score=request.relevance_score,
+            chat_id=request.chat_id,
+            query=request.query,
+            metadata=request.metadata
+        )
+        
+        return {
+            "status": "success",
+            "feedback_id": feedback_id,
+            "message": f"Feedback recorded: {'helpful' if request.helpful else 'not helpful'}"
+        }
+        
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Error recording feedback: {str(e)}"
+        )
+
+
+@app.get("/api/retrieval/feedback/chunk/{chunk_id}", tags=["Retrieval"])
+async def get_chunk_feedback_stats(chunk_id: str):
+    """
+    Get feedback statistics for a specific chunk.
+    
+    Args:
+        chunk_id: Chunk identifier
+        
+    Returns:
+        Feedback statistics including helpfulness ratio
+    """
+    try:
+        from database.retrieval_feedback_repository import RetrievalFeedbackRepository
+        
+        repo = RetrievalFeedbackRepository()
+        stats = await repo.get_chunk_feedback_stats(chunk_id)
+        
+        return {
+            "status": "success",
+            "chunk_id": chunk_id,
+            "stats": stats
+        }
+        
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Error getting chunk feedback: {str(e)}"
+        )
+
+
+@app.get("/api/retrieval/feedback/source/{source}", tags=["Retrieval"])
+async def get_source_feedback_stats(source: str):
+    """
+    Get aggregate feedback statistics for all chunks from a source.
+    
+    Args:
+        source: Source document name
+        
+    Returns:
+        Feedback statistics for the source
+    """
+    try:
+        from database.retrieval_feedback_repository import RetrievalFeedbackRepository
+        
+        repo = RetrievalFeedbackRepository()
+        stats = await repo.get_source_feedback_stats(source)
+        
+        return {
+            "status": "success",
+            "source": source,
+            "stats": stats
+        }
+        
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Error getting source feedback: {str(e)}"
+        )
+
+
+@app.get("/api/retrieval/feedback/stats/overall", tags=["Retrieval"])
+async def get_overall_feedback_stats():
+    """
+    Get overall retrieval feedback statistics.
+    
+    Returns:
+        Overall statistics across all retrievals
+    """
+    try:
+        from database.retrieval_feedback_repository import RetrievalFeedbackRepository
+        
+        repo = RetrievalFeedbackRepository()
+        stats = await repo.get_overall_stats()
+        
+        return {
+            "status": "success",
+            "stats": stats
+        }
+        
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Error getting overall stats: {str(e)}"
+        )
+
+
+@app.get("/api/retrieval/feedback/poor-performing", tags=["Retrieval"])
+async def get_poor_performing_chunks(
+    min_feedback: int = 3,
+    max_helpfulness: float = 0.3
+):
+    """
+    Get chunks with poor feedback scores for improvement.
+    
+    Args:
+        min_feedback: Minimum feedback count to consider
+        max_helpfulness: Maximum helpfulness ratio (0-1)
+        
+    Returns:
+        List of poor performing chunks
+    """
+    try:
+        from database.retrieval_feedback_repository import RetrievalFeedbackRepository
+        
+        repo = RetrievalFeedbackRepository()
+        chunks = await repo.get_poor_performing_chunks(min_feedback, max_helpfulness)
+        
+        return {
+            "status": "success",
+            "criteria": {
+                "min_feedback": min_feedback,
+                "max_helpfulness": max_helpfulness
+            },
+            "chunks": chunks,
+            "count": len(chunks)
+        }
+        
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Error getting poor performing chunks: {str(e)}"
+        )
+
+
+@app.get("/api/retrieval/feedback/recent", tags=["Retrieval"])
+async def get_recent_feedback(
+    limit: int = 50,
+    helpful_only: bool = False
+):
+    """
+    Get recent feedback entries.
+    
+    Args:
+        limit: Maximum number of entries
+        helpful_only: If True, only return helpful feedback
+        
+    Returns:
+        Recent feedback entries
+    """
+    try:
+        from database.retrieval_feedback_repository import RetrievalFeedbackRepository
+        
+        repo = RetrievalFeedbackRepository()
+        feedback = await repo.get_recent_feedback(limit, helpful_only)
+        
+        return {
+            "status": "success",
+            "limit": limit,
+            "helpful_only": helpful_only,
+            "feedback": feedback,
+            "count": len(feedback)
+        }
+        
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Error getting recent feedback: {str(e)}"
+        )
+
+
 @app.on_event("shutdown")
 async def shutdown_event():
     """Run on application shutdown"""

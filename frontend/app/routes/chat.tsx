@@ -575,9 +575,41 @@ export default function Chat() {
                     onEdit={editMessage}
                     onRegenerate={handleRegenerate}
                     onDelete={deleteMessage}
-                    onRetrievalFeedback={(chunkId, helpful) => {
-                      console.log(`Chunk ${chunkId} marked as ${helpful ? 'helpful' : 'not helpful'}`);
-                      // TODO: Implement feedback API call
+                    onRetrievalFeedback={async (chunkId, helpful) => {
+                      try {
+                        // Find the chunk data from the message
+                        const chunk = message.retrieval_context?.chunks.find((c: any) => c.chunk_id === chunkId);
+                        
+                        if (!chunk) {
+                          toast.error("Chunk not found");
+                          return;
+                        }
+
+                        const response = await fetch(`${import.meta.env.VITE_API_BASE_URL || "http://localhost:8000"}/api/retrieval/feedback`, {
+                          method: "POST",
+                          headers: { "Content-Type": "application/json" },
+                          body: JSON.stringify({
+                            chunk_id: chunkId,
+                            helpful: helpful,
+                            source: chunk.source,
+                            content: chunk.content,
+                            relevance_score: chunk.relevance_score,
+                            chat_id: activeChatId,
+                            query: message.retrieval_context?.search_queries?.[0],
+                            metadata: chunk.metadata
+                          }),
+                        });
+
+                        if (!response.ok) {
+                          throw new Error("Failed to record feedback");
+                        }
+
+                        const data = await response.json();
+                        toast.success(data.message || `Feedback recorded: ${helpful ? 'helpful' : 'not helpful'}`);
+                      } catch (error) {
+                        console.error("Error recording feedback:", error);
+                        toast.error("Failed to record feedback");
+                      }
                     }}
                   />
                 </div>
