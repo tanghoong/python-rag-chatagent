@@ -154,6 +154,111 @@ export default function MemoryManager() {
     setSelectedMemories([]);
   };
 
+  const handleExport = async (format: 'json' | 'csv') => {
+    try {
+      if (format === 'json') {
+        // Export as JSON
+        const exportData = {
+          collection,
+          exported_at: new Date().toISOString(),
+          total: memories.length,
+          memories: memories.map(m => ({
+            content: m.content,
+            tags: m.tags || [],
+            metadata: m.metadata,
+            created_at: m.created_at,
+          })),
+        };
+
+        const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `memories_${collection}_${new Date().toISOString().split('T')[0]}.json`;
+        a.click();
+        URL.revokeObjectURL(url);
+        toast.success('Memories exported as JSON');
+      } else {
+        // Export as CSV
+        const headers = ['Content', 'Tags', 'Created At', 'Metadata'];
+        const rows = memories.map(m => [
+          `"${(m.content || '').replace(/"/g, '""')}"`,
+          `"${(m.tags || []).join(', ')}"`,
+          m.created_at || '',
+          `"${JSON.stringify(m.metadata || {}).replace(/"/g, '""')}"`,
+        ]);
+
+        const csvContent = [
+          headers.join(','),
+          ...rows.map(row => row.join(',')),
+        ].join('\n');
+
+        const blob = new Blob([csvContent], { type: 'text/csv' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `memories_${collection}_${new Date().toISOString().split('T')[0]}.csv`;
+        a.click();
+        URL.revokeObjectURL(url);
+        toast.success('Memories exported as CSV');
+      }
+    } catch (error) {
+      console.error('Export error:', error);
+      toast.error('Failed to export memories');
+    }
+  };
+
+  const handleImport = async (file: File) => {
+    try {
+      const text = await file.text();
+      let importedMemories: any[] = [];
+
+      if (file.name.endsWith('.json')) {
+        const data = JSON.parse(text);
+        importedMemories = Array.isArray(data) ? data : (data.memories || []);
+      } else if (file.name.endsWith('.csv')) {
+        // Simple CSV parsing
+        const lines = text.split('\n');
+        const headers = lines[0].split(',');
+        
+        for (let i = 1; i < lines.length; i++) {
+          if (!lines[i].trim()) continue;
+          
+          const values = lines[i].split(',');
+          importedMemories.push({
+            content: values[0]?.replace(/^"|"$/g, '').replace(/""/g, '"') || '',
+            tags: values[1]?.replace(/^"|"$/g, '').split(',').map(t => t.trim()).filter(Boolean) || [],
+            metadata: values[3] ? JSON.parse(values[3].replace(/^"|"$/g, '').replace(/""/g, '"')) : {},
+          });
+        }
+      }
+
+      // Import memories
+      let successCount = 0;
+      for (const memData of importedMemories) {
+        if (!memData.content) continue;
+        
+        const created = await createMemory({
+          content: memData.content,
+          tags: memData.tags || [],
+          metadata: memData.metadata || {},
+        });
+        
+        if (created) successCount++;
+      }
+
+      if (successCount > 0) {
+        toast.success(`Imported ${successCount} memories successfully`);
+        loadMemories();
+      } else {
+        toast.warning('No memories were imported');
+      }
+    } catch (error) {
+      console.error('Import error:', error);
+      toast.error('Failed to import memories');
+    }
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-white to-purple-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900 p-6">
       <div className="max-w-7xl mx-auto">
@@ -235,6 +340,44 @@ export default function MemoryManager() {
                     <Plus className="w-4 h-4" />
                     Create Memory
                   </button>
+                  
+                  {/* Export/Import Dropdown */}
+                  <div className="relative group">
+                    <button
+                      className="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors flex items-center gap-2 font-medium"
+                    >
+                      📥 Export/Import
+                    </button>
+                    <div className="hidden group-hover:block absolute right-0 mt-1 w-48 bg-white dark:bg-gray-700 rounded-lg shadow-lg border border-gray-200 dark:border-gray-600 z-10">
+                      <button
+                        onClick={() => handleExport('json')}
+                        className="w-full text-left px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-600 rounded-t-lg"
+                      >
+                        📄 Export as JSON
+                      </button>
+                      <button
+                        onClick={() => handleExport('csv')}
+                        className="w-full text-left px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-600"
+                      >
+                        📊 Export as CSV
+                      </button>
+                      <label className="w-full text-left px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-600 rounded-b-lg cursor-pointer block">
+                        📁 Import File
+                        <input
+                          type="file"
+                          accept=".json,.csv"
+                          onChange={(e) => {
+                            const file = e.target.files?.[0];
+                            if (file) {
+                              handleImport(file);
+                              e.target.value = '';
+                            }
+                          }}
+                          className="hidden"
+                        />
+                      </label>
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>

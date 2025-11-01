@@ -3,11 +3,13 @@ Vector Store Module
 
 Manages ChromaDB vector database for RAG functionality.
 Provides autonomous initialization and memory management.
+Includes embedding caching to avoid re-processing.
 """
 
 import os
+import hashlib
 from pathlib import Path
-from typing import List, Dict, Any, Optional
+from typing import List, Dict, Any, Optional, Set
 import chromadb
 from chromadb.config import Settings
 from langchain_chroma import Chroma
@@ -92,6 +94,7 @@ class VectorStoreManager:
         self.embeddings = get_embeddings()
         self.vector_store = None
         self.client = None
+        self._document_hashes: Set[str] = set()  # Cache of document content hashes
 
         # Auto-initialize on creation
         self._initialize()
@@ -118,17 +121,83 @@ class VectorStoreManager:
             print(f"❌ Error initializing vector store: {str(e)}")
             raise
 
+    def _compute_document_hash(self, document: Document) -> str:
+        """
+        Compute a hash of the document content for caching.
+        
+        Args:
+            document: Document to hash
+            
+        Returns:
+            SHA256 hash of the document content
+        """
+        # Combine page_content and relevant metadata for hashing
+        content = document.page_content
+        source = document.metadata.get('source', '')
+        page = document.metadata.get('page', '')
+        
+        hash_input = f"{content}|{source}|{page}"
+        return hashlib.sha256(hash_input.encode()).hexdigest()
+
+    def _is_document_cached(self, document: Document) -> bool:
+        """
+        Check if a document is already in the cache.
+        
+        Args:
+            document: Document to check
+            
+        Returns:
+            True if document is already embedded
+        """
+        doc_hash = self._compute_document_hash(document)
+        return doc_hash in self._document_hashes
+
+    def _load_existing_hashes(self):
+        """
+        Load hashes of existing documents from the vector store.
+        This should be called after initialization to populate the cache.
+        """
+        try:
+            if not self.vector_store:
+                return
+                
+            # Get all documents from the collection
+            collection = self.vector_store._collection
+            results = collection.get()
+            
+            # Extract and hash all existing documents
+            if results and results.get('documents'):
+                for i, content in enumerate(results['documents']):
+                    # Reconstruct document metadata
+                    metadata = results.get('metadatas', [])[i] if i < len(results.get('metadatas', [])) else {}
+                    
+                    # Create a temporary document to compute hash
+                    temp_doc = Document(
+                        page_content=content,
+                        metadata=metadata
+                    )
+                    
+                    doc_hash = self._compute_document_hash(temp_doc)
+                    self._document_hashes.add(doc_hash)
+                    
+            print(f"✅ Loaded {len(self._document_hashes)} document hashes into cache")
+            
+        except Exception as e:
+            print(f"⚠️ Could not load existing document hashes: {str(e)}")
+
     def add_documents(
         self,
         documents: List[Document],
-        auto_optimize: bool = True
+        auto_optimize: bool = True,
+        skip_duplicates: bool = True
     ) -> List[str]:
         """
-        Add documents to vector store with optional auto-optimization.
+        Add documents to vector store with duplicate detection and caching.
 
         Args:
             documents: List of LangChain Document objects
             auto_optimize: Whether to auto-optimize after adding
+            skip_duplicates: Whether to skip documents that are already embedded
 
         Returns:
             List of document IDs
@@ -137,10 +206,38 @@ class VectorStoreManager:
             if not documents:
                 return []
 
+            # Filter out duplicates if enabled
+            if skip_duplicates:
+                # Load existing hashes if not already loaded
+                if not self._document_hashes:
+                    self._load_existing_hashes()
+                
+                original_count = len(documents)
+                unique_docs = []
+                
+                for doc in documents:
+                    if not self._is_document_cached(doc):
+                        unique_docs.append(doc)
+                        # Add to cache immediately
+                        doc_hash = self._compute_document_hash(doc)
+                        self._document_hashes.add(doc_hash)
+                    else:
+                        print(f"⏭️  Skipping duplicate document: {doc.metadata.get('source', 'unknown')}")
+                
+                skipped_count = original_count - len(unique_docs)
+                if skipped_count > 0:
+                    print(f"✅ Skipped {skipped_count} duplicate documents (already embedded)")
+                
+                documents = unique_docs
+
+            if not documents:
+                print("ℹ️  No new documents to add (all duplicates)")
+                return []
+
             # Add to vector store
             ids = self.vector_store.add_documents(documents)
 
-            print(f"✅ Added {len(documents)} documents to {self.collection_name}")
+            print(f"✅ Added {len(documents)} new documents to {self.collection_name}")
 
             # Auto-optimize if enabled
             if auto_optimize:

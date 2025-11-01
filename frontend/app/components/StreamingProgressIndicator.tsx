@@ -19,13 +19,11 @@ export function StreamingProgressIndicator({
   contentLength = 0,
   estimatedLength = 500, // Rough estimate for typical response length
   processingState
-}: StreamingProgressIndicatorProps) {
+}: Readonly<StreamingProgressIndicatorProps>) {
   const [displayProgress, setDisplayProgress] = useState(0);
 
-  // Calculate progress based on content length if not provided
-  const calculatedProgress = progress !== undefined 
-    ? progress 
-    : Math.min((contentLength / estimatedLength) * 100, 95); // Cap at 95% until done
+  // Calculate progress based on content length if not provided (use nullish coalescing)
+  const calculatedProgress = progress ?? Math.min((contentLength / estimatedLength) * 100, 95); // Cap at 95% until done
 
   useEffect(() => {
     if (!isStreaming) {
@@ -79,22 +77,39 @@ export function StreamingProgressIndicator({
     }
   };
 
+  const getStateIcon = () => {
+    switch (processingState) {
+      case 'thinking': return '🤔';
+      case 'searching': return '🔍';
+      case 'generating': return '✨';
+      case 'processing': return '⚡';
+      default: return '🤖';
+    }
+  };
+
   return (
-    <div className="flex items-center space-x-3 py-2 px-4 bg-white/5 border border-white/10 rounded-lg mx-2 sm:mx-0 animate-fade-in">
-      {/* Progress bar */}
-      <div className="flex-1 h-2 bg-gray-700 rounded-full overflow-hidden">
+    <div className="flex items-center space-x-3 py-2 px-4 bg-white/5 border border-white/10 rounded-lg mx-2 sm:mx-0 animate-fade-in relative overflow-hidden">
+      {/* Enhanced background animation */}
+      <div className={`absolute inset-0 bg-linear-to-r ${getStateColor()} opacity-10 animate-pulse`} />
+      
+      {/* Progress bar with enhanced styling */}
+      <div className="flex-1 h-2 bg-gray-700 rounded-full overflow-hidden relative">
         <div 
-          className={`h-full bg-linear-to-r ${getStateColor()} transition-all duration-300 ease-out rounded-full`}
+          className={`h-full bg-linear-to-r ${getStateColor()} transition-all duration-300 ease-out rounded-full relative`}
           style={{ 
             width: `${Math.max(displayProgress, 5)}%`,
             transition: 'width 0.3s ease-out'
           }}
-        />
+        >
+          {/* Shimmer effect on progress bar */}
+          <div className="absolute inset-0 bg-linear-to-r from-transparent via-white/30 to-transparent animate-shimmer" />
+        </div>
       </div>
       
-      {/* Status and percentage */}
-      <div className="flex items-center space-x-2 text-sm">
-        <span className="text-gray-400 min-w-16">
+      {/* Enhanced status and percentage */}
+      <div className="flex items-center space-x-2 text-sm relative z-10">
+        <span className="text-gray-400 min-w-16 flex items-center gap-1">
+          <span className="text-base">{getStateIcon()}</span>
           {getStateText()}
         </span>
         <span className="text-gray-500 text-xs font-mono min-w-8">
@@ -102,13 +117,13 @@ export function StreamingProgressIndicator({
         </span>
       </div>
       
-      {/* Animated dots */}
-      <div className="flex space-x-1">
+      {/* Enhanced animated dots */}
+      <div className="flex space-x-1 relative z-10">
         {[0, 1, 2].map((i) => (
           <div
             key={i}
             className={`w-1 h-1 rounded-full transition-all duration-300 ${
-              isStreaming ? `bg-${getStateColor().split(' ')[0].slice(5)} animate-bounce` : 'bg-gray-600'
+              isStreaming ? `bg-linear-to-r ${getStateColor()} animate-bounce` : 'bg-gray-600'
             }`}
             style={{
               animationDelay: `${i * 0.2}s`,
@@ -126,7 +141,7 @@ export function CompactStreamingProgress({
   isStreaming,
   contentLength = 0,
   processingState
-}: Pick<StreamingProgressIndicatorProps, 'isStreaming' | 'contentLength' | 'processingState'>) {
+}: Readonly<Pick<StreamingProgressIndicatorProps, 'isStreaming' | 'contentLength' | 'processingState'>>) {
   if (!isStreaming) return null;
 
   const getStateColor = () => {

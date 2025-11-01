@@ -184,78 +184,82 @@ export const ReminderEditor: React.FC<ReminderEditorProps> = ({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-      <div className="bg-white rounded-lg p-6 w-full max-w-2xl max-h-[90vh] overflow-y-auto">
-        <div className="flex items-center justify-between mb-6">
-          <h2 className="text-xl font-semibold text-gray-900">
+    <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50 backdrop-blur-sm">
+      <div className="bg-white rounded-xl shadow-2xl p-8 w-full max-w-2xl max-h-[90vh] overflow-y-auto border border-gray-200">
+        <div className="flex items-center justify-between mb-8">
+          <h2 className="text-2xl font-bold text-gray-900 flex items-center gap-3">
+            <div className="w-8 h-8 bg-linear-to-br from-blue-500 to-purple-600 rounded-lg flex items-center justify-center">
+              <Calendar className="h-4 w-4 text-white" />
+            </div>
             {reminder ? 'Edit Reminder' : 'Create New Reminder'}
           </h2>
           <button
             onClick={onClose}
-            className="p-2 hover:bg-gray-100 rounded-full"
+            className="p-2 hover:bg-gray-100 rounded-full transition-colors text-gray-500 hover:text-gray-700"
           >
             <X className="h-5 w-5" />
           </button>
         </div>
 
-        <form onSubmit={handleSubmit} className="space-y-6">
+        <form onSubmit={handleSubmit} className="space-y-8">
           {/* Title */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
+          <div className="space-y-3">
+            <label className="block text-sm font-semibold text-gray-800 mb-2">
               Title *
             </label>
             <input
               type="text"
               value={formData.title}
               onChange={(e) => setFormData(prev => ({ ...prev, title: e.target.value }))}
-              className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-                errors.title ? 'border-red-300' : 'border-gray-300'
+              className={`w-full px-4 py-3 border-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 text-gray-900 placeholder:text-gray-500 ${
+                errors.title ? 'border-red-300 bg-red-50' : 'border-gray-300 bg-white hover:border-gray-400'
               }`}
-              placeholder="Enter reminder title"
+              placeholder="Enter reminder title..."
             />
             {errors.title && (
-              <p className="mt-1 text-sm text-red-600">{errors.title}</p>
+              <p className="mt-2 text-sm text-red-600 font-medium">{errors.title}</p>
             )}
           </div>
 
           {/* Description */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
+          <div className="space-y-3">
+            <label className="block text-sm font-semibold text-gray-800 mb-2">
               Description
             </label>
             <textarea
               value={formData.description}
               onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
-              rows={3}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-              placeholder="Optional description"
+              rows={4}
+              className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 text-gray-900 placeholder:text-gray-500 bg-white hover:border-gray-400 resize-none"
+              placeholder="Optional description for your reminder..."
             />
           </div>
 
           {/* Due Date */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              <Calendar className="inline h-4 w-4 mr-1" />
+          <div className="space-y-3">
+            <label className="flex items-center gap-2 text-sm font-semibold text-gray-800 mb-2">
+              <Calendar className="h-4 w-4 text-blue-600" />
               Due Date & Time *
             </label>
-            <div className="space-y-2">
+            <div className="space-y-4">
               <input
                 type="datetime-local"
                 value={formData.due_date}
                 onChange={(e) => setFormData(prev => ({ ...prev, due_date: e.target.value }))}
-                className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-                  errors.due_date ? 'border-red-300' : 'border-gray-300'
+                className={`w-full px-4 py-3 border-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 text-gray-900 ${
+                  errors.due_date ? 'border-red-300 bg-red-50' : 'border-gray-300 bg-white hover:border-gray-400'
                 }`}
               />
               
               {/* Quick Date Buttons */}
               <div className="flex flex-wrap gap-2">
+                <span className="text-sm text-gray-600 font-medium mr-2 flex items-center">Quick select:</span>
                 {QUICK_DATES.map((quickDate) => (
                   <button
                     key={quickDate.label}
                     type="button"
                     onClick={() => handleQuickDate(quickDate.getValue)}
-                    className="px-3 py-1 text-sm bg-gray-100 hover:bg-gray-200 rounded-md transition-colors"
+                    className="px-3 py-2 text-sm bg-gray-100 hover:bg-blue-100 hover:text-blue-700 rounded-lg transition-all duration-200 font-medium text-gray-700 border border-gray-200 hover:border-blue-300"
                   >
                     {quickDate.label}
                   </button>
@@ -263,25 +267,25 @@ export const ReminderEditor: React.FC<ReminderEditorProps> = ({
               </div>
             </div>
             {errors.due_date && (
-              <p className="mt-1 text-sm text-red-600">{errors.due_date}</p>
+              <p className="mt-2 text-sm text-red-600 font-medium">{errors.due_date}</p>
             )}
           </div>
 
           {/* Priority */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
+          <div className="space-y-3">
+            <label className="block text-sm font-semibold text-gray-800 mb-2">
               Priority
             </label>
-            <div className="flex gap-2">
+            <div className="grid grid-cols-4 gap-3">
               {PRIORITY_OPTIONS.map((option) => (
                 <button
                   key={option.value}
                   type="button"
                   onClick={() => setFormData(prev => ({ ...prev, priority: option.value }))}
-                  className={`px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+                  className={`px-4 py-3 rounded-lg text-sm font-semibold transition-all duration-200 border-2 ${
                     formData.priority === option.value
-                      ? option.color
-                      : 'text-gray-600 bg-gray-100 hover:bg-gray-200'
+                      ? `${option.color} border-current shadow-lg transform scale-105`
+                      : 'text-gray-700 bg-gray-50 hover:bg-gray-100 border-gray-200 hover:border-gray-300'
                   }`}
                 >
                   {option.label}
@@ -291,9 +295,9 @@ export const ReminderEditor: React.FC<ReminderEditorProps> = ({
           </div>
 
           {/* Recurrence */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              <Repeat className="inline h-4 w-4 mr-1" />
+          <div className="space-y-4">
+            <label className="flex items-center gap-2 text-sm font-semibold text-gray-800 mb-2">
+              <Repeat className="h-4 w-4 text-purple-600" />
               Recurrence
             </label>
             <select
@@ -304,7 +308,7 @@ export const ReminderEditor: React.FC<ReminderEditorProps> = ({
                 recurrence_days_of_week: [],
                 recurrence_day_of_month: undefined
               }))}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 text-gray-900 bg-white hover:border-gray-400"
             >
               {RECURRENCE_OPTIONS.map((option) => (
                 <option key={option.value} value={option.value}>
@@ -315,11 +319,11 @@ export const ReminderEditor: React.FC<ReminderEditorProps> = ({
 
             {/* Recurrence Interval */}
             {formData.recurrence_type !== 'none' && (
-              <div className="mt-3">
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+              <div className="bg-gray-50 p-4 rounded-lg border border-gray-200">
+                <label className="block text-sm font-semibold text-gray-800 mb-3">
                   Repeat every
                 </label>
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-3">
                   <input
                     type="number"
                     min="1"
@@ -327,11 +331,11 @@ export const ReminderEditor: React.FC<ReminderEditorProps> = ({
                     value={formData.recurrence_interval}
                     onChange={(e) => setFormData(prev => ({ 
                       ...prev, 
-                      recurrence_interval: parseInt(e.target.value) || 1 
+                      recurrence_interval: Number.parseInt(e.target.value) || 1 
                     }))}
-                    className="w-20 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="w-20 px-3 py-2 border-2 border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 text-gray-900 bg-white hover:border-gray-400"
                   />
-                  <span className="text-sm text-gray-600">
+                  <span className="text-sm text-gray-700 font-medium">
                     {formData.recurrence_type === 'minutely' && 'minute(s)'}
                     {formData.recurrence_type === 'hourly' && 'hour(s)'}
                     {formData.recurrence_type === 'daily' && 'day(s)'}
@@ -344,20 +348,20 @@ export const ReminderEditor: React.FC<ReminderEditorProps> = ({
 
             {/* Days of Week for Weekly Recurrence */}
             {formData.recurrence_type === 'weekly' && (
-              <div className="mt-3">
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+              <div className="bg-blue-50 p-4 rounded-lg border border-blue-200">
+                <label className="block text-sm font-semibold text-gray-800 mb-3">
                   Repeat on
                 </label>
-                <div className="flex gap-2">
+                <div className="grid grid-cols-7 gap-2">
                   {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map((day, index) => (
                     <button
                       key={day}
                       type="button"
                       onClick={() => handleDayOfWeekToggle(index)}
-                      className={`px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+                      className={`px-3 py-2 rounded-lg text-sm font-semibold transition-all duration-200 border-2 ${
                         formData.recurrence_days_of_week.includes(index)
-                          ? 'bg-blue-600 text-white'
-                          : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                          ? 'bg-blue-600 text-white border-blue-600 shadow-lg transform scale-105'
+                          : 'bg-white text-gray-700 border-gray-300 hover:bg-blue-100 hover:border-blue-300'
                       }`}
                     >
                       {day}
@@ -365,15 +369,15 @@ export const ReminderEditor: React.FC<ReminderEditorProps> = ({
                   ))}
                 </div>
                 {errors.recurrence_days_of_week && (
-                  <p className="mt-1 text-sm text-red-600">{errors.recurrence_days_of_week}</p>
+                  <p className="mt-2 text-sm text-red-600 font-medium">{errors.recurrence_days_of_week}</p>
                 )}
               </div>
             )}
 
             {/* Day of Month for Monthly Recurrence */}
             {formData.recurrence_type === 'monthly' && (
-              <div className="mt-3">
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+              <div className="bg-purple-50 p-4 rounded-lg border border-purple-200">
+                <label className="block text-sm font-semibold text-gray-800 mb-3">
                   On day of month
                 </label>
                 <input
@@ -383,28 +387,28 @@ export const ReminderEditor: React.FC<ReminderEditorProps> = ({
                   value={formData.recurrence_day_of_month || ''}
                   onChange={(e) => setFormData(prev => ({ 
                     ...prev, 
-                    recurrence_day_of_month: parseInt(e.target.value) || undefined 
+                    recurrence_day_of_month: Number.parseInt(e.target.value) || undefined 
                   }))}
-                  className={`w-20 px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-                    errors.recurrence_day_of_month ? 'border-red-300' : 'border-gray-300'
+                  className={`w-24 px-3 py-2 border-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 text-gray-900 bg-white ${
+                    errors.recurrence_day_of_month ? 'border-red-300' : 'border-gray-300 hover:border-gray-400'
                   }`}
                   placeholder="Day"
                 />
                 {errors.recurrence_day_of_month && (
-                  <p className="mt-1 text-sm text-red-600">{errors.recurrence_day_of_month}</p>
+                  <p className="mt-2 text-sm text-red-600 font-medium">{errors.recurrence_day_of_month}</p>
                 )}
               </div>
             )}
           </div>
 
           {/* Tags */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              <Tag className="inline h-4 w-4 mr-1" />
+          <div className="space-y-4">
+            <label className="flex items-center gap-2 text-sm font-semibold text-gray-800 mb-2">
+              <Tag className="h-4 w-4 text-green-600" />
               Tags
             </label>
-            <div className="space-y-2">
-              <div className="flex gap-2">
+            <div className="space-y-4">
+              <div className="flex gap-3">
                 <input
                   type="text"
                   value={newTag}
@@ -415,53 +419,55 @@ export const ReminderEditor: React.FC<ReminderEditorProps> = ({
                       handleAddTag();
                     }
                   }}
-                  className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  placeholder="Add a tag"
+                  className="flex-1 px-4 py-3 border-2 border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 text-gray-900 placeholder:text-gray-500 bg-white hover:border-gray-400"
+                  placeholder="Add a tag (press Enter)"
                 />
                 <button
                   type="button"
                   onClick={handleAddTag}
-                  className="px-3 py-2 bg-gray-100 hover:bg-gray-200 rounded-md transition-colors"
+                  className="px-4 py-3 bg-green-600 hover:bg-green-700 text-white rounded-lg transition-all duration-200 shadow-lg hover:shadow-xl transform hover:scale-105"
                 >
                   <Plus className="h-4 w-4" />
                 </button>
               </div>
               
               {formData.tags.length > 0 && (
-                <div className="flex flex-wrap gap-2">
-                  {formData.tags.map((tag) => (
-                    <span
-                      key={tag}
-                      className="inline-flex items-center px-2 py-1 rounded-md text-sm bg-blue-100 text-blue-800"
-                    >
-                      #{tag}
-                      <button
-                        type="button"
-                        onClick={() => handleRemoveTag(tag)}
-                        className="ml-1 hover:text-blue-600"
+                <div className="p-4 bg-gray-50 rounded-lg border border-gray-200">
+                  <div className="flex flex-wrap gap-2">
+                    {formData.tags.map((tag) => (
+                      <span
+                        key={tag}
+                        className="inline-flex items-center px-3 py-2 rounded-lg text-sm bg-blue-100 text-blue-800 border border-blue-200 font-medium"
                       >
-                        <X className="h-3 w-3" />
-                      </button>
-                    </span>
-                  ))}
+                        #{tag}
+                        <button
+                          type="button"
+                          onClick={() => handleRemoveTag(tag)}
+                          className="ml-2 hover:text-blue-600 transition-colors"
+                        >
+                          <X className="h-3 w-3" />
+                        </button>
+                      </span>
+                    ))}
+                  </div>
                 </div>
               )}
             </div>
           </div>
 
           {/* Submit Buttons */}
-          <div className="flex justify-end gap-3 pt-4 border-t">
+          <div className="flex justify-end gap-4 pt-6 border-t-2 border-gray-100">
             <button
               type="button"
               onClick={onClose}
-              className="px-4 py-2 text-gray-600 hover:text-gray-800 transition-colors"
+              className="px-6 py-3 text-gray-600 hover:text-gray-800 font-medium transition-colors border-2 border-gray-300 rounded-lg hover:bg-gray-50"
             >
               Cancel
             </button>
             <button
               type="submit"
               disabled={saving}
-              className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50 transition-colors"
+              className="flex items-center gap-3 px-6 py-3 bg-linear-to-r from-blue-600 to-purple-600 text-white rounded-lg hover:from-blue-700 hover:to-purple-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 shadow-lg hover:shadow-xl transform hover:scale-105 font-semibold"
             >
               <Save className="h-4 w-4" />
               {(() => {

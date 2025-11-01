@@ -74,6 +74,7 @@ async def get_chat_session(chat_id: str) -> Optional[ChatDetailResponse]:
 async def list_chat_sessions(limit: int = 50, skip: int = 0) -> List[ChatSessionResponse]:
     """
     List all chat sessions (without full message history)
+    Pinned chats are shown first, then sorted by updated_at
 
     Args:
         limit: Maximum number of sessions to return
@@ -84,7 +85,11 @@ async def list_chat_sessions(limit: int = 50, skip: int = 0) -> List[ChatSession
     """
     collection: AsyncIOMotorCollection = get_async_chats_collection()
 
-    cursor = collection.find().sort("updated_at", -1).skip(skip).limit(limit)
+    # Sort by is_pinned (descending) first, then by updated_at (descending)
+    cursor = collection.find().sort([
+        ("is_pinned", -1),
+        ("updated_at", -1)
+    ]).skip(skip).limit(limit)
 
     sessions = []
     async for chat_data in cursor:
@@ -93,7 +98,10 @@ async def list_chat_sessions(limit: int = 50, skip: int = 0) -> List[ChatSession
             title=chat_data.get("title", "New Chat"),
             created_at=chat_data["created_at"],
             updated_at=chat_data["updated_at"],
-            message_count=len(chat_data.get("messages", []))
+            message_count=len(chat_data.get("messages", [])),
+            is_pinned=chat_data.get("is_pinned", False),
+            is_starred=chat_data.get("is_starred", False),
+            tags=chat_data.get("tags", [])
         ))
 
     return sessions
@@ -174,6 +182,153 @@ async def update_chat_title(chat_id: str, title: str) -> bool:
         return result.modified_count > 0
     except Exception as e:
         print(f"Error updating chat title: {e}")
+        return False
+
+
+async def toggle_pin_chat(chat_id: str, is_pinned: bool) -> bool:
+    """
+    Toggle chat session pin status
+
+    Args:
+        chat_id: Chat session ID
+        is_pinned: New pin status
+
+    Returns:
+        bool: True if successful, False otherwise
+    """
+    collection: AsyncIOMotorCollection = get_async_chats_collection()
+
+    try:
+        result = await collection.update_one(
+            {"_id": ObjectId(chat_id)},
+            {
+                "$set": {
+                    "is_pinned": is_pinned,
+                    "updated_at": datetime.utcnow()
+                }
+            }
+        )
+
+        return result.modified_count > 0
+    except Exception as e:
+        print(f"Error toggling chat pin status: {e}")
+        return False
+
+
+async def toggle_star_chat(chat_id: str, is_starred: bool) -> bool:
+    """
+    Toggle chat session star/favorite status
+
+    Args:
+        chat_id: Chat session ID
+        is_starred: New star status
+
+    Returns:
+        bool: True if successful, False otherwise
+    """
+    collection: AsyncIOMotorCollection = get_async_chats_collection()
+
+    try:
+        result = await collection.update_one(
+            {"_id": ObjectId(chat_id)},
+            {
+                "$set": {
+                    "is_starred": is_starred,
+                    "updated_at": datetime.utcnow()
+                }
+            }
+        )
+
+        return result.modified_count > 0
+    except Exception as e:
+        print(f"Error toggling chat star status: {e}")
+        return False
+
+
+async def update_chat_tags(chat_id: str, tags: List[str]) -> bool:
+    """
+    Update chat session tags
+
+    Args:
+        chat_id: Chat session ID
+        tags: List of tag strings
+
+    Returns:
+        bool: True if successful, False otherwise
+    """
+    collection: AsyncIOMotorCollection = get_async_chats_collection()
+
+    try:
+        result = await collection.update_one(
+            {"_id": ObjectId(chat_id)},
+            {
+                "$set": {
+                    "tags": tags,
+                    "updated_at": datetime.utcnow()
+                }
+            }
+        )
+
+        return result.modified_count > 0
+    except Exception as e:
+        print(f"Error updating chat tags: {e}")
+        return False
+
+
+async def get_all_chat_tags() -> List[str]:
+    """
+    Get all unique tags used across all chat sessions
+
+    Returns:
+        List of unique tag strings
+    """
+    collection: AsyncIOMotorCollection = get_async_chats_collection()
+
+    try:
+        # Use aggregation to get distinct tags
+        pipeline = [
+            {"$unwind": "$tags"},
+            {"$group": {"_id": "$tags"}},
+            {"$sort": {"_id": 1}}
+        ]
+
+        tags = []
+        async for doc in collection.aggregate(pipeline):
+            tags.append(doc["_id"])
+
+        return tags
+    except Exception as e:
+        print(f"Error getting all chat tags: {e}")
+        return []
+
+
+async def update_chat_persona(chat_id: str, persona_id: Optional[str]) -> bool:
+    """
+    Update chat session persona
+
+    Args:
+        chat_id: Chat session ID
+        persona_id: Persona ID (or None to clear)
+
+    Returns:
+        bool: True if successful, False otherwise
+    """
+    collection: AsyncIOMotorCollection = get_async_chats_collection()
+
+    try:
+        result = await collection.update_one(
+            {"_id": ObjectId(chat_id)},
+            {
+                "$set": {
+                    "persona_id": persona_id,
+                    "updated_at": datetime.utcnow()
+                }
+            }
+        )
+
+        return result.modified_count > 0
+    except Exception as e:
+        print(f"Error updating chat persona: {e}")
         return False
 
 

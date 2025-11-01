@@ -130,7 +130,7 @@ def get_smart_llm(
         return llm, metadata
 
     # Analyze message complexity and get recommendation
-    recommended_model, complexity, analysis_metadata = analyze_and_recommend(message, selected_provider)
+    recommended_model, complexity, analysis_metadata = analyze_and_recommend(message, provider=selected_provider)
 
     # Get LLM with recommended model
     llm = get_llm(temperature=temperature, model=recommended_model, provider=selected_provider)
@@ -187,6 +187,17 @@ def test_smart_llm():
     for msg in test_messages:
         try:
             _, metadata = get_smart_llm(msg)
+            print(f"Message: {msg[:50]}...")
+            print(f"Selected Model: {metadata['model']}")
+            print(f"Complexity: {metadata['complexity']}")
+            print(f"Metadata: {metadata}\n")
+        except Exception as e:
+            print(f"❌ Test failed for message: {msg[:50]}... - Error: {str(e)}\n")
+
+    print("\n=== Testing Smart LLM Selection with Google Provider ===\n")
+    for msg in test_messages:
+        try:
+            _, metadata = get_smart_llm(msg, provider="google")
             print(f"Message: {msg[:50]}...")
             print(f"Selected Model: {metadata['model']}")
             print(f"Complexity: {metadata['complexity']}")

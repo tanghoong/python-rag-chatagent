@@ -5,11 +5,11 @@
  */
 
 import React from 'react';
-import type { TaskStatus } from '../hooks/useTaskCRUD';
+import type { TaskStatus, TaskPriority } from '../hooks/useTaskCRUD';
 
 interface TaskStatusBadgeProps {
-  status: TaskStatus;
-  className?: string;
+  readonly status: TaskStatus;
+  readonly className?: string;
 }
 
 export function TaskStatusBadge({ status, className = '' }: TaskStatusBadgeProps) {
@@ -17,30 +17,30 @@ export function TaskStatusBadge({ status, className = '' }: TaskStatusBadgeProps
     'todo': {
       label: 'Todo',
       emoji: '⏳',
-      bgColor: 'bg-gray-100',
-      textColor: 'text-gray-700',
-      borderColor: 'border-gray-300'
+      bgColor: 'bg-amber-50',
+      textColor: 'text-amber-700',
+      borderColor: 'border-amber-200'
     },
     'in-progress': {
       label: 'In Progress',
       emoji: '🔄',
-      bgColor: 'bg-blue-100',
+      bgColor: 'bg-blue-50',
       textColor: 'text-blue-700',
-      borderColor: 'border-blue-300'
+      borderColor: 'border-blue-200'
     },
     'completed': {
       label: 'Completed',
       emoji: '✅',
-      bgColor: 'bg-green-100',
-      textColor: 'text-green-700',
-      borderColor: 'border-green-300'
+      bgColor: 'bg-emerald-50',
+      textColor: 'text-emerald-700',
+      borderColor: 'border-emerald-200'
     },
     'cancelled': {
       label: 'Cancelled',
       emoji: '❌',
-      bgColor: 'bg-red-100',
+      bgColor: 'bg-red-50',
       textColor: 'text-red-700',
-      borderColor: 'border-red-300'
+      borderColor: 'border-red-200'
     }
   };
 
@@ -48,9 +48,9 @@ export function TaskStatusBadge({ status, className = '' }: TaskStatusBadgeProps
 
   return (
     <span
-      className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium border ${config.bgColor} ${config.textColor} ${config.borderColor} ${className}`}
+      className={`status-badge inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-sm font-semibold border shadow-sm ${config.bgColor} ${config.textColor} ${config.borderColor} ${className}`}
     >
-      <span>{config.emoji}</span>
+      <span className="text-base">{config.emoji}</span>
       <span>{config.label}</span>
     </span>
   );
@@ -60,11 +60,9 @@ export function TaskStatusBadge({ status, className = '' }: TaskStatusBadgeProps
  * Task Priority Badge Component
  */
 
-import type { TaskPriority } from '../hooks/useTaskCRUD';
-
 interface TaskPriorityBadgeProps {
-  priority: TaskPriority;
-  className?: string;
+  readonly priority: TaskPriority;
+  readonly className?: string;
 }
 
 export function TaskPriorityBadge({ priority, className = '' }: TaskPriorityBadgeProps) {
@@ -72,25 +70,25 @@ export function TaskPriorityBadge({ priority, className = '' }: TaskPriorityBadg
     'low': {
       label: 'Low',
       emoji: '🔽',
-      bgColor: 'bg-gray-100',
-      textColor: 'text-gray-600'
+      bgColor: 'bg-slate-50',
+      textColor: 'text-slate-600'
     },
     'medium': {
       label: 'Medium',
       emoji: '📌',
-      bgColor: 'bg-yellow-100',
+      bgColor: 'bg-yellow-50',
       textColor: 'text-yellow-700'
     },
     'high': {
       label: 'High',
       emoji: '⚠️',
-      bgColor: 'bg-orange-100',
+      bgColor: 'bg-orange-50',
       textColor: 'text-orange-700'
     },
     'urgent': {
       label: 'Urgent',
       emoji: '🔥',
-      bgColor: 'bg-red-100',
+      bgColor: 'bg-red-50',
       textColor: 'text-red-700'
     }
   };
@@ -99,9 +97,9 @@ export function TaskPriorityBadge({ priority, className = '' }: TaskPriorityBadg
 
   return (
     <span
-      className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium ${config.bgColor} ${config.textColor} ${className}`}
+      className={`priority-badge inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-sm font-semibold shadow-sm ${config.bgColor} ${config.textColor} ${className}`}
     >
-      <span>{config.emoji}</span>
+      <span className="text-base">{config.emoji}</span>
       <span>{config.label}</span>
     </span>
   );

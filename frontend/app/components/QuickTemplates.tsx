@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { Sparkles, Star, TrendingUp } from "lucide-react";
 import { toast } from "sonner";
+import { API_BASE_URL } from "../config";
 
 interface PromptTemplate {
   id: string;
@@ -28,7 +29,7 @@ export function QuickTemplates({ onSelectTemplate, onOpenFullTemplates }: Readon
     const fetchPopularTemplates = async () => {
       setLoading(true);
       try {
-        const response = await fetch('/api/prompt-templates/popular?limit=4');
+        const response = await fetch(`${API_BASE_URL}/api/prompt-templates/popular?limit=4`);
         if (response.ok) {
           const data = await response.json();
           setPopularTemplates(data);
@@ -46,7 +47,7 @@ export function QuickTemplates({ onSelectTemplate, onOpenFullTemplates }: Readon
   const handleSelectTemplate = async (template: PromptTemplate) => {
     try {
       // Track usage
-      await fetch(`/api/prompt-templates/${template.id}/track-usage`, {
+      await fetch(`${API_BASE_URL}/api/prompt-templates/${template.id}/track-usage`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ success: true })
@@ -121,7 +122,7 @@ export function QuickTemplates({ onSelectTemplate, onOpenFullTemplates }: Readon
               {template.title}
             </div>
             <div className="text-xs text-white/60 line-clamp-2">
-              {template.description}
+              {template.description || "No description available"}
             </div>
           </button>
         ))}

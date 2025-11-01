@@ -95,12 +95,23 @@ class RecurrenceEngine:
             # Check if reminder is due
             is_due = False
             
-            if reminder.status == ReminderStatus.PENDING and reminder.due_date <= now:
+            # Ensure timezone-naive comparison for due_date
+            reminder_due = reminder.due_date
+            if reminder_due.tzinfo is not None:
+                reminder_due = reminder_due.replace(tzinfo=None)
+            
+            if reminder.status == ReminderStatus.PENDING and reminder_due <= now:
                 is_due = True
-            elif reminder.status == ReminderStatus.SNOOZED and reminder.snooze_until and reminder.snooze_until <= now:
-                is_due = True
-                # Update status back to pending
-                await reminder_repository.update_status(reminder.id, ReminderStatus.PENDING)
+            elif reminder.status == ReminderStatus.SNOOZED and reminder.snooze_until:
+                # Ensure timezone-naive comparison for snooze_until
+                snooze_until = reminder.snooze_until
+                if snooze_until.tzinfo is not None:
+                    snooze_until = snooze_until.replace(tzinfo=None)
+                
+                if snooze_until <= now:
+                    is_due = True
+                    # Update status back to pending
+                    await reminder_repository.update_status(reminder.id, ReminderStatus.PENDING)
             
             if is_due:
                 # Log the due reminder (in a real app, this would trigger notifications)
