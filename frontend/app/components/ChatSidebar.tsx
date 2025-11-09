@@ -430,7 +430,7 @@ export function ChatSidebar({
     <>
       {/* Sidebar with enhanced responsive design */}
       <aside
-        className={`fixed top-14 left-0 h-[calc(100vh-3.5rem)] w-56 bg-black/40 backdrop-blur-xl transition-transform duration-300 z-40 flex flex-col ${
+        className={`fixed top-14 left-0 h-[calc(100vh-3.5rem)] w-56 bg-black/30 backdrop-blur-lg transition-transform duration-300 z-40 flex flex-col border-r border-white/5 ${
           isOpen ? "translate-x-0" : "-translate-x-full"
         } md:translate-x-0`}
       >
