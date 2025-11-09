@@ -436,27 +436,13 @@ export function ChatSidebar({
       >
         {/* Header with New Chat */}
         <div className="p-3 space-y-2.5">
-          <div className="flex gap-2">
-            <button
-              onClick={handleNewChat}
-              className="flex-1 flex items-center justify-center gap-2 px-3 py-2 bg-linear-to-r from-purple-500 to-cyan-500 hover:from-purple-600 hover:to-cyan-600 rounded-lg transition-all font-medium text-sm"
-            >
-              <Plus className="w-3.5 h-3.5" />
-              <span>New Chat</span>
-            </button>
-            <button
-              onClick={handleToggleBulkMode}
-              className={`px-3 py-2 rounded-lg transition-all text-sm ${
-                bulkSelectMode
-                  ? "bg-purple-500 text-white"
-                  : "bg-white/10 hover:bg-white/20 text-gray-300"
-              }`}
-              title="Bulk select mode"
-              type="button"
-            >
-              <CheckSquare className="w-3.5 h-3.5" />
-            </button>
-          </div>
+          <button
+            onClick={handleNewChat}
+            className="w-full flex items-center justify-center gap-2 px-3 py-2.5 bg-gradient-to-r from-purple-500 to-cyan-500 hover:from-purple-600 hover:to-cyan-600 rounded-lg transition-all font-medium text-sm shadow-lg"
+          >
+            <Plus className="w-4 h-4" />
+            <span>New Chat</span>
+          </button>
 
           {/* Search */}
           <div className="relative">
@@ -471,12 +457,29 @@ export function ChatSidebar({
             />
           </div>
 
-          {/* Filters */}
+          {/* Filters - Collapsible */}
           <ChatFilters
             availableTags={availableTags}
             filters={filters}
             onFiltersChange={setFilters}
           />
+          
+          {/* Bulk select mode trigger - only show when there are chats */}
+          {filteredChats.length > 0 && (
+            <button
+              onClick={handleToggleBulkMode}
+              className={`w-full flex items-center justify-center gap-2 px-2 py-1.5 rounded-lg transition-all text-xs ${
+                bulkSelectMode
+                  ? "bg-purple-500 text-white"
+                  : "bg-white/5 hover:bg-white/10 text-gray-400"
+              }`}
+              title="Bulk select mode"
+              type="button"
+            >
+              <CheckSquare className="w-3 h-3" />
+              <span>{bulkSelectMode ? 'Exit Bulk Mode' : 'Bulk Select'}</span>
+            </button>
+          )}
         </div>
 
         {/* Bulk Actions */}

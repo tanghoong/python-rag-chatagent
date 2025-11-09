@@ -49,7 +49,7 @@ export default function Chat() {
   const [showShortcuts, setShowShortcuts] = useState(false);
   const [showSearch, setShowSearch] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(true);
-  const [reminderSidebarOpen, setReminderSidebarOpen] = useState(true);
+  const [reminderSidebarOpen, setReminderSidebarOpen] = useState(false); // Hidden by default for cleaner UI
   const [showTokenUsage, setShowTokenUsage] = useState(false);
   const [showPromptTemplates, setShowPromptTemplates] = useState(false);
   const [selectedTemplate, setSelectedTemplate] = useState<{ prompt_text: string } | null>(null);
@@ -493,29 +493,32 @@ export default function Chat() {
             className="relative flex-1 overflow-y-auto scrollbar-hover space-y-1 sm:space-y-2 px-1 xs:px-2 sm:px-4 lg:px-6 py-1 sm:py-2 pb-20 xs:pb-24 sm:pb-28 min-h-0 scroll-smooth"
           >
             {messages.length === 0 && (
-              <div className="flex flex-col items-center justify-center h-full mt-8 px-4">
-                {/* Welcome Header */}
-                <div className="text-center mb-8">
-                  <div className="flex items-center justify-center mb-4">
-                    <div className="w-12 h-12 bg-linear-to-br from-purple-500 to-blue-600 rounded-full flex items-center justify-center">
-                      <Sparkles className="w-6 h-6 text-white" />
+              <div className="flex flex-col items-center justify-center h-full px-4">
+                {/* Simplified Welcome Header */}
+                <div className="text-center max-w-2xl">
+                  <div className="flex items-center justify-center mb-6">
+                    <div className="w-16 h-16 bg-gradient-to-br from-purple-500 to-blue-600 rounded-2xl flex items-center justify-center shadow-lg">
+                      <Sparkles className="w-8 h-8 text-white" />
                     </div>
                   </div>
-                  <h2 className="text-2xl sm:text-3xl font-bold text-white mb-2">Welcome to RAG Chatbot</h2>
-                  <p className="text-gray-400 text-sm sm:text-base">Get started with these popular prompt templates or type your own message</p>
-                </div>
-
-                {/* Quick Templates Section */}
-                <div className="w-full max-w-4xl mb-8">
-                  <QuickTemplates 
-                    onSelectTemplate={handleTemplateSelect}
-                    onOpenFullTemplates={() => setShowPromptTemplates(true)}
-                  />
-                </div>
-
-                {/* Get Started Tips */}
-                <div className="text-center text-gray-500 text-sm">
-                  <p>💡 Tip: Click a template to populate the message box, then edit and send</p>
+                  <h2 className="text-3xl sm:text-4xl font-bold text-white mb-3">How can I help you today?</h2>
+                  <p className="text-gray-400 text-base sm:text-lg mb-8">Start a conversation by typing your message below</p>
+                  
+                  {/* Simple feature hints */}
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-sm text-gray-500 mb-6">
+                    <div className="flex items-center justify-center gap-2">
+                      <span className="text-purple-400">💬</span>
+                      <span>Natural conversation</span>
+                    </div>
+                    <div className="flex items-center justify-center gap-2">
+                      <span className="text-blue-400">🎤</span>
+                      <span>Voice input available</span>
+                    </div>
+                    <div className="flex items-center justify-center gap-2">
+                      <span className="text-green-400">✨</span>
+                      <span>Smart AI responses</span>
+                    </div>
+                  </div>
                 </div>
               </div>
             )}
@@ -637,10 +640,10 @@ export default function Chat() {
           </div>
 
           {/* Token Usage Toggle Button */}
-          {activeChatId && (
+          {activeChatId && messages.length > 0 && (
             <button
               onClick={() => setShowTokenUsage(!showTokenUsage)}
-              className={`fixed bottom-44 sm:bottom-52 z-40 bg-linear-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600 text-white rounded-full w-10 h-10 flex items-center justify-center shadow-lg shadow-green-500/30 hover:shadow-green-500/50 transition-all duration-200 transform hover:scale-105 ${
+              className={`fixed bottom-44 sm:bottom-52 z-40 bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600 text-white rounded-full w-9 h-9 flex items-center justify-center shadow-lg transition-all duration-200 transform hover:scale-105 ${
                 showTokenUsage ? 'rotate-180' : ''
               } ${
                 (() => {
@@ -655,7 +658,7 @@ export default function Chat() {
               }`}
               title={showTokenUsage ? 'Hide Token Usage' : 'Show Token Usage'}
             >
-              <Activity className="w-5 h-5" />
+              <Activity className="w-4 h-4" />
             </button>
           )}
 
@@ -677,7 +680,7 @@ export default function Chat() {
                   setIsAtBottom(true);
                 }
               }}
-              className={`fixed bottom-32 sm:bottom-40 z-40 bg-linear-to-r from-purple-500 to-blue-500 hover:from-purple-600 hover:to-blue-600 text-white rounded-full w-10 h-10 flex items-center justify-center shadow-lg shadow-purple-500/30 hover:shadow-purple-500/50 transition-transform duration-200 transform hover:scale-105 ${
+              className={`fixed bottom-32 sm:bottom-40 z-40 bg-gradient-to-r from-purple-500 to-blue-500 hover:from-purple-600 hover:to-blue-600 text-white rounded-full w-9 h-9 flex items-center justify-center shadow-lg transition-transform duration-200 transform hover:scale-105 ${
                 (() => {
                   if (sidebarOpen && reminderSidebarOpen) {
                     return 'right-84 lg:right-88';
@@ -691,9 +694,9 @@ export default function Chat() {
               aria-label={isAtBottom ? 'Scroll to top' : 'Jump to latest message'}
             >
               {isAtBottom ? (
-                <ArrowUp className="w-5 h-5" />
+                <ArrowUp className="w-4 h-4" />
               ) : (
-                <ArrowDown className="w-5 h-5" />
+                <ArrowDown className="w-4 h-4" />
               )}
             </button>
           )}
@@ -714,7 +717,7 @@ export default function Chat() {
           />
 
           {/* Input - Fixed at bottom */}
-          <div className={`fixed bottom-0 left-0 right-0 z-20 px-2 xs:px-3 sm:px-6 lg:px-8 pb-2 xs:pb-3 sm:pb-4 pt-2 bg-linear-to-t from-black/80 via-black/50 to-transparent backdrop-blur-sm transition-all duration-300 ${
+          <div className={`fixed bottom-0 left-0 right-0 z-20 px-2 xs:px-3 sm:px-6 lg:px-8 pb-2 xs:pb-3 sm:pb-4 pt-2 bg-gradient-to-t from-black/60 to-transparent backdrop-blur-sm transition-all duration-300 ${
             sidebarOpen ? 'md:left-56 lg:left-56' : 'md:left-0 lg:left-0'
           } ${
             reminderSidebarOpen ? 'xl:right-80' : 'xl:right-0'
