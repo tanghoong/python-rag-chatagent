@@ -616,9 +616,6 @@ This document provides a comprehensive overview of all API endpoints available i
 ### POST `/api/memory/bulk-delete`
 **Description:** Delete multiple memories at once.
 
-**Path Parameters:**
-- `collection` (string, required): Collection name
-
 **Request Body:** `BulkDeleteRequest`
 - `memory_ids` (array of strings, required): Memory IDs to delete
 
