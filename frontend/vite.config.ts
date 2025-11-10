@@ -23,14 +23,23 @@ export default defineConfig(({ mode }) => ({
     // Chunk size warnings
     chunkSizeWarningLimit: 1000,
     
-    // Rollup options
+    // Rollup options - only apply manual chunks for client builds
     rollupOptions: {
       output: {
-        // Manual chunks for better caching
-        manualChunks: {
-          'react-vendor': ['react', 'react-dom', 'react-router'],
-          'ui-vendor': ['lucide-react', 'sonner'],
-          'markdown-vendor': ['react-markdown', 'remark-gfm'],
+        // Manual chunks for better caching - only for client
+        manualChunks: (id) => {
+          // Don't apply manual chunks for SSR builds
+          if (id.includes('node_modules')) {
+            if (id.includes('react') || id.includes('react-dom') || id.includes('react-router')) {
+              return 'react-vendor';
+            }
+            if (id.includes('lucide-react') || id.includes('sonner')) {
+              return 'ui-vendor';
+            }
+            if (id.includes('react-markdown') || id.includes('remark-gfm')) {
+              return 'markdown-vendor';
+            }
+          }
         },
       },
     },

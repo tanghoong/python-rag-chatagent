@@ -165,34 +165,13 @@ export function ChatInput({
     const IconComponent = config.icon;
 
     return (
-      <div className={`backdrop-blur-xl bg-white/5 border border-white/10 rounded-2xl px-4 py-2.5 relative overflow-hidden`}>
-        {/* Animated background */}
-        <div className={`absolute inset-0 bg-linear-to-r ${config.bgColor} opacity-50`} />
-        
-        <div className="flex items-center justify-between relative z-10">
+      <div className={`backdrop-blur-sm bg-white/5 border border-white/10 rounded-2xl px-4 py-2.5 relative`}>
+        <div className="flex items-center justify-between">
           <div className="flex items-center space-x-2.5">
-            <div className="relative">
-              <IconComponent className={`w-4 h-4 ${config.color} ${config.icon === Loader2 || processingState === 'processing' ? 'animate-spin' : ''}`} />
-              {/* Pulse effect */}
-              <div className={`absolute inset-0 ${config.color.replace('text-', 'bg-')} opacity-30 animate-ping rounded-full scale-150`} />
-            </div>
+            <IconComponent className={`w-4 h-4 ${config.color} ${config.icon === Loader2 || processingState === 'processing' ? 'animate-spin' : ''}`} />
             <span className={`${config.color} text-sm font-medium`}>
               {config.message}
             </span>
-            
-            {/* Processing dots */}
-            <div className="flex space-x-1">
-              {[0, 1, 2].map((i) => (
-                <div
-                  key={i}
-                  className={`w-1 h-1 ${config.color.replace('text-', 'bg-')} rounded-full animate-bounce`}
-                  style={{
-                    animationDelay: `${i * 0.2}s`,
-                    animationDuration: '1s'
-                  }}
-                />
-              ))}
-            </div>
           </div>
           {onCancel && (
             <button
@@ -235,7 +214,7 @@ export function ChatInput({
 
   return (
     <div className="relative">
-      <form onSubmit={handleSubmit} className="backdrop-blur-xl bg-white/10 border border-white/20 hover:border-white/30 focus-within:border-purple-500/50 rounded-xl shadow-lg shadow-black/20 transition-all duration-200">
+      <form onSubmit={handleSubmit} className="backdrop-blur-sm bg-white/5 border border-white/20 hover:border-white/30 focus-within:border-purple-500/50 rounded-xl shadow-lg transition-all duration-200">
       <div className="flex items-end gap-2 px-2.5 py-2">
         <textarea
           ref={textareaRef}
@@ -265,32 +244,34 @@ export function ChatInput({
           <button
             type="submit"
             disabled={disabled || !input.trim() || loading}
-            className="bg-linear-to-r from-purple-500 to-blue-500 hover:from-purple-600 hover:to-blue-600 disabled:opacity-40 disabled:cursor-not-allowed rounded-full p-2 transition-all shadow-lg shadow-purple-500/25 hover:shadow-purple-500/40 hover:scale-105 active:scale-95"
+            className="bg-gradient-to-r from-purple-500 to-blue-500 hover:from-purple-600 hover:to-blue-600 disabled:opacity-40 disabled:cursor-not-allowed rounded-full p-2 transition-all shadow-md hover:shadow-lg hover:scale-105 active:scale-95"
             aria-label="Send message"
           >
             <Send className="w-3.5 h-3.5 text-white" />
           </button>
         </div>
       </div>
-      {/* Character count indicator - always visible */}
-      <div className="flex items-center justify-between px-4 pb-2 pt-0.5">
-        <div className="text-xs text-white/30">
-          {input.trim() ? `${input.trim().split(/\s+/).length} words` : 'Type your message...'}
+      {/* Character count indicator - only show when typing or near limit */}
+      {(charCount > 0 || charCount >= maxLength * 0.8) && (
+        <div className="flex items-center justify-between px-4 pb-2 pt-0.5">
+          <div className="text-xs text-white/30">
+            {input.trim() ? `${input.trim().split(/\s+/).length} words` : ''}
+          </div>
+          <div className="flex items-center gap-2">
+            {charCount > maxLength * 0.5 && (
+              <div className="h-1 w-20 bg-white/10 rounded-full overflow-hidden">
+                <div
+                  className={`h-full transition-all duration-300 ${getProgressBarColor()}`}
+                  style={{ width: `${Math.min(charPercentage, 100)}%` }}
+                />
+              </div>
+            )}
+            <span id="char-count" className={`text-xs transition-colors ${getCharCountColor()}`}>
+              {charCount} / {maxLength}
+            </span>
+          </div>
         </div>
-        <div className="flex items-center gap-2">
-          {charCount > 0 && (
-            <div className="h-1 w-20 bg-white/10 rounded-full overflow-hidden">
-              <div
-                className={`h-full transition-all duration-300 ${getProgressBarColor()}`}
-                style={{ width: `${Math.min(charPercentage, 100)}%` }}
-              />
-            </div>
-          )}
-          <span id="char-count" className={`text-xs transition-colors ${getCharCountColor()}`}>
-            {charCount} / {maxLength}
-          </span>
-        </div>
-      </div>
+      )}
 
       {/* Quick Templates Dropdown */}
       {showQuickTemplates && (

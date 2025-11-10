@@ -25,7 +25,7 @@ export interface NotificationData {
   icon?: string;
   tag?: string;
   requireInteraction?: boolean;
-  actions?: NotificationAction[];
+  // actions?: NotificationAction[]; // Removed - not used and type not available in all environments
   data?: any;
 }
 
