@@ -648,25 +648,6 @@ This document provides a comprehensive overview of all API endpoints available i
 }
 ```
 
-### GET `/api/memory/list/{collection_name}`
-**Description:** List all memories in a specific collection.
-
-**Path Parameters:**
-- `collection_name` (string, required): Collection name (e.g., 'global_memory', 'chat_123')
-
-**Query Parameters:**
-- `limit` (int, default: 100): Maximum memories to return
-
-**Response:**
-```json
-{
-  "status": "success",
-  "collection_name": "global_memory",
-  "total_count": 50,
-  "memories": []
-}
-```
-
 ---
 
 ## Task Management
