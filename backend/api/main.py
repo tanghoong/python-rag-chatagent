@@ -1980,6 +1980,16 @@ async def create_task(task_data: TaskCreate):
     try:
         await task_repository.ensure_indexes()
         task = await task_repository.create(task_data)
+        
+        # Trigger webhooks for task creation
+        try:
+            from utils.webhook_utils import trigger_webhooks_for_event, format_task_payload
+            from models.webhook_models import WebhookEvent
+            payload = format_task_payload(task.model_dump())
+            await trigger_webhooks_for_event(WebhookEvent.TASK_CREATED, payload)
+        except Exception as webhook_error:
+            print(f"⚠️ Webhook trigger error: {webhook_error}")
+        
         return task
     except Exception as e:
         raise HTTPException(
@@ -2089,6 +2099,16 @@ async def update_task(task_id: str, task_update: TaskUpdate):
                 status_code=404,
                 detail=f"Task not found: {task_id}"
             )
+        
+        # Trigger webhooks for task update
+        try:
+            from utils.webhook_utils import trigger_webhooks_for_event, format_task_payload
+            from models.webhook_models import WebhookEvent
+            payload = format_task_payload(task.model_dump())
+            await trigger_webhooks_for_event(WebhookEvent.TASK_UPDATED, payload)
+        except Exception as webhook_error:
+            print(f"⚠️ Webhook trigger error: {webhook_error}")
+        
         return task
     except HTTPException:
         raise
@@ -2111,12 +2131,26 @@ async def delete_task(task_id: str):
         Success status
     """
     try:
+        # Get task before deleting for webhook
+        task = await task_repository.get(task_id)
+        
         deleted = await task_repository.delete(task_id)
         if not deleted:
             raise HTTPException(
                 status_code=404,
                 detail=f"Task not found: {task_id}"
             )
+        
+        # Trigger webhooks for task deletion
+        if task:
+            try:
+                from utils.webhook_utils import trigger_webhooks_for_event, format_task_payload
+                from models.webhook_models import WebhookEvent
+                payload = format_task_payload(task.model_dump())
+                await trigger_webhooks_for_event(WebhookEvent.TASK_DELETED, payload)
+            except Exception as webhook_error:
+                print(f"⚠️ Webhook trigger error: {webhook_error}")
+        
         return {"status": "success", "message": f"Task {task_id} deleted successfully"}
     except HTTPException:
         raise
@@ -2171,6 +2205,21 @@ async def update_task_status(task_id: str, status_update: TaskStatusUpdate):
                 status_code=404,
                 detail=f"Task not found: {task_id}"
             )
+        
+        # Trigger webhooks for task update/completion
+        try:
+            from utils.webhook_utils import trigger_webhooks_for_event, format_task_payload
+            from models.webhook_models import WebhookEvent
+            payload = format_task_payload(task.model_dump())
+            
+            # If status is completed, trigger TASK_COMPLETED event
+            if status_update.status == TaskStatus.COMPLETED:
+                await trigger_webhooks_for_event(WebhookEvent.TASK_COMPLETED, payload)
+            else:
+                await trigger_webhooks_for_event(WebhookEvent.TASK_UPDATED, payload)
+        except Exception as webhook_error:
+            print(f"⚠️ Webhook trigger error: {webhook_error}")
+        
         return task
     except HTTPException:
         raise
@@ -2235,6 +2284,16 @@ async def create_reminder(reminder_data: ReminderCreate):
     try:
         await reminder_repository.ensure_indexes()
         reminder = await reminder_repository.create(reminder_data)
+        
+        # Trigger webhooks for reminder creation
+        try:
+            from utils.webhook_utils import trigger_webhooks_for_event, format_reminder_payload
+            from models.webhook_models import WebhookEvent
+            payload = format_reminder_payload(reminder.model_dump())
+            await trigger_webhooks_for_event(WebhookEvent.REMINDER_CREATED, payload)
+        except Exception as webhook_error:
+            print(f"⚠️ Webhook trigger error: {webhook_error}")
+        
         return reminder
     except Exception as e:
         raise HTTPException(
@@ -2450,12 +2509,27 @@ async def complete_reminder(reminder_id: str):
         Success message
     """
     try:
+        # Get reminder before completing for webhook
+        reminder = await reminder_repository.get(reminder_id)
+        
         updated = await reminder_repository.update_status(reminder_id, ReminderStatus.COMPLETED)
         if not updated:
             raise HTTPException(
                 status_code=404,
                 detail="Reminder not found"
             )
+        
+        # Trigger webhooks for reminder completion
+        if reminder:
+            try:
+                from utils.webhook_utils import trigger_webhooks_for_event, format_reminder_payload
+                from models.webhook_models import WebhookEvent
+                payload = format_reminder_payload(reminder.model_dump())
+                payload["status"] = "completed"  # Update status in payload
+                await trigger_webhooks_for_event(WebhookEvent.REMINDER_COMPLETED, payload)
+            except Exception as webhook_error:
+                print(f"⚠️ Webhook trigger error: {webhook_error}")
+        
         return {"message": "Reminder marked as completed"}
     except HTTPException:
         raise
