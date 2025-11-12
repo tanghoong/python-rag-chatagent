@@ -36,6 +36,7 @@ from database.chat_repository import (
 )
 from database.task_repository import task_repository
 from database.reminder_repository import reminder_repository
+from database.webhook_repository import webhook_repository
 from database.prompt_template_repository import PromptTemplateRepository
 from database.persona_repository import (
     create_persona as create_persona_db,
@@ -87,6 +88,19 @@ from models.persona_models import (
     PersonaUpdate,
     PersonaResponse,
     PersonaListResponse
+)
+from models.webhook_models import (
+    Webhook,
+    WebhookCreate,
+    WebhookUpdate,
+    WebhookListResponse,
+    WebhookLogsResponse,
+    WebhookStatsResponse,
+    BulkDeleteRequest as WebhookBulkDeleteRequest,
+    WebhookTestRequest,
+    WebhookTestResponse,
+    WebhookStatus,
+    WebhookEvent
 )
 from models.usage_models import UsageStatsResponse
 from utils.title_generator import generate_chat_title
@@ -1966,6 +1980,16 @@ async def create_task(task_data: TaskCreate):
     try:
         await task_repository.ensure_indexes()
         task = await task_repository.create(task_data)
+        
+        # Trigger webhooks for task creation
+        try:
+            from utils.webhook_utils import trigger_webhooks_for_event, format_task_payload
+            from models.webhook_models import WebhookEvent
+            payload = format_task_payload(task.model_dump())
+            await trigger_webhooks_for_event(WebhookEvent.TASK_CREATED, payload)
+        except Exception as webhook_error:
+            print(f"⚠️ Webhook trigger error: {webhook_error}")
+        
         return task
     except Exception as e:
         raise HTTPException(
@@ -2075,6 +2099,16 @@ async def update_task(task_id: str, task_update: TaskUpdate):
                 status_code=404,
                 detail=f"Task not found: {task_id}"
             )
+        
+        # Trigger webhooks for task update
+        try:
+            from utils.webhook_utils import trigger_webhooks_for_event, format_task_payload
+            from models.webhook_models import WebhookEvent
+            payload = format_task_payload(task.model_dump())
+            await trigger_webhooks_for_event(WebhookEvent.TASK_UPDATED, payload)
+        except Exception as webhook_error:
+            print(f"⚠️ Webhook trigger error: {webhook_error}")
+        
         return task
     except HTTPException:
         raise
@@ -2097,12 +2131,26 @@ async def delete_task(task_id: str):
         Success status
     """
     try:
+        # Get task before deleting for webhook
+        task = await task_repository.get(task_id)
+        
         deleted = await task_repository.delete(task_id)
         if not deleted:
             raise HTTPException(
                 status_code=404,
                 detail=f"Task not found: {task_id}"
             )
+        
+        # Trigger webhooks for task deletion
+        if task:
+            try:
+                from utils.webhook_utils import trigger_webhooks_for_event, format_task_payload
+                from models.webhook_models import WebhookEvent
+                payload = format_task_payload(task.model_dump())
+                await trigger_webhooks_for_event(WebhookEvent.TASK_DELETED, payload)
+            except Exception as webhook_error:
+                print(f"⚠️ Webhook trigger error: {webhook_error}")
+        
         return {"status": "success", "message": f"Task {task_id} deleted successfully"}
     except HTTPException:
         raise
@@ -2157,6 +2205,21 @@ async def update_task_status(task_id: str, status_update: TaskStatusUpdate):
                 status_code=404,
                 detail=f"Task not found: {task_id}"
             )
+        
+        # Trigger webhooks for task update/completion
+        try:
+            from utils.webhook_utils import trigger_webhooks_for_event, format_task_payload
+            from models.webhook_models import WebhookEvent
+            payload = format_task_payload(task.model_dump())
+            
+            # If status is completed, trigger TASK_COMPLETED event
+            if status_update.status == TaskStatus.COMPLETED:
+                await trigger_webhooks_for_event(WebhookEvent.TASK_COMPLETED, payload)
+            else:
+                await trigger_webhooks_for_event(WebhookEvent.TASK_UPDATED, payload)
+        except Exception as webhook_error:
+            print(f"⚠️ Webhook trigger error: {webhook_error}")
+        
         return task
     except HTTPException:
         raise
@@ -2221,6 +2284,16 @@ async def create_reminder(reminder_data: ReminderCreate):
     try:
         await reminder_repository.ensure_indexes()
         reminder = await reminder_repository.create(reminder_data)
+        
+        # Trigger webhooks for reminder creation
+        try:
+            from utils.webhook_utils import trigger_webhooks_for_event, format_reminder_payload
+            from models.webhook_models import WebhookEvent
+            payload = format_reminder_payload(reminder.model_dump())
+            await trigger_webhooks_for_event(WebhookEvent.REMINDER_CREATED, payload)
+        except Exception as webhook_error:
+            print(f"⚠️ Webhook trigger error: {webhook_error}")
+        
         return reminder
     except Exception as e:
         raise HTTPException(
@@ -2436,12 +2509,27 @@ async def complete_reminder(reminder_id: str):
         Success message
     """
     try:
+        # Get reminder before completing for webhook
+        reminder = await reminder_repository.get(reminder_id)
+        
         updated = await reminder_repository.update_status(reminder_id, ReminderStatus.COMPLETED)
         if not updated:
             raise HTTPException(
                 status_code=404,
                 detail="Reminder not found"
             )
+        
+        # Trigger webhooks for reminder completion
+        if reminder:
+            try:
+                from utils.webhook_utils import trigger_webhooks_for_event, format_reminder_payload
+                from models.webhook_models import WebhookEvent
+                payload = format_reminder_payload(reminder.model_dump())
+                payload["status"] = "completed"  # Update status in payload
+                await trigger_webhooks_for_event(WebhookEvent.REMINDER_COMPLETED, payload)
+            except Exception as webhook_error:
+                print(f"⚠️ Webhook trigger error: {webhook_error}")
+        
         return {"message": "Reminder marked as completed"}
     except HTTPException:
         raise
@@ -2514,6 +2602,305 @@ async def get_reminder_stats():
         raise HTTPException(
             status_code=500,
             detail=f"Error retrieving reminder statistics: {str(e)}"
+        )
+
+
+# ==================== WEBHOOK ENDPOINTS ====================
+
+@app.post("/api/webhooks/create", response_model=Webhook, tags=["Webhooks"])
+async def create_webhook(webhook_data: WebhookCreate):
+    """
+    Create a new webhook configuration
+    
+    Args:
+        webhook_data: Webhook creation data including URL, events, and authentication
+        
+    Returns:
+        Created webhook with metadata
+    """
+    try:
+        webhook = await webhook_repository.create(webhook_data)
+        return webhook
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Error creating webhook: {str(e)}"
+        )
+
+
+@app.get("/api/webhooks/list", response_model=WebhookListResponse, tags=["Webhooks"])
+async def list_webhooks(
+    page: int = 1,
+    page_size: int = 20,
+    status: Optional[WebhookStatus] = None,
+    event_type: Optional[WebhookEvent] = None
+):
+    """
+    List webhooks with pagination and filters
+    
+    Args:
+        page: Page number (1-indexed)
+        page_size: Number of webhooks per page
+        status: Filter by status
+        event_type: Filter by event type
+        
+    Returns:
+        Paginated list of webhooks
+    """
+    try:
+        # Validate pagination
+        if page < 1:
+            page = 1
+        if page_size < 1 or page_size > 100:
+            page_size = 20
+        
+        # Get webhooks
+        webhooks, total = await webhook_repository.list(
+            page=page,
+            page_size=page_size,
+            status=status,
+            event_type=event_type
+        )
+        
+        total_pages = (total + page_size - 1) // page_size
+        
+        return WebhookListResponse(
+            webhooks=webhooks,
+            total=total,
+            page=page,
+            page_size=page_size,
+            total_pages=total_pages
+        )
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Error listing webhooks: {str(e)}"
+        )
+
+
+@app.get("/api/webhooks/{webhook_id}", response_model=Webhook, tags=["Webhooks"])
+async def get_webhook(webhook_id: str):
+    """
+    Get a specific webhook by ID
+    
+    Args:
+        webhook_id: Webhook identifier
+        
+    Returns:
+        Webhook details
+    """
+    try:
+        webhook = await webhook_repository.get(webhook_id)
+        if not webhook:
+            raise HTTPException(status_code=404, detail="Webhook not found")
+        return webhook
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Error retrieving webhook: {str(e)}"
+        )
+
+
+@app.put("/api/webhooks/{webhook_id}", response_model=Webhook, tags=["Webhooks"])
+async def update_webhook(webhook_id: str, webhook_data: WebhookUpdate):
+    """
+    Update a webhook configuration
+    
+    Args:
+        webhook_id: Webhook identifier
+        webhook_data: Update data
+        
+    Returns:
+        Updated webhook
+    """
+    try:
+        webhook = await webhook_repository.update(webhook_id, webhook_data)
+        if not webhook:
+            raise HTTPException(status_code=404, detail="Webhook not found")
+        return webhook
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Error updating webhook: {str(e)}"
+        )
+
+
+@app.delete("/api/webhooks/{webhook_id}", tags=["Webhooks"])
+async def delete_webhook(webhook_id: str):
+    """
+    Delete a webhook
+    
+    Args:
+        webhook_id: Webhook identifier
+        
+    Returns:
+        Success message
+    """
+    try:
+        success = await webhook_repository.delete(webhook_id)
+        if not success:
+            raise HTTPException(status_code=404, detail="Webhook not found")
+        return {"message": "Webhook deleted successfully"}
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Error deleting webhook: {str(e)}"
+        )
+
+
+@app.post("/api/webhooks/bulk-delete", tags=["Webhooks"])
+async def bulk_delete_webhooks(request: WebhookBulkDeleteRequest):
+    """
+    Bulk delete webhooks
+    
+    Args:
+        request: List of webhook IDs to delete
+        
+    Returns:
+        Number of webhooks deleted
+    """
+    try:
+        count = await webhook_repository.bulk_delete(request.webhook_ids)
+        return {"deleted_count": count}
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Error bulk deleting webhooks: {str(e)}"
+        )
+
+
+@app.post("/api/webhooks/{webhook_id}/test", response_model=WebhookTestResponse, tags=["Webhooks"])
+async def test_webhook(webhook_id: str, test_request: WebhookTestRequest):
+    """
+    Test a webhook by sending a test payload
+    
+    Args:
+        webhook_id: Webhook identifier
+        test_request: Test request with optional custom payload
+        
+    Returns:
+        Test results including response status and body
+    """
+    try:
+        webhook = await webhook_repository.get(webhook_id)
+        if not webhook:
+            raise HTTPException(status_code=404, detail="Webhook not found")
+        
+        # Import send_webhook here to avoid circular imports
+        from utils.webhook_utils import send_webhook
+        
+        # Prepare test payload
+        payload = test_request.payload or {"test": True, "message": "This is a test webhook"}
+        
+        # Send webhook
+        success, log = await send_webhook(
+            webhook,
+            WebhookEvent.CUSTOM,
+            payload
+        )
+        
+        return WebhookTestResponse(
+            success=success,
+            status_code=log.response_status_code if log else None,
+            response_body=log.response_body if log else None,
+            response_time_ms=log.response_time_ms if log else None,
+            error_message=log.error_message if log else None
+        )
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Error testing webhook: {str(e)}"
+        )
+
+
+@app.get("/api/webhooks/{webhook_id}/logs", response_model=WebhookLogsResponse, tags=["Webhooks"])
+async def get_webhook_logs(
+    webhook_id: str,
+    page: int = 1,
+    page_size: int = 50
+):
+    """
+    Get webhook execution logs
+    
+    Args:
+        webhook_id: Webhook identifier
+        page: Page number
+        page_size: Number of logs per page
+        
+    Returns:
+        Paginated list of webhook logs
+    """
+    try:
+        # Validate pagination
+        if page < 1:
+            page = 1
+        if page_size < 1 or page_size > 100:
+            page_size = 50
+        
+        # Get logs
+        logs, total = await webhook_repository.get_logs(
+            webhook_id=webhook_id,
+            page=page,
+            page_size=page_size
+        )
+        
+        total_pages = (total + page_size - 1) // page_size
+        
+        return WebhookLogsResponse(
+            logs=logs,
+            total=total,
+            page=page,
+            page_size=page_size,
+            total_pages=total_pages
+        )
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Error retrieving webhook logs: {str(e)}"
+        )
+
+
+@app.get("/api/webhooks/tags/list", response_model=List[str], tags=["Webhooks"])
+async def list_webhook_tags():
+    """
+    Get all unique webhook tags
+    
+    Returns:
+        List of unique tags
+    """
+    try:
+        tags = await webhook_repository.get_all_tags()
+        return tags
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Error retrieving webhook tags: {str(e)}"
+        )
+
+
+@app.get("/api/webhooks/stats/summary", response_model=WebhookStatsResponse, tags=["Webhooks"])
+async def get_webhook_stats():
+    """
+    Get webhook statistics
+    
+    Returns:
+        Webhook statistics including counts and success rates
+    """
+    try:
+        stats = await webhook_repository.get_stats()
+        return WebhookStatsResponse(**stats)
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Error retrieving webhook statistics: {str(e)}"
         )
 
 
