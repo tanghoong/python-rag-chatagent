@@ -80,14 +80,14 @@ class WebhookRepository:
         """Generate unique webhook ID"""
         timestamp = str(time.time())
         unique_string = f"{name}_{timestamp}"
-        hash_object = hashlib.md5(unique_string.encode())
+        hash_object = hashlib.sha256(unique_string.encode())
         return f"webhook_{hash_object.hexdigest()[:12]}"
 
     def _generate_log_id(self, webhook_id: str) -> str:
         """Generate unique log ID"""
         timestamp = str(time.time())
         unique_string = f"{webhook_id}_{timestamp}"
-        hash_object = hashlib.md5(unique_string.encode())
+        hash_object = hashlib.sha256(unique_string.encode())
         return f"log_{hash_object.hexdigest()[:12]}"
 
     def _webhook_to_dict(self, webhook: Webhook) -> dict:
