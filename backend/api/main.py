@@ -4,6 +4,7 @@ FastAPI Main Application
 Main API server for the RAG chatbot with LangChain agent integration.
 """
 
+from database.connection import get_async_database
 import os
 import json
 import asyncio
@@ -73,8 +74,7 @@ from models.reminder_models import (
     BulkDeleteRequest as ReminderBulkDeleteRequest,
     SnoozeRequest,
     ReminderStatus,
-    ReminderPriority,
-    RecurrenceType
+    ReminderPriority
 )
 from models.prompt_template_models import (
     PromptTemplate,
@@ -127,7 +127,6 @@ app.add_middleware(
 )
 
 # Initialize repositories
-from database.connection import get_async_database
 async_db = get_async_database()
 prompt_template_repository = PromptTemplateRepository(async_db)
 
@@ -735,7 +734,7 @@ async def update_chat_persona_endpoint(chat_id: str, request: UpdatePersonaReque
                     status_code=404,
                     detail="Persona not found"
                 )
-        
+
         updated = await update_chat_persona(chat_id, request.persona_id)
 
         if not updated:
@@ -991,6 +990,13 @@ async def upload_document(
         import tempfile
         from pathlib import Path
 
+        # Security: Validate filename to prevent path traversal
+        if not file.filename or '..' in file.filename or '/' in file.filename or '\\' in file.filename:
+            raise HTTPException(
+                status_code=400,
+                detail="Invalid filename"
+            )
+
         # Validate file type
         supported_extensions = ['.pdf', '.txt', '.md', '.docx', '.html', '.htm']
         file_ext = Path(file.filename).suffix.lower()
@@ -1001,9 +1007,17 @@ async def upload_document(
                 detail=f"Unsupported file type. Supported: {', '.join(supported_extensions)}"
             )
 
+        # Security: Read file with size limit (50MB max)
+        MAX_FILE_SIZE = 50 * 1024 * 1024  # 50 MB
+        content = await file.read(MAX_FILE_SIZE + 1)
+        if len(content) > MAX_FILE_SIZE:
+            raise HTTPException(
+                status_code=400,
+                detail=f"File too large. Maximum size: {MAX_FILE_SIZE // (1024 * 1024)}MB"
+            )
+
         # Save uploaded file temporarily
         with tempfile.NamedTemporaryFile(delete=False, suffix=file_ext) as tmp_file:
-            content = await file.read()
             tmp_file.write(content)
             tmp_path = tmp_file.name
 
@@ -1980,7 +1994,7 @@ async def create_task(task_data: TaskCreate):
     try:
         await task_repository.ensure_indexes()
         task = await task_repository.create(task_data)
-        
+
         # Trigger webhooks for task creation
         try:
             from utils.webhook_utils import trigger_webhooks_for_event, format_task_payload
@@ -1989,7 +2003,7 @@ async def create_task(task_data: TaskCreate):
             await trigger_webhooks_for_event(WebhookEvent.TASK_CREATED, payload)
         except Exception as webhook_error:
             print(f"⚠️ Webhook trigger error: {webhook_error}")
-        
+
         return task
     except Exception as e:
         raise HTTPException(
@@ -2099,7 +2113,7 @@ async def update_task(task_id: str, task_update: TaskUpdate):
                 status_code=404,
                 detail=f"Task not found: {task_id}"
             )
-        
+
         # Trigger webhooks for task update
         try:
             from utils.webhook_utils import trigger_webhooks_for_event, format_task_payload
@@ -2108,7 +2122,7 @@ async def update_task(task_id: str, task_update: TaskUpdate):
             await trigger_webhooks_for_event(WebhookEvent.TASK_UPDATED, payload)
         except Exception as webhook_error:
             print(f"⚠️ Webhook trigger error: {webhook_error}")
-        
+
         return task
     except HTTPException:
         raise
@@ -2133,14 +2147,14 @@ async def delete_task(task_id: str):
     try:
         # Get task before deleting for webhook
         task = await task_repository.get(task_id)
-        
+
         deleted = await task_repository.delete(task_id)
         if not deleted:
             raise HTTPException(
                 status_code=404,
                 detail=f"Task not found: {task_id}"
             )
-        
+
         # Trigger webhooks for task deletion
         if task:
             try:
@@ -2150,7 +2164,7 @@ async def delete_task(task_id: str):
                 await trigger_webhooks_for_event(WebhookEvent.TASK_DELETED, payload)
             except Exception as webhook_error:
                 print(f"⚠️ Webhook trigger error: {webhook_error}")
-        
+
         return {"status": "success", "message": f"Task {task_id} deleted successfully"}
     except HTTPException:
         raise
@@ -2205,13 +2219,13 @@ async def update_task_status(task_id: str, status_update: TaskStatusUpdate):
                 status_code=404,
                 detail=f"Task not found: {task_id}"
             )
-        
+
         # Trigger webhooks for task update/completion
         try:
             from utils.webhook_utils import trigger_webhooks_for_event, format_task_payload
             from models.webhook_models import WebhookEvent
             payload = format_task_payload(task.model_dump())
-            
+
             # If status is completed, trigger TASK_COMPLETED event
             if status_update.status == TaskStatus.COMPLETED:
                 await trigger_webhooks_for_event(WebhookEvent.TASK_COMPLETED, payload)
@@ -2219,7 +2233,7 @@ async def update_task_status(task_id: str, status_update: TaskStatusUpdate):
                 await trigger_webhooks_for_event(WebhookEvent.TASK_UPDATED, payload)
         except Exception as webhook_error:
             print(f"⚠️ Webhook trigger error: {webhook_error}")
-        
+
         return task
     except HTTPException:
         raise
@@ -2274,17 +2288,17 @@ async def get_task_stats():
 async def create_reminder(reminder_data: ReminderCreate):
     """
     Create a new reminder
-    
+
     Args:
         reminder_data: Reminder creation data
-        
+
     Returns:
         Created reminder
     """
     try:
         await reminder_repository.ensure_indexes()
         reminder = await reminder_repository.create(reminder_data)
-        
+
         # Trigger webhooks for reminder creation
         try:
             from utils.webhook_utils import trigger_webhooks_for_event, format_reminder_payload
@@ -2293,7 +2307,7 @@ async def create_reminder(reminder_data: ReminderCreate):
             await trigger_webhooks_for_event(WebhookEvent.REMINDER_CREATED, payload)
         except Exception as webhook_error:
             print(f"⚠️ Webhook trigger error: {webhook_error}")
-        
+
         return reminder
     except Exception as e:
         raise HTTPException(
@@ -2317,7 +2331,7 @@ async def list_reminders(
 ):
     """
     List reminders with pagination and filters
-    
+
     Args:
         page: Page number (1-based)
         page_size: Items per page (max 100)
@@ -2329,7 +2343,7 @@ async def list_reminders(
         due_after: Filter reminders due after this ISO date
         overdue_only: Show only overdue reminders
         pending_only: Show only pending reminders
-        
+
     Returns:
         Paginated list of reminders
     """
@@ -2337,15 +2351,15 @@ async def list_reminders(
         # Validate page size
         if page_size > 100:
             page_size = 100
-        
+
         # Parse tags
         tag_list = [tag.strip() for tag in tags.split(",")] if tags else None
-        
+
         # Parse dates
         from datetime import datetime
         due_before_dt = datetime.fromisoformat(due_before.replace('Z', '+00:00')) if due_before else None
         due_after_dt = datetime.fromisoformat(due_after.replace('Z', '+00:00')) if due_after else None
-        
+
         result = await reminder_repository.list(
             page=page,
             page_size=page_size,
@@ -2358,7 +2372,7 @@ async def list_reminders(
             overdue_only=overdue_only,
             pending_only=pending_only
         )
-        
+
         return ReminderListResponse(**result)
     except Exception as e:
         raise HTTPException(
@@ -2371,10 +2385,10 @@ async def list_reminders(
 async def get_pending_reminders(limit: int = 50):
     """
     Get pending/due reminders
-    
+
     Args:
         limit: Maximum number of reminders to return
-        
+
     Returns:
         List of pending reminders that should be shown/notified
     """
@@ -2392,10 +2406,10 @@ async def get_pending_reminders(limit: int = 50):
 async def get_reminder(reminder_id: str):
     """
     Get specific reminder by ID
-    
+
     Args:
         reminder_id: Reminder identifier
-        
+
     Returns:
         Reminder details
     """
@@ -2420,11 +2434,11 @@ async def get_reminder(reminder_id: str):
 async def update_reminder(reminder_id: str, reminder_update: ReminderUpdate):
     """
     Update reminder
-    
+
     Args:
         reminder_id: Reminder identifier
         reminder_update: Update data
-        
+
     Returns:
         Updated reminder
     """
@@ -2449,10 +2463,10 @@ async def update_reminder(reminder_id: str, reminder_update: ReminderUpdate):
 async def delete_reminder(reminder_id: str):
     """
     Delete reminder
-    
+
     Args:
         reminder_id: Reminder identifier
-        
+
     Returns:
         Success message
     """
@@ -2477,10 +2491,10 @@ async def delete_reminder(reminder_id: str):
 async def bulk_delete_reminders(request: ReminderBulkDeleteRequest):
     """
     Bulk delete reminders
-    
+
     Args:
         request: List of reminder IDs to delete
-        
+
     Returns:
         Number of reminders deleted
     """
@@ -2501,24 +2515,24 @@ async def bulk_delete_reminders(request: ReminderBulkDeleteRequest):
 async def complete_reminder(reminder_id: str):
     """
     Mark reminder as completed
-    
+
     Args:
         reminder_id: Reminder identifier
-        
+
     Returns:
         Success message
     """
     try:
         # Get reminder before completing for webhook
         reminder = await reminder_repository.get(reminder_id)
-        
+
         updated = await reminder_repository.update_status(reminder_id, ReminderStatus.COMPLETED)
         if not updated:
             raise HTTPException(
                 status_code=404,
                 detail="Reminder not found"
             )
-        
+
         # Trigger webhooks for reminder completion
         if reminder:
             try:
@@ -2529,7 +2543,7 @@ async def complete_reminder(reminder_id: str):
                 await trigger_webhooks_for_event(WebhookEvent.REMINDER_COMPLETED, payload)
             except Exception as webhook_error:
                 print(f"⚠️ Webhook trigger error: {webhook_error}")
-        
+
         return {"message": "Reminder marked as completed"}
     except HTTPException:
         raise
@@ -2544,11 +2558,11 @@ async def complete_reminder(reminder_id: str):
 async def snooze_reminder(reminder_id: str, snooze_request: SnoozeRequest):
     """
     Snooze reminder
-    
+
     Args:
         reminder_id: Reminder identifier
         snooze_request: Snooze configuration
-        
+
     Returns:
         Success message
     """
@@ -2573,7 +2587,7 @@ async def snooze_reminder(reminder_id: str, snooze_request: SnoozeRequest):
 async def get_reminder_tags():
     """
     Get all unique reminder tags
-    
+
     Returns:
         List of unique tags
     """
@@ -2591,7 +2605,7 @@ async def get_reminder_tags():
 async def get_reminder_stats():
     """
     Get reminder statistics
-    
+
     Returns:
         Reminder statistics including counts by status and priority
     """
@@ -2611,10 +2625,10 @@ async def get_reminder_stats():
 async def create_webhook(webhook_data: WebhookCreate):
     """
     Create a new webhook configuration
-    
+
     Args:
         webhook_data: Webhook creation data including URL, events, and authentication
-        
+
     Returns:
         Created webhook with metadata
     """
@@ -2637,13 +2651,13 @@ async def list_webhooks(
 ):
     """
     List webhooks with pagination and filters
-    
+
     Args:
         page: Page number (1-indexed)
         page_size: Number of webhooks per page
         status: Filter by status
         event_type: Filter by event type
-        
+
     Returns:
         Paginated list of webhooks
     """
@@ -2653,7 +2667,7 @@ async def list_webhooks(
             page = 1
         if page_size < 1 or page_size > 100:
             page_size = 20
-        
+
         # Get webhooks
         webhooks, total = await webhook_repository.list(
             page=page,
@@ -2661,9 +2675,9 @@ async def list_webhooks(
             status=status,
             event_type=event_type
         )
-        
+
         total_pages = (total + page_size - 1) // page_size
-        
+
         return WebhookListResponse(
             webhooks=webhooks,
             total=total,
@@ -2682,10 +2696,10 @@ async def list_webhooks(
 async def get_webhook(webhook_id: str):
     """
     Get a specific webhook by ID
-    
+
     Args:
         webhook_id: Webhook identifier
-        
+
     Returns:
         Webhook details
     """
@@ -2707,11 +2721,11 @@ async def get_webhook(webhook_id: str):
 async def update_webhook(webhook_id: str, webhook_data: WebhookUpdate):
     """
     Update a webhook configuration
-    
+
     Args:
         webhook_id: Webhook identifier
         webhook_data: Update data
-        
+
     Returns:
         Updated webhook
     """
@@ -2733,10 +2747,10 @@ async def update_webhook(webhook_id: str, webhook_data: WebhookUpdate):
 async def delete_webhook(webhook_id: str):
     """
     Delete a webhook
-    
+
     Args:
         webhook_id: Webhook identifier
-        
+
     Returns:
         Success message
     """
@@ -2758,10 +2772,10 @@ async def delete_webhook(webhook_id: str):
 async def bulk_delete_webhooks(request: WebhookBulkDeleteRequest):
     """
     Bulk delete webhooks
-    
+
     Args:
         request: List of webhook IDs to delete
-        
+
     Returns:
         Number of webhooks deleted
     """
@@ -2779,11 +2793,11 @@ async def bulk_delete_webhooks(request: WebhookBulkDeleteRequest):
 async def test_webhook(webhook_id: str, test_request: WebhookTestRequest):
     """
     Test a webhook by sending a test payload
-    
+
     Args:
         webhook_id: Webhook identifier
         test_request: Test request with optional custom payload
-        
+
     Returns:
         Test results including response status and body
     """
@@ -2791,20 +2805,20 @@ async def test_webhook(webhook_id: str, test_request: WebhookTestRequest):
         webhook = await webhook_repository.get(webhook_id)
         if not webhook:
             raise HTTPException(status_code=404, detail="Webhook not found")
-        
+
         # Import send_webhook here to avoid circular imports
         from utils.webhook_utils import send_webhook
-        
+
         # Prepare test payload
         payload = test_request.payload or {"test": True, "message": "This is a test webhook"}
-        
+
         # Send webhook
         success, log = await send_webhook(
             webhook,
             WebhookEvent.CUSTOM,
             payload
         )
-        
+
         return WebhookTestResponse(
             success=success,
             status_code=log.response_status_code if log else None,
@@ -2829,12 +2843,12 @@ async def get_webhook_logs(
 ):
     """
     Get webhook execution logs
-    
+
     Args:
         webhook_id: Webhook identifier
         page: Page number
         page_size: Number of logs per page
-        
+
     Returns:
         Paginated list of webhook logs
     """
@@ -2844,16 +2858,16 @@ async def get_webhook_logs(
             page = 1
         if page_size < 1 or page_size > 100:
             page_size = 50
-        
+
         # Get logs
         logs, total = await webhook_repository.get_logs(
             webhook_id=webhook_id,
             page=page,
             page_size=page_size
         )
-        
+
         total_pages = (total + page_size - 1) // page_size
-        
+
         return WebhookLogsResponse(
             logs=logs,
             total=total,
@@ -2872,7 +2886,7 @@ async def get_webhook_logs(
 async def list_webhook_tags():
     """
     Get all unique webhook tags
-    
+
     Returns:
         List of unique tags
     """
@@ -2890,7 +2904,7 @@ async def list_webhook_tags():
 async def get_webhook_stats():
     """
     Get webhook statistics
-    
+
     Returns:
         Webhook statistics including counts and success rates
     """
@@ -2910,10 +2924,10 @@ async def get_webhook_stats():
 async def create_prompt_template(template_data: PromptTemplateCreate):
     """
     Create a new custom prompt template
-    
+
     Args:
         template_data: Template creation data
-        
+
     Returns:
         Created template with usage tracking fields
     """
@@ -2938,14 +2952,14 @@ async def list_prompt_templates(
 ):
     """
     List prompt templates with optional filters
-    
+
     Args:
         category: Filter by category (rag, tasks, reminders, memory, code, research, writing, custom)
         is_system: Filter system templates
         is_custom: Filter custom templates
         skip: Number of templates to skip (pagination)
         limit: Maximum number of templates to return
-        
+
     Returns:
         List of matching templates
     """
@@ -2969,12 +2983,12 @@ async def list_prompt_templates(
 async def get_popular_templates(limit: int = 6):
     """
     Get most popular templates sorted by ranking score
-    
+
     Ranking formula: (click_count * 0.4) + (recency * 0.3) + (success_rate * 0.3)
-    
+
     Args:
         limit: Maximum number of templates to return
-        
+
     Returns:
         List of top-ranked templates
     """
@@ -2992,10 +3006,10 @@ async def get_popular_templates(limit: int = 6):
 async def get_recent_templates(limit: int = 5):
     """
     Get recently used templates
-    
+
     Args:
         limit: Maximum number of templates to return
-        
+
     Returns:
         List of recently used templates sorted by last_used_at
     """
@@ -3013,10 +3027,10 @@ async def get_recent_templates(limit: int = 5):
 async def get_prompt_template(template_id: str):
     """
     Get a specific prompt template by ID
-    
+
     Args:
         template_id: Template unique identifier
-        
+
     Returns:
         Template details
     """
@@ -3038,13 +3052,13 @@ async def get_prompt_template(template_id: str):
 async def update_prompt_template(template_id: str, template_data: PromptTemplateUpdate):
     """
     Update a custom prompt template
-    
+
     Only custom templates can be updated (not system templates)
-    
+
     Args:
         template_id: Template unique identifier
         template_data: Fields to update
-        
+
     Returns:
         Updated template
     """
@@ -3069,12 +3083,12 @@ async def update_prompt_template(template_id: str, template_data: PromptTemplate
 async def delete_prompt_template(template_id: str):
     """
     Delete a custom prompt template
-    
+
     Only custom templates can be deleted (not system templates)
-    
+
     Args:
         template_id: Template unique identifier
-        
+
     Returns:
         Success message
     """
@@ -3099,13 +3113,13 @@ async def delete_prompt_template(template_id: str):
 async def track_template_usage(template_id: str, usage_data: PromptTemplateUsageTrack):
     """
     Track template usage and update statistics
-    
+
     Increments click count, updates last_used_at, and recalculates success rate
-    
+
     Args:
         template_id: Template unique identifier
         usage_data: Usage tracking data (success/failure)
-        
+
     Returns:
         Updated template with new usage statistics
     """
@@ -3130,7 +3144,7 @@ async def track_template_usage(template_id: str, usage_data: PromptTemplateUsage
 async def get_template_categories():
     """
     Get all available template categories
-    
+
     Returns:
         List of unique categories from existing templates
     """
@@ -3148,7 +3162,7 @@ async def get_template_categories():
 async def get_template_stats():
     """
     Get prompt template statistics
-    
+
     Returns:
         Statistics including total templates, clicks, categories, and most popular template
     """
@@ -3174,12 +3188,12 @@ async def get_personas(
 ):
     """
     List all personas with optional filtering
-    
+
     Args:
         is_system: Filter by system/custom personas
         is_active: Filter by active status (default: True)
         tags: Comma-separated list of tags to filter by
-    
+
     Returns:
         List of personas (without full system prompt)
     """
@@ -3202,22 +3216,22 @@ async def get_personas(
 async def get_persona_by_id(persona_id: str):
     """
     Get a specific persona by ID (includes full system prompt)
-    
+
     Args:
         persona_id: Persona ID
-    
+
     Returns:
         Full persona details
     """
     try:
         persona = await get_persona(persona_id)
-        
+
         if not persona:
             raise HTTPException(
                 status_code=404,
                 detail="Persona not found"
             )
-        
+
         return persona
     except HTTPException:
         raise
@@ -3232,10 +3246,10 @@ async def get_persona_by_id(persona_id: str):
 async def create_persona(request: PersonaCreate):
     """
     Create a new custom persona
-    
+
     Args:
         request: Persona creation data
-    
+
     Returns:
         Created persona details
     """
@@ -3244,9 +3258,9 @@ async def create_persona(request: PersonaCreate):
         persona_data["is_system"] = False  # Custom personas are never system
         persona_data["is_active"] = True
         persona_data["use_count"] = 0
-        
+
         persona_id = await create_persona_db(persona_data)
-        
+
         # Fetch and return the created persona
         persona = await get_persona(persona_id)
         if not persona:
@@ -3254,7 +3268,7 @@ async def create_persona(request: PersonaCreate):
                 status_code=500,
                 detail="Failed to retrieve created persona"
             )
-        
+
         return persona
     except Exception as e:
         raise HTTPException(
@@ -3267,11 +3281,11 @@ async def create_persona(request: PersonaCreate):
 async def update_persona(persona_id: str, request: PersonaUpdate):
     """
     Update a custom persona
-    
+
     Args:
         persona_id: Persona ID
         request: Persona update data
-    
+
     Returns:
         Updated persona details
     """
@@ -3283,24 +3297,24 @@ async def update_persona(persona_id: str, request: PersonaUpdate):
                 status_code=404,
                 detail="Persona not found"
             )
-        
+
         if existing.is_system:
             raise HTTPException(
                 status_code=403,
                 detail="Cannot modify system personas"
             )
-        
+
         # Update only provided fields
         update_data = request.model_dump(exclude_unset=True)
-        
+
         success = await update_persona_db(persona_id, update_data)
-        
+
         if not success:
             raise HTTPException(
                 status_code=500,
                 detail="Failed to update persona"
             )
-        
+
         # Fetch and return updated persona
         persona = await get_persona(persona_id)
         if not persona:
@@ -3308,7 +3322,7 @@ async def update_persona(persona_id: str, request: PersonaUpdate):
                 status_code=500,
                 detail="Failed to retrieve updated persona"
             )
-        
+
         return persona
     except HTTPException:
         raise
@@ -3323,10 +3337,10 @@ async def update_persona(persona_id: str, request: PersonaUpdate):
 async def delete_persona(persona_id: str):
     """
     Delete a custom persona
-    
+
     Args:
         persona_id: Persona ID
-    
+
     Returns:
         Success message
     """
@@ -3338,21 +3352,21 @@ async def delete_persona(persona_id: str):
                 status_code=404,
                 detail="Persona not found"
             )
-        
+
         if persona.is_system:
             raise HTTPException(
                 status_code=403,
                 detail="Cannot delete system personas"
             )
-        
+
         success = await delete_persona_db(persona_id)
-        
+
         if not success:
             raise HTTPException(
                 status_code=500,
                 detail="Failed to delete persona"
             )
-        
+
         return {
             "message": "Persona deleted successfully",
             "persona_id": persona_id
@@ -3370,22 +3384,22 @@ async def delete_persona(persona_id: str):
 async def track_persona_usage(persona_id: str):
     """
     Increment usage count for a persona
-    
+
     Args:
         persona_id: Persona ID
-    
+
     Returns:
         Success message
     """
     try:
         success = await increment_persona_use_count(persona_id)
-        
+
         if not success:
             raise HTTPException(
                 status_code=404,
                 detail="Persona not found"
             )
-        
+
         return {
             "message": "Usage tracked successfully",
             "persona_id": persona_id
@@ -3403,7 +3417,7 @@ async def track_persona_usage(persona_id: str):
 async def get_persona_tags_list():
     """
     Get all unique persona tags
-    
+
     Returns:
         List of tags
     """
@@ -3429,7 +3443,7 @@ async def startup_event():
         print("✅ Database connection verified")
     else:
         print("⚠️ Warning: Database connection failed")
-    
+
     # Initialize prompt template repository indexes
     try:
         await prompt_template_repository.initialize()
@@ -3458,18 +3472,18 @@ class RetrievalFeedbackRequest(BaseModel):
 async def record_retrieval_feedback(request: RetrievalFeedbackRequest):
     """
     Record user feedback on a retrieved chunk.
-    
+
     This helps improve future retrievals by tracking which chunks are helpful.
-    
+
     Args:
         request: Feedback data including chunk_id, helpful flag, and metadata
-        
+
     Returns:
         Feedback record ID and status
     """
     try:
         from database.retrieval_feedback_repository import RetrievalFeedbackRepository
-        
+
         repo = RetrievalFeedbackRepository()
         feedback_id = await repo.record_feedback(
             chunk_id=request.chunk_id,
@@ -3481,13 +3495,13 @@ async def record_retrieval_feedback(request: RetrievalFeedbackRequest):
             query=request.query,
             metadata=request.metadata
         )
-        
+
         return {
             "status": "success",
             "feedback_id": feedback_id,
             "message": f"Feedback recorded: {'helpful' if request.helpful else 'not helpful'}"
         }
-        
+
     except Exception as e:
         raise HTTPException(
             status_code=500,
@@ -3499,25 +3513,25 @@ async def record_retrieval_feedback(request: RetrievalFeedbackRequest):
 async def get_chunk_feedback_stats(chunk_id: str):
     """
     Get feedback statistics for a specific chunk.
-    
+
     Args:
         chunk_id: Chunk identifier
-        
+
     Returns:
         Feedback statistics including helpfulness ratio
     """
     try:
         from database.retrieval_feedback_repository import RetrievalFeedbackRepository
-        
+
         repo = RetrievalFeedbackRepository()
         stats = await repo.get_chunk_feedback_stats(chunk_id)
-        
+
         return {
             "status": "success",
             "chunk_id": chunk_id,
             "stats": stats
         }
-        
+
     except Exception as e:
         raise HTTPException(
             status_code=500,
@@ -3529,25 +3543,25 @@ async def get_chunk_feedback_stats(chunk_id: str):
 async def get_source_feedback_stats(source: str):
     """
     Get aggregate feedback statistics for all chunks from a source.
-    
+
     Args:
         source: Source document name
-        
+
     Returns:
         Feedback statistics for the source
     """
     try:
         from database.retrieval_feedback_repository import RetrievalFeedbackRepository
-        
+
         repo = RetrievalFeedbackRepository()
         stats = await repo.get_source_feedback_stats(source)
-        
+
         return {
             "status": "success",
             "source": source,
             "stats": stats
         }
-        
+
     except Exception as e:
         raise HTTPException(
             status_code=500,
@@ -3559,21 +3573,21 @@ async def get_source_feedback_stats(source: str):
 async def get_overall_feedback_stats():
     """
     Get overall retrieval feedback statistics.
-    
+
     Returns:
         Overall statistics across all retrievals
     """
     try:
         from database.retrieval_feedback_repository import RetrievalFeedbackRepository
-        
+
         repo = RetrievalFeedbackRepository()
         stats = await repo.get_overall_stats()
-        
+
         return {
             "status": "success",
             "stats": stats
         }
-        
+
     except Exception as e:
         raise HTTPException(
             status_code=500,
@@ -3588,20 +3602,20 @@ async def get_poor_performing_chunks(
 ):
     """
     Get chunks with poor feedback scores for improvement.
-    
+
     Args:
         min_feedback: Minimum feedback count to consider
         max_helpfulness: Maximum helpfulness ratio (0-1)
-        
+
     Returns:
         List of poor performing chunks
     """
     try:
         from database.retrieval_feedback_repository import RetrievalFeedbackRepository
-        
+
         repo = RetrievalFeedbackRepository()
         chunks = await repo.get_poor_performing_chunks(min_feedback, max_helpfulness)
-        
+
         return {
             "status": "success",
             "criteria": {
@@ -3611,7 +3625,7 @@ async def get_poor_performing_chunks(
             "chunks": chunks,
             "count": len(chunks)
         }
-        
+
     except Exception as e:
         raise HTTPException(
             status_code=500,
@@ -3626,20 +3640,20 @@ async def get_recent_feedback(
 ):
     """
     Get recent feedback entries.
-    
+
     Args:
         limit: Maximum number of entries
         helpful_only: If True, only return helpful feedback
-        
+
     Returns:
         Recent feedback entries
     """
     try:
         from database.retrieval_feedback_repository import RetrievalFeedbackRepository
-        
+
         repo = RetrievalFeedbackRepository()
         feedback = await repo.get_recent_feedback(limit, helpful_only)
-        
+
         return {
             "status": "success",
             "limit": limit,
@@ -3647,7 +3661,7 @@ async def get_recent_feedback(
             "feedback": feedback,
             "count": len(feedback)
         }
-        
+
     except Exception as e:
         raise HTTPException(
             status_code=500,

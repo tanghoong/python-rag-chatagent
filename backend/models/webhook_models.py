@@ -6,7 +6,7 @@ Pydantic models for outgoing webhook system.
 
 from datetime import datetime
 from typing import Optional, List, Dict, Any
-from pydantic import BaseModel, Field, HttpUrl
+from pydantic import BaseModel, Field
 from enum import Enum
 
 
@@ -45,21 +45,21 @@ class WebhookBase(BaseModel):
     description: Optional[str] = Field(None, max_length=1000, description="Webhook description")
     events: List[WebhookEvent] = Field(default_factory=list, description="Events that trigger this webhook")
     status: WebhookStatus = Field(default=WebhookStatus.ACTIVE, description="Webhook status")
-    
+
     # Authentication
     auth_type: WebhookAuthType = Field(default=WebhookAuthType.NONE, description="Authentication type")
     auth_token: Optional[str] = Field(None, description="Authentication token (bearer/api key)")
     auth_username: Optional[str] = Field(None, description="Basic auth username")
     auth_password: Optional[str] = Field(None, description="Basic auth password")
-    
+
     # Custom headers
     headers: Dict[str, str] = Field(default_factory=dict, description="Custom HTTP headers")
-    
+
     # Retry configuration
     retry_enabled: bool = Field(default=True, description="Enable retry on failure")
     retry_count: int = Field(default=3, ge=0, le=10, description="Number of retry attempts")
     timeout_seconds: int = Field(default=30, ge=1, le=300, description="Request timeout in seconds")
-    
+
     # Filtering
     tags: List[str] = Field(default_factory=list, description="Webhook tags for organization")
 
@@ -93,7 +93,7 @@ class Webhook(WebhookBase):
     created_at: datetime = Field(default_factory=datetime.utcnow, description="Creation timestamp")
     updated_at: datetime = Field(default_factory=datetime.utcnow, description="Last update timestamp")
     user_id: Optional[str] = Field(default="default_user", description="User ID")
-    
+
     # Statistics
     total_triggers: int = Field(default=0, description="Total number of times triggered")
     success_count: int = Field(default=0, description="Successful execution count")
@@ -142,21 +142,21 @@ class WebhookLog(BaseModel):
     webhook_id: str = Field(..., description="Associated webhook ID")
     event_type: WebhookEvent = Field(..., description="Event that triggered the webhook")
     status: WebhookLogStatus = Field(..., description="Execution status")
-    
+
     # Request details
     request_url: str = Field(..., description="Request URL")
     request_payload: Dict[str, Any] = Field(default_factory=dict, description="Request payload")
     request_headers: Dict[str, str] = Field(default_factory=dict, description="Request headers")
-    
+
     # Response details
     response_status_code: Optional[int] = Field(None, description="HTTP response status code")
     response_body: Optional[str] = Field(None, description="Response body")
     response_time_ms: Optional[int] = Field(None, description="Response time in milliseconds")
-    
+
     # Error details
     error_message: Optional[str] = Field(None, description="Error message if failed")
     retry_attempt: int = Field(default=0, description="Retry attempt number")
-    
+
     # Metadata
     triggered_at: datetime = Field(default_factory=datetime.utcnow, description="Trigger timestamp")
     user_id: Optional[str] = Field(default="default_user", description="User ID")

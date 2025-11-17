@@ -6,7 +6,7 @@ Manages user feedback on retrieved chunks to improve future retrievals.
 
 from datetime import datetime
 from typing import List, Dict, Any, Optional
-from motor.motor_asyncio import AsyncIOMotorClient, AsyncIOMotorDatabase
+from motor.motor_asyncio import AsyncIOMotorDatabase
 from .connection import get_database
 
 

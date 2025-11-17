@@ -270,10 +270,10 @@ def calculate(expression: str) -> str:
             'e': math.e,
         }
 
-        # Remove any potentially dangerous characters
+        # Security: Validate expression contains only safe characters
+        # Allow: digits, operators, parentheses, decimal points, commas, whitespace, and function names
         if re.search(r'[^0-9+\-*/().%,\s\w]', expression):
-            # Allow only safe characters
-            pass
+            return "Error: Expression contains invalid characters. Only numbers, operators (+, -, *, /, %), parentheses, and safe functions are allowed."
 
         # Evaluate the expression
         result = eval(expression, {"__builtins__": {}}, safe_dict)
@@ -322,7 +322,7 @@ def get_all_tools() -> List:
             print(f"✅ Loaded {len(task_tools)} task management tools")
         except Exception as e:
             print(f"⚠️ Error loading task tools: {str(e)}")
-    
+
     # Add Reminder tools if available
     if REMINDER_TOOLS_AVAILABLE:
         try:
@@ -331,7 +331,7 @@ def get_all_tools() -> List:
             print(f"✅ Loaded {len(reminder_tools)} reminder management tools")
         except Exception as e:
             print(f"⚠️ Error loading reminder tools: {str(e)}")
-    
+
     # Add Webhook tools if available
     if WEBHOOK_TOOLS_AVAILABLE:
         try:
@@ -340,7 +340,7 @@ def get_all_tools() -> List:
             print(f"✅ Loaded {len(webhook_tools)} webhook management tools")
         except Exception as e:
             print(f"⚠️ Error loading webhook tools: {str(e)}")
-    
+
     print(f"✅ Total tools loaded: {len(all_tools)}")
     return all_tools
 

@@ -199,7 +199,8 @@ def list_tasks_from_chat(
             try:
                 task_status = TaskStatus(status.lower().replace(" ", "-"))
             except ValueError:
-                pass
+                # Invalid status provided, will be ignored and return all statuses
+                print(f"Warning: Invalid status '{status}', listing all tasks")
 
         # Parse priority
         task_priority = None
@@ -207,7 +208,8 @@ def list_tasks_from_chat(
             try:
                 task_priority = TaskPriority(priority.lower())
             except ValueError:
-                pass
+                # Invalid priority provided, will be ignored and return all priorities
+                print(f"Warning: Invalid priority '{priority}', listing all tasks")
 
         # Get tasks
         tasks, total = run_async(

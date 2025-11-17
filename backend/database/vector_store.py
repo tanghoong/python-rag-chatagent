@@ -124,10 +124,10 @@ class VectorStoreManager:
     def _compute_document_hash(self, document: Document) -> str:
         """
         Compute a hash of the document content for caching.
-        
+
         Args:
             document: Document to hash
-            
+
         Returns:
             SHA256 hash of the document content
         """
@@ -135,17 +135,17 @@ class VectorStoreManager:
         content = document.page_content
         source = document.metadata.get('source', '')
         page = document.metadata.get('page', '')
-        
+
         hash_input = f"{content}|{source}|{page}"
         return hashlib.sha256(hash_input.encode()).hexdigest()
 
     def _is_document_cached(self, document: Document) -> bool:
         """
         Check if a document is already in the cache.
-        
+
         Args:
             document: Document to check
-            
+
         Returns:
             True if document is already embedded
         """
@@ -160,28 +160,28 @@ class VectorStoreManager:
         try:
             if not self.vector_store:
                 return
-                
+
             # Get all documents from the collection
             collection = self.vector_store._collection
             results = collection.get()
-            
+
             # Extract and hash all existing documents
             if results and results.get('documents'):
                 for i, content in enumerate(results['documents']):
                     # Reconstruct document metadata
                     metadata = results.get('metadatas', [])[i] if i < len(results.get('metadatas', [])) else {}
-                    
+
                     # Create a temporary document to compute hash
                     temp_doc = Document(
                         page_content=content,
                         metadata=metadata
                     )
-                    
+
                     doc_hash = self._compute_document_hash(temp_doc)
                     self._document_hashes.add(doc_hash)
-                    
+
             print(f"✅ Loaded {len(self._document_hashes)} document hashes into cache")
-            
+
         except Exception as e:
             print(f"⚠️ Could not load existing document hashes: {str(e)}")
 
@@ -211,10 +211,10 @@ class VectorStoreManager:
                 # Load existing hashes if not already loaded
                 if not self._document_hashes:
                     self._load_existing_hashes()
-                
+
                 original_count = len(documents)
                 unique_docs = []
-                
+
                 for doc in documents:
                     if not self._is_document_cached(doc):
                         unique_docs.append(doc)
@@ -223,11 +223,11 @@ class VectorStoreManager:
                         self._document_hashes.add(doc_hash)
                     else:
                         print(f"⏭️  Skipping duplicate document: {doc.metadata.get('source', 'unknown')}")
-                
+
                 skipped_count = original_count - len(unique_docs)
                 if skipped_count > 0:
                     print(f"✅ Skipped {skipped_count} duplicate documents (already embedded)")
-                
+
                 documents = unique_docs
 
             if not documents:
