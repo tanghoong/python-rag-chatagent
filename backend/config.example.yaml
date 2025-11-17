@@ -1,0 +1,31 @@
+# Example Configuration File for RAG Chatbot
+# Copy this file to config.yaml and customize as needed
+# Settings in this file override environment variables
+# Project-specific settings in database override both
+
+# LLM Configuration
+llm:
+  provider: "openai"  # Options: "openai", "google"
+  auto_switch: true   # Auto-switch between models based on complexity
+  google_api_key: null  # Set your Google Gemini API key
+  openai_api_key: null  # Set your OpenAI API key
+
+# Vector Database Configuration
+vector_db:
+  path: "./data/vectordb"
+  embedding_provider: "openai"  # Options: "openai", "google"
+
+# MongoDB Configuration
+mongodb:
+  uri: "mongodb://localhost:27017/rag_chatbot"
+  db_name: "rag_chatbot"
+  posts_collection: "personal_posts"
+  chats_collection: "chat_sessions"
+
+# API Server Configuration
+api:
+  host: "0.0.0.0"
+  port: 8000
+  cors_origins:
+    - "http://localhost:5173"
+    - "http://127.0.0.1:5173"

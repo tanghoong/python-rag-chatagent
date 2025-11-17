@@ -41,3 +41,6 @@ markdown==3.7
 
 # CORS and middleware
 python-multipart==0.0.20
+
+# Configuration management
+pyyaml==6.0.2

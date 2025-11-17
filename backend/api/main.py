@@ -103,7 +103,15 @@ from models.webhook_models import (
     WebhookEvent
 )
 from models.usage_models import UsageStatsResponse
+from models.settings_models import (
+    ProjectSettingsResponse,
+    ProjectSettingsCreate,
+    ProjectSettingsUpdate,
+    AppSettings
+)
 from utils.title_generator import generate_chat_title
+from database import settings_repository
+from config.settings import settings_manager, get_settings
 
 # Load environment variables
 load_dotenv()
@@ -3666,6 +3674,207 @@ async def get_recent_feedback(
         raise HTTPException(
             status_code=500,
             detail=f"Error getting recent feedback: {str(e)}"
+        )
+
+
+# ==================== Settings Management Routes ====================
+
+@app.get("/api/settings/default", response_model=AppSettings, tags=["Settings"])
+async def get_default_settings_endpoint():
+    """
+    Get default application settings (from environment and config file)
+
+    Returns default settings loaded from environment variables and optional config file.
+    These are the base settings used when no project-specific settings are defined.
+    """
+    try:
+        settings = get_settings()
+        return settings
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Error loading default settings: {str(e)}"
+        )
+
+
+@app.get("/api/settings/projects", response_model=List[ProjectSettingsResponse], tags=["Settings"])
+async def list_project_settings_endpoint(include_inactive: bool = False):
+    """
+    List all project settings
+
+    Args:
+        include_inactive: Include inactive projects in the list
+
+    Returns list of all project-specific settings.
+    """
+    try:
+        projects = await settings_repository.list_project_settings(include_inactive)
+        return projects
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Error listing project settings: {str(e)}"
+        )
+
+
+@app.get("/api/settings/projects/{project_name}", response_model=ProjectSettingsResponse, tags=["Settings"])
+async def get_project_settings_endpoint(project_name: str):
+    """
+    Get settings for a specific project
+
+    Args:
+        project_name: Project identifier
+
+    Returns project-specific settings if they exist.
+    """
+    try:
+        project_settings = await settings_repository.get_project_settings(project_name)
+
+        if not project_settings:
+            raise HTTPException(
+                status_code=404,
+                detail=f"Project settings not found for: {project_name}"
+            )
+
+        return project_settings
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Error retrieving project settings: {str(e)}"
+        )
+
+
+@app.post("/api/settings/projects", response_model=dict, tags=["Settings"])
+async def create_project_settings_endpoint(project_data: ProjectSettingsCreate):
+    """
+    Create new project-specific settings
+
+    Args:
+        project_data: Project settings creation data
+
+    Creates a new project with custom settings that override defaults.
+    """
+    try:
+        project_id = await settings_repository.create_project_settings(project_data)
+
+        return {
+            "status": "success",
+            "message": f"Project settings created for: {project_data.project_name}",
+            "project_id": project_id
+        }
+    except ValueError as e:
+        raise HTTPException(
+            status_code=400,
+            detail=str(e)
+        )
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Error creating project settings: {str(e)}"
+        )
+
+
+@app.put("/api/settings/projects/{project_name}", response_model=ProjectSettingsResponse, tags=["Settings"])
+async def update_project_settings_endpoint(
+    project_name: str,
+    update_data: ProjectSettingsUpdate
+):
+    """
+    Update existing project settings
+
+    Args:
+        project_name: Project identifier
+        update_data: Updated settings data
+
+    Updates settings for an existing project and invalidates cache.
+    """
+    try:
+        updated_project = await settings_repository.update_project_settings(
+            project_name,
+            update_data
+        )
+
+        if not updated_project:
+            raise HTTPException(
+                status_code=404,
+                detail=f"Project not found: {project_name}"
+            )
+
+        # Invalidate cache for this project
+        settings_manager.invalidate_cache(project_name)
+
+        return updated_project
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Error updating project settings: {str(e)}"
+        )
+
+
+@app.delete("/api/settings/projects/{project_name}", tags=["Settings"])
+async def delete_project_settings_endpoint(project_name: str, hard_delete: bool = False):
+    """
+    Delete project settings
+
+    Args:
+        project_name: Project identifier
+        hard_delete: If True, permanently delete. If False, mark as inactive (soft delete)
+
+    Deletes project-specific settings and invalidates cache.
+    """
+    try:
+        if hard_delete:
+            success = await settings_repository.hard_delete_project_settings(project_name)
+        else:
+            success = await settings_repository.delete_project_settings(project_name)
+
+        if not success:
+            raise HTTPException(
+                status_code=404,
+                detail=f"Project not found: {project_name}"
+            )
+
+        # Invalidate cache for this project
+        settings_manager.invalidate_cache(project_name)
+
+        return {
+            "status": "success",
+            "message": f"Project settings {'permanently deleted' if hard_delete else 'deactivated'} for: {project_name}"
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Error deleting project settings: {str(e)}"
+        )
+
+
+@app.post("/api/settings/cache/invalidate", tags=["Settings"])
+async def invalidate_settings_cache_endpoint(project_name: Optional[str] = None):
+    """
+    Invalidate settings cache
+
+    Args:
+        project_name: Optional project name to invalidate specific cache
+
+    Forces reload of settings on next access.
+    """
+    try:
+        settings_manager.invalidate_cache(project_name)
+
+        return {
+            "status": "success",
+            "message": f"Settings cache invalidated{' for ' + project_name if project_name else ' (all)'}"
+        }
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Error invalidating cache: {str(e)}"
         )
 
 
