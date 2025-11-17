@@ -4,30 +4,28 @@ Tests for Settings Module
 Tests settings loader, settings manager, and project-based settings.
 """
 import os
+import sys
 import json
 import yaml
 import tempfile
-from pathlib import Path
 
 # Add backend to path for imports
-import sys
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
-from models.settings_models import (
+from models.settings_models import (  # noqa: E402
     AppSettings,
     LLMSettings,
-    VectorDBSettings,
     MongoDBSettings,
     APISettings
 )
-from config.settings_loader import (
+from config.settings_loader import (  # noqa: E402
     load_from_env,
     load_from_yaml_file,
     load_from_json_file,
     merge_settings,
     load_settings
 )
-from config.settings import SettingsManager
+from config.settings import SettingsManager  # noqa: E402
 
 
 def test_load_from_env():

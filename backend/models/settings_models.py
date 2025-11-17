@@ -3,7 +3,7 @@ Pydantic models for settings management
 Supports environment, config file, and project-based settings
 """
 from datetime import datetime
-from typing import Optional, Dict, Any, List
+from typing import Optional, Any, List
 from pydantic import BaseModel, Field
 from bson import ObjectId
 
