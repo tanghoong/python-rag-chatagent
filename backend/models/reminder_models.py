@@ -5,7 +5,7 @@ Pydantic models for reminder management system.
 """
 
 from datetime import datetime
-from typing import List, Optional, Dict, Any
+from typing import List, Optional, Dict
 from pydantic import BaseModel, Field
 from enum import Enum
 
@@ -44,16 +44,16 @@ class ReminderBase(BaseModel):
     status: ReminderStatus = Field(default=ReminderStatus.PENDING, description="Reminder status")
     priority: ReminderPriority = Field(default=ReminderPriority.MEDIUM, description="Reminder priority")
     tags: List[str] = Field(default_factory=list, description="Reminder tags")
-    
+
     # Recurrence settings
     recurrence_type: RecurrenceType = Field(default=RecurrenceType.NONE, description="Recurrence pattern")
     recurrence_interval: int = Field(default=1, ge=1, description="Recurrence interval (e.g., every 2 days)")
     recurrence_end_date: Optional[datetime] = Field(None, description="When recurrence should stop")
     recurrence_count: Optional[int] = Field(None, ge=1, description="How many times to repeat")
-    
+
     # Weekly recurrence specific
     recurrence_days_of_week: List[int] = Field(default_factory=list, description="Days of week for weekly recurrence (0=Monday)")
-    
+
     # Monthly recurrence specific
     recurrence_day_of_month: Optional[int] = Field(None, ge=1, le=31, description="Day of month for monthly recurrence")
 
@@ -71,7 +71,7 @@ class ReminderUpdate(BaseModel):
     status: Optional[ReminderStatus] = Field(None, description="Reminder status")
     priority: Optional[ReminderPriority] = Field(None, description="Reminder priority")
     tags: Optional[List[str]] = Field(None, description="Reminder tags")
-    
+
     # Recurrence settings
     recurrence_type: Optional[RecurrenceType] = Field(None, description="Recurrence pattern")
     recurrence_interval: Optional[int] = Field(None, ge=1, description="Recurrence interval")
@@ -79,7 +79,7 @@ class ReminderUpdate(BaseModel):
     recurrence_count: Optional[int] = Field(None, ge=1, description="How many times to repeat")
     recurrence_days_of_week: Optional[List[int]] = Field(None, description="Days of week for weekly recurrence")
     recurrence_day_of_month: Optional[int] = Field(None, ge=1, le=31, description="Day of month for monthly recurrence")
-    
+
     # Snooze settings
     snooze_until: Optional[datetime] = Field(None, description="When snoozed reminder should reappear")
 
@@ -92,7 +92,7 @@ class Reminder(ReminderBase):
     updated_at: datetime = Field(default_factory=datetime.utcnow, description="Last update timestamp")
     completed_at: Optional[datetime] = Field(None, description="When reminder was completed")
     snooze_until: Optional[datetime] = Field(None, description="When snoozed reminder should reappear")
-    
+
     # Recurrence tracking
     is_recurring: bool = Field(default=False, description="Whether this is a recurring reminder")
     parent_reminder_id: Optional[str] = Field(None, description="Parent reminder ID for recurring instances")

@@ -34,7 +34,7 @@ async def list_templates(
 ):
     """
     List prompt templates with optional filters
-    
+
     Args:
         category: Filter by category (rag, tasks, reminders, memory, code, research, writing)
         is_system: Filter system templates (True) or user templates (False)
@@ -42,7 +42,7 @@ async def list_templates(
         skip: Number of templates to skip (pagination)
         limit: Maximum number of templates to return
         user_id: User identifier
-        
+
     Returns:
         List of prompt templates
     """
@@ -68,11 +68,11 @@ async def get_popular_templates(
 ):
     """
     Get most popular templates sorted by ranking score
-    
+
     Args:
         limit: Maximum number of templates to return (1-20)
         user_id: User identifier
-        
+
     Returns:
         List of popular prompt templates
     """
@@ -91,11 +91,11 @@ async def get_recent_templates(
 ):
     """
     Get recently used templates
-    
+
     Args:
         limit: Maximum number of templates to return (1-10)
         user_id: User identifier
-        
+
     Returns:
         List of recently used prompt templates
     """
@@ -111,10 +111,10 @@ async def get_recent_templates(
 async def get_categories(user_id: str = "default_user"):
     """
     Get all available template categories
-    
+
     Args:
         user_id: User identifier
-        
+
     Returns:
         List of category names
     """
@@ -130,10 +130,10 @@ async def get_categories(user_id: str = "default_user"):
 async def get_template_stats(user_id: str = "default_user"):
     """
     Get template usage statistics
-    
+
     Args:
         user_id: User identifier
-        
+
     Returns:
         Template statistics including counts and most popular
     """
@@ -149,11 +149,11 @@ async def get_template_stats(user_id: str = "default_user"):
 async def get_template(template_id: str, user_id: str = "default_user"):
     """
     Get a specific template by ID
-    
+
     Args:
         template_id: Template identifier
         user_id: User identifier
-        
+
     Returns:
         Prompt template or 404 if not found
     """
@@ -176,21 +176,21 @@ async def create_template(
 ):
     """
     Create a new custom template
-    
+
     Args:
         template_data: Template creation data
         user_id: User identifier
-        
+
     Returns:
         Created template
     """
     try:
         await prompt_template_repo.initialize()
-        
+
         # Force custom template settings
         template_data.is_system = False
         template_data.is_custom = True
-        
+
         template = await prompt_template_repo.create(template_data, user_id)
         return template
     except Exception as e:
@@ -205,12 +205,12 @@ async def update_template(
 ):
     """
     Update a custom template (only custom templates can be updated)
-    
+
     Args:
         template_id: Template identifier
         template_data: Template update data
         user_id: User identifier
-        
+
     Returns:
         Updated template or 404 if not found
     """
@@ -230,11 +230,11 @@ async def update_template(
 async def delete_template(template_id: str, user_id: str = "default_user"):
     """
     Delete a custom template (only custom templates can be deleted)
-    
+
     Args:
         template_id: Template identifier
         user_id: User identifier
-        
+
     Returns:
         Success status
     """
@@ -258,12 +258,12 @@ async def track_template_usage(
 ):
     """
     Track template usage for analytics and ranking
-    
+
     Args:
         template_id: Template identifier
         success: Whether the template usage was successful
         user_id: User identifier
-        
+
     Returns:
         Updated template with new usage stats
     """

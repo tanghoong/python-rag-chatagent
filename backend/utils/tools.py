@@ -322,7 +322,7 @@ def get_all_tools() -> List:
             print(f"✅ Loaded {len(task_tools)} task management tools")
         except Exception as e:
             print(f"⚠️ Error loading task tools: {str(e)}")
-    
+
     # Add Reminder tools if available
     if REMINDER_TOOLS_AVAILABLE:
         try:
@@ -331,7 +331,7 @@ def get_all_tools() -> List:
             print(f"✅ Loaded {len(reminder_tools)} reminder management tools")
         except Exception as e:
             print(f"⚠️ Error loading reminder tools: {str(e)}")
-    
+
     # Add Webhook tools if available
     if WEBHOOK_TOOLS_AVAILABLE:
         try:
@@ -340,7 +340,7 @@ def get_all_tools() -> List:
             print(f"✅ Loaded {len(webhook_tools)} webhook management tools")
         except Exception as e:
             print(f"⚠️ Error loading webhook tools: {str(e)}")
-    
+
     print(f"✅ Total tools loaded: {len(all_tools)}")
     return all_tools
 

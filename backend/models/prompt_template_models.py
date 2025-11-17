@@ -41,16 +41,16 @@ class PromptTemplate(PromptTemplateBase):
     """Complete prompt template model with all fields"""
     id: str = Field(..., description="Template unique identifier")
     user_id: str = Field(default="default_user", description="User who created the template")
-    
+
     # Usage tracking
     click_count: int = Field(default=0, description="Number of times template was clicked")
     last_used_at: Optional[datetime] = Field(None, description="Last time template was used")
     success_rate: float = Field(default=0.0, description="Success rate (0-1) of template leading to conversation")
-    
+
     # Timestamps
     created_at: datetime = Field(default_factory=datetime.utcnow)
     updated_at: datetime = Field(default_factory=datetime.utcnow)
-    
+
     class Config:
         json_schema_extra = {
             "example": {

@@ -49,7 +49,7 @@ SYSTEM_TEMPLATES = [
         "is_system": True,
         "is_custom": False,
     },
-    
+
     # ==================== Task Management ====================
     {
         "title": "Create a new task",
@@ -83,7 +83,7 @@ SYSTEM_TEMPLATES = [
         "is_system": True,
         "is_custom": False,
     },
-    
+
     # ==================== Reminder System ====================
     {
         "title": "Set a reminder",
@@ -117,7 +117,7 @@ SYSTEM_TEMPLATES = [
         "is_system": True,
         "is_custom": False,
     },
-    
+
     # ==================== Memory / Context ====================
     {
         "title": "What do you remember about me?",
@@ -151,7 +151,7 @@ SYSTEM_TEMPLATES = [
         "is_system": True,
         "is_custom": False,
     },
-    
+
     # ==================== Code / Development ====================
     {
         "title": "Help debug this code",
@@ -185,7 +185,7 @@ SYSTEM_TEMPLATES = [
         "is_system": True,
         "is_custom": False,
     },
-    
+
     # ==================== Research / Analysis ====================
     {
         "title": "Analyze this topic",
@@ -219,7 +219,7 @@ SYSTEM_TEMPLATES = [
         "is_system": True,
         "is_custom": False,
     },
-    
+
     # ==================== Writing / Content ====================
     {
         "title": "Help me write",
@@ -259,19 +259,19 @@ SYSTEM_TEMPLATES = [
 async def seed_templates():
     """
     Populate database with system prompt templates.
-    
+
     Will skip templates that already exist (based on title matching).
     """
     print("🌱 Starting prompt template seeding...")
-    
+
     # Initialize repository
     db = get_async_database()
     repo = PromptTemplateRepository(db)
     await repo.initialize()
-    
+
     created_count = 0
     skipped_count = 0
-    
+
     for template_data in SYSTEM_TEMPLATES:
         try:
             # Check if template with this title already exists
@@ -279,32 +279,32 @@ async def seed_templates():
                 "title": template_data["title"],
                 "is_system": True
             })
-            
+
             if existing:
                 print(f"⏭️  Skipping '{template_data['title']}' (already exists)")
                 skipped_count += 1
                 continue
-            
+
             # Create template
             template_create = PromptTemplateCreate(**template_data)
             await repo.create(template_create)
             print(f"✅ Created: {template_data['title']} [{template_data['category']}]")
             created_count += 1
-            
+
         except Exception as e:
             print(f"❌ Error creating '{template_data['title']}': {str(e)}")
-    
+
     print("\n📊 Seeding complete!")
     print(f"   Created: {created_count} templates")
     print(f"   Skipped: {skipped_count} templates (already existed)")
     print(f"   Total: {len(SYSTEM_TEMPLATES)} templates processed")
-    
+
     # Show category breakdown
     categories = {}
     for template in SYSTEM_TEMPLATES:
         cat = template["category"]
         categories[cat] = categories.get(cat, 0) + 1
-    
+
     print("\n📂 Templates by category:")
     for cat, count in sorted(categories.items()):
         print(f"   {cat}: {count} templates")

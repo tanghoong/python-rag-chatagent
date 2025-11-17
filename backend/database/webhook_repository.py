@@ -64,14 +64,14 @@ class WebhookRepository:
             await self.webhooks_collection.create_index("created_at")
             await self.webhooks_collection.create_index("tags")
             await self.webhooks_collection.create_index([("name", "text"), ("description", "text")])
-            
+
             # Log indexes
             await self.logs_collection.create_index("id", unique=True)
             await self.logs_collection.create_index("webhook_id")
             await self.logs_collection.create_index("event_type")
             await self.logs_collection.create_index("status")
             await self.logs_collection.create_index("triggered_at")
-            
+
             print("✅ Webhook indexes created successfully")
         except Exception as e:
             print(f"⚠️ Index creation warning: {e}")
@@ -279,11 +279,11 @@ class WebhookRepository:
             True if deleted, False if not found
         """
         result = await self.webhooks_collection.delete_one({"id": webhook_id})
-        
+
         # Also delete associated logs
         if result.deleted_count > 0:
             await self.logs_collection.delete_many({"webhook_id": webhook_id})
-        
+
         return result.deleted_count > 0
 
     async def bulk_delete(self, webhook_ids: List[str], user_id: str = "default_user") -> int:
@@ -301,11 +301,11 @@ class WebhookRepository:
             "id": {"$in": webhook_ids},
             "user_id": user_id
         })
-        
+
         # Also delete associated logs
         if result.deleted_count > 0:
             await self.logs_collection.delete_many({"webhook_id": {"$in": webhook_ids}})
-        
+
         return result.deleted_count
 
     async def get_all_tags(self, user_id: str = "default_user") -> List[str]:
@@ -337,11 +337,11 @@ class WebhookRepository:
             "status": WebhookStatus.ACTIVE,
             "events": event_type
         }
-        
+
         cursor = self.webhooks_collection.find(query)
         docs = await cursor.to_list(length=None)
         webhooks = [self._dict_to_webhook(doc) for doc in docs]
-        
+
         return webhooks
 
     async def increment_stats(
@@ -360,7 +360,7 @@ class WebhookRepository:
         """
         if triggered_at is None:
             triggered_at = datetime.utcnow()
-        
+
         update_data = {
             "$inc": {
                 "total_triggers": 1,
@@ -370,10 +370,10 @@ class WebhookRepository:
                 "last_triggered_at": triggered_at.isoformat()
             }
         }
-        
+
         if success:
             update_data["$set"]["last_success_at"] = triggered_at.isoformat()
-        
+
         await self.webhooks_collection.update_one(
             {"id": webhook_id},
             update_data
@@ -481,13 +481,13 @@ class WebhookRepository:
                 "total_failures": {"$sum": "$failure_count"}
             }}
         ]
-        
+
         result = await self.webhooks_collection.aggregate(pipeline).to_list(length=1)
-        
+
         total_triggers = result[0]["total_triggers"] if result else 0
         total_success = result[0]["total_success"] if result else 0
         total_failures = result[0]["total_failures"] if result else 0
-        
+
         success_rate = (total_success / total_triggers * 100) if total_triggers > 0 else 0.0
 
         return {

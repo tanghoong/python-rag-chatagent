@@ -16,20 +16,20 @@ from models.prompt_template_models import PromptTemplateCreate
 async def clean_and_reseed():
     """Clean existing templates and re-seed with descriptions"""
     print("🧹 Cleaning existing system templates...")
-    
+
     # Initialize repository
     db = get_async_database()
     repo = PromptTemplateRepository(db)
     await repo.initialize()
-    
+
     # Delete all existing system templates
     result = await repo.collection.delete_many({"is_system": True})
     print(f"🗑️  Deleted {result.deleted_count} existing system templates")
-    
+
     # Re-seed with descriptions
     print("\n🌱 Re-seeding templates with descriptions...")
     created_count = 0
-    
+
     for template_data in SYSTEM_TEMPLATES:
         try:
             # Create template
@@ -37,10 +37,10 @@ async def clean_and_reseed():
             await repo.create(template_create)
             print(f"✅ Created: {template_data['title']} [{template_data['category']}]")
             created_count += 1
-            
+
         except Exception as e:
             print(f"❌ Error creating '{template_data['title']}': {str(e)}")
-    
+
     print(f"\n🎉 Complete! Created {created_count} templates with descriptions")
 
 
