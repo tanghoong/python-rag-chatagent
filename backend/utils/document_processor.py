@@ -118,23 +118,29 @@ class DocumentProcessor:
         if not LOADERS_AVAILABLE:
             raise ImportError("Document loaders not available. Install required packages.")
 
-        if not os.path.exists(file_path):
+        # Security: Validate path to prevent directory traversal
+        resolved_path = Path(file_path).resolve()
+        if not os.path.exists(resolved_path):
             raise FileNotFoundError(f"File not found: {file_path}")
 
-        ext = Path(file_path).suffix.lower()
+        # Security: Ensure the resolved path is a file (not a directory or symlink to sensitive location)
+        if not resolved_path.is_file():
+            raise ValueError(f"Path is not a file: {file_path}")
+
+        ext = resolved_path.suffix.lower()
 
         try:
             # Select appropriate loader
             if ext == '.pdf':
-                loader = PyPDFLoader(file_path)
+                loader = PyPDFLoader(str(resolved_path))
             elif ext == '.txt':
-                loader = TextLoader(file_path, encoding='utf-8')
+                loader = TextLoader(str(resolved_path), encoding='utf-8')
             elif ext == '.md':
-                loader = UnstructuredMarkdownLoader(file_path)
+                loader = UnstructuredMarkdownLoader(str(resolved_path))
             elif ext == '.docx':
-                loader = Docx2txtLoader(file_path)
+                loader = Docx2txtLoader(str(resolved_path))
             elif ext in ['.html', '.htm']:
-                loader = UnstructuredHTMLLoader(file_path)
+                loader = UnstructuredHTMLLoader(str(resolved_path))
             else:
                 raise ValueError(f"Unsupported file type: {ext}")
 

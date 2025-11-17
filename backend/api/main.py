@@ -990,6 +990,13 @@ async def upload_document(
         import tempfile
         from pathlib import Path
 
+        # Security: Validate filename to prevent path traversal
+        if not file.filename or '..' in file.filename or '/' in file.filename or '\\' in file.filename:
+            raise HTTPException(
+                status_code=400,
+                detail="Invalid filename"
+            )
+
         # Validate file type
         supported_extensions = ['.pdf', '.txt', '.md', '.docx', '.html', '.htm']
         file_ext = Path(file.filename).suffix.lower()
@@ -1000,9 +1007,17 @@ async def upload_document(
                 detail=f"Unsupported file type. Supported: {', '.join(supported_extensions)}"
             )
 
+        # Security: Read file with size limit (50MB max)
+        MAX_FILE_SIZE = 50 * 1024 * 1024  # 50 MB
+        content = await file.read(MAX_FILE_SIZE + 1)
+        if len(content) > MAX_FILE_SIZE:
+            raise HTTPException(
+                status_code=400,
+                detail=f"File too large. Maximum size: {MAX_FILE_SIZE // (1024 * 1024)}MB"
+            )
+
         # Save uploaded file temporarily
         with tempfile.NamedTemporaryFile(delete=False, suffix=file_ext) as tmp_file:
-            content = await file.read()
             tmp_file.write(content)
             tmp_path = tmp_file.name
 

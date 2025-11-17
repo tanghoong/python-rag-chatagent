@@ -189,8 +189,18 @@ def prepare_headers(webhook: Webhook) -> Dict[str, str]:
     """
     headers = {"Content-Type": "application/json"}
 
-    # Add custom headers
-    headers.update(webhook.headers)
+    # Add custom headers with validation
+    # Security: Prevent header injection by validating header names and values
+    ALLOWED_HEADERS = {
+        "User-Agent", "Accept", "Accept-Encoding", "Accept-Language",
+        "X-Custom-Header", "X-Request-ID", "X-Correlation-ID"
+    }
+    for key, value in webhook.headers.items():
+        # Validate header name (alphanumeric, dash, underscore only)
+        if key in ALLOWED_HEADERS and isinstance(value, str):
+            # Remove any newline characters to prevent header injection
+            clean_value = value.replace('\r', '').replace('\n', '')
+            headers[key] = clean_value
 
     # Add authentication
     if webhook.auth_type == WebhookAuthType.BEARER and webhook.auth_token:
