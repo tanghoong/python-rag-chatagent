@@ -270,10 +270,10 @@ def calculate(expression: str) -> str:
             'e': math.e,
         }
 
-        # Remove any potentially dangerous characters
+        # Security: Validate expression contains only safe characters
+        # Allow: digits, operators, parentheses, decimal points, commas, whitespace, and function names
         if re.search(r'[^0-9+\-*/().%,\s\w]', expression):
-            # Allow only safe characters
-            pass
+            return "Error: Expression contains invalid characters. Only numbers, operators (+, -, *, /, %), parentheses, and safe functions are allowed."
 
         # Evaluate the expression
         result = eval(expression, {"__builtins__": {}}, safe_dict)
